@@ -476,7 +476,8 @@ def test_rusty_to_mastered_and_needs_recheck(client: TestClient, db_session: Ses
     assert r.json()["passed"] is False
 
     # 校验 needs_recheck 已被清 0
-    db.expire_all()
+    db.rollback()  # 结束当前事务（MySQL 可重复读快照）
+    db.expire_all()  # 没开事务时 rollback 是空操作，仍要清身份映射
     ps_after = db.get(PointState, p.id)
     assert ps_after.needs_recheck is False
 

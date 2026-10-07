@@ -106,7 +106,8 @@ def test_import_deactivate_and_reactivate_point(client: TestClient, db_session: 
     assert jf_res["example_cards"]["deactivated"] >= 1
 
     # 校验库里行未物理删除，但 active 变为 False，示例卡亦停用
-    db.expire_all()
+    db.rollback()  # 结束当前事务（MySQL 可重复读快照）
+    db.expire_all()  # 没开事务时 rollback 是空操作，仍要清身份映射
     pt_after = db.get(Point, target_pid)
     assert pt_after is not None
     assert pt_after.active is False
@@ -122,7 +123,8 @@ def test_import_deactivate_and_reactivate_point(client: TestClient, db_session: 
     assert jf_restore["points"]["reactivated"] == 1
 
     # 校验库中该点及示例卡均已恢复
-    db.expire_all()
+    db.rollback()  # 结束当前事务（MySQL 可重复读快照）
+    db.expire_all()  # 没开事务时 rollback 是空操作，仍要清身份映射
     pt_restored = db.get(Point, target_pid)
     assert pt_restored.active is True
     assert pt_restored.deactivated_at is None
@@ -172,7 +174,8 @@ def test_import_preserves_axue_edited_and_replaced_cards(client: TestClient, db_
     assert jf_res["example_cards"]["kept_edited"] >= 2
 
     # 校验第一张卡内容未被覆盖，created_by 仍为 axue
-    db.expire_all()
+    db.rollback()  # 结束当前事务（MySQL 可重复读快照）
+    db.expire_all()  # 没开事务时 rollback 是空操作，仍要清身份映射
     c_edit_db = db.get(Card, c_edit.id)
     assert c_edit_db.back == new_back
     assert c_edit_db.created_by == "axue"
