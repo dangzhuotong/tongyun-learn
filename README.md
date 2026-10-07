@@ -22,8 +22,10 @@ uv run uvicorn tongyun_learn.main:app --host 127.0.0.1 --port 8031 --reload
 - `http://127.0.0.1:8031/v1/health`
 - `http://127.0.0.1:8031/healthz`
 
-接口文档：
-- `http://127.0.0.1:8031/v1/docs`
+接口文档（默认关闭，生产不开；本机调试设 `LEARN_DOCS_ENABLED=true` 后可看）：
+- `http://127.0.0.1:8031/v1/docs`、`/v1/openapi.json`
+
+AI 接口目前只有 `POST /v1/ai/explain`（P2）；`/ai/quiz`、`/ai/generate-deck` 属于 P4，尚未实现。
 
 ## 环境变量说明
 
@@ -31,7 +33,8 @@ uv run uvicorn tongyun_learn.main:app --host 127.0.0.1 --port 8031 --reload
 
 - `LEARN_DATABASE_URL`: 数据库连接串（支持 SQLite / MySQL 8.0）
 - `LEARN_ROOT_PATH`: FastAPI 反向代理根路径，默认为 `/learn/api`
-- `LEARN_CORS_ORIGINS`: 允许跨域来源列表（逗号分隔）
+- `LEARN_CORS_ORIGINS`: 允许跨域来源列表（逗号分隔）；TypeWords 和看板与服务同域（82 上 `/learn/api` 反代），留空即可
+- `LEARN_DOCS_ENABLED`: 是否开放 `/v1/docs` 和 `/v1/openapi.json`，默认 `false`
 - `LEARN_TOKEN_WEB_SHA256`: Web 客户端 Bearer Token 的 SHA256 哈希值
 - `LEARN_TOKEN_AXUE_SHA256`: 阿学 Bearer Token 的 SHA256 哈希值
 - `LEARN_RATE_WEB_PER_MIN`: Web 客户端每分钟限流阈值（默认 60）

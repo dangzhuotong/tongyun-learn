@@ -81,6 +81,71 @@ def _sort_key_available(m: dict) -> tuple:
     return (m["stage_ord"], -m["weight"], len(m["unmet_soft"]), m["ord"])
 
 
+def _new_point_key(m: dict) -> tuple:
+    """待新开点在学科内的顺序：学习中（只开过课、还没出过卡）优先，其次可学点按 §4 排序。"""
+    return (0 if m["state"] == "learning" else 1, *_sort_key_available(m))
+
+
+def _is_vocab_meta(m: dict) -> bool:
+    return "en_word" in (m["point"].tags or [])
+
+
+@dataclass
+class OpenCtx:
+    """新开点名额：每学科 ≤2、全局 ≤3；单词卡组的点（tags 含 en_word）不占名额。"""
+
+    opened_today: set[str]
+    ever_opened: set[str]
+    by_subject: dict[str, int]
+    global_n: int
+
+
+def _open_ctx(db: Session, meta: dict[str, dict], start: datetime, end: datetime) -> OpenCtx:
+    # 今天已开的点（该点今天第一次出卡 = 其卡片最早 first_review 落在今天）
+    first_rev = db.execute(
+        select(Card.point_id, func.min(CardState.first_review))
+        .join(CardState, CardState.card_id == Card.id)
+        .where(Card.point_id.is_not(None))
+        .group_by(Card.point_id)
+    ).all()
+    ever = {pid for pid, fr in first_rev if fr is not None}
+    today = {
+        pid
+        for pid, fr in first_rev
+        if fr is not None and start <= fr < end and pid in meta and not _is_vocab_meta(meta[pid])
+    }
+    by_subject: dict[str, int] = defaultdict(int)
+    for pid in today:
+        by_subject[meta[pid]["subject"]] += 1
+    return OpenCtx(opened_today=today, ever_opened=ever, by_subject=by_subject, global_n=len(today))
+
+
+def _round_robin_open(by_subject: dict[str, list[str]], ctx: OpenCtx, accept) -> list[str]:
+    """按学科名轮流开新点（每轮每学科开一个，学科内按已排好的顺序，accept 返回 False 的跳过再取下一个），
+    受每学科 ≤2、全局 ≤3 约束。/review/due（accept=有卡可出）和 /next（accept=总是）共用，顺序一致。"""
+    queues = {k: list(v) for k, v in by_subject.items()}
+    by_subj = dict(ctx.by_subject)
+    total = ctx.global_n
+    opened: list[str] = []
+    progressed = True
+    while progressed and total < GLOBAL_NEW_POINTS:
+        progressed = False
+        for subj in sorted(queues):
+            if total >= GLOBAL_NEW_POINTS:
+                break
+            if by_subj.get(subj, 0) >= PER_SUBJECT_NEW_POINTS:
+                continue
+            while queues[subj]:
+                pid = queues[subj].pop(0)
+                if accept(subj, pid):
+                    opened.append(pid)
+                    by_subj[subj] = by_subj.get(subj, 0) + 1
+                    total += 1
+                    progressed = True
+                    break
+    return opened
+
+
 def build_queue(
     db: Session,
     subject: str | None = None,
@@ -106,20 +171,9 @@ def build_queue(
             return False
         return card.point_id is None or card.point_id in open_ok
 
-    # 今天已开的点（该点今天第一次出卡 = 其卡片最早 first_review 落在今天）
-    first_rev = db.execute(
-        select(Card.point_id, func.min(CardState.first_review))
-        .join(CardState, CardState.card_id == Card.id)
-        .where(Card.point_id.is_not(None))
-        .group_by(Card.point_id)
-    ).all()
-    opened_today = {pid for pid, fr in first_rev if fr is not None and start <= fr < end}
-    ever_opened = {pid for pid, fr in first_rev if fr is not None}
-    opened_by_subject: dict[str, int] = defaultdict(int)
-    for pid in opened_today:
-        if pid in meta:
-            opened_by_subject[meta[pid]["subject"]] += 1
-    opened_global = len(opened_today)
+    ctx = _open_ctx(db, meta, start, end)
+    opened_today, ever_opened = ctx.opened_today, ctx.ever_opened
+    vocab_ids = {pid for pid, m in meta.items() if _is_vocab_meta(m)}
 
     plans: list[DeckPlan] = []
     for d in decks:
@@ -175,10 +229,10 @@ def build_queue(
             n += 1
         return n
 
-    # 1) 不占“新开点”名额的：已开过的点（学习中等）和不挂点的卡
+    # 1) 不占“新开点”名额的：已开过的点（学习中等）、单词点和不挂点的卡
     for plan in plans:
         pool: list[Card] = plan.pool
-        cont = [c for c in pool if c.point_id is None or c.point_id in ever_opened]
+        cont = [c for c in pool if c.point_id is None or c.point_id in ever_opened or c.point_id in vocab_ids]
         cont.sort(
             key=lambda c: (
                 0 if c.point_id else 1,
@@ -198,34 +252,24 @@ def build_queue(
     for plan in plans:
         for c in plan.pool:
             pid = c.point_id
-            if pid and pid not in ever_opened and pid in meta and pid not in by_subject[meta[pid]["subject"]]:
+            if (
+                pid
+                and pid not in ever_opened
+                and pid not in vocab_ids
+                and pid in meta
+                and pid not in by_subject[meta[pid]["subject"]]
+            ):
                 by_subject[meta[pid]["subject"]].append(pid)
     for subj in by_subject:
-        # 学习中（只开过课、还没出过卡）的点优先，其次可学点按 §4 排序
-        by_subject[subj].sort(
-            key=lambda pid: (0 if meta[pid]["state"] == "learning" else 1, *_sort_key_available(meta[pid]))
-        )
-    opening: list[str] = []
-    progressed = True
-    while progressed and opened_global < GLOBAL_NEW_POINTS:
-        progressed = False
-        for subj in sorted(by_subject):
-            if opened_global >= GLOBAL_NEW_POINTS:
-                break
-            if opened_by_subject[subj] >= PER_SUBJECT_NEW_POINTS:
-                continue
-            while by_subject[subj]:
-                pid = by_subject[subj].pop(0)
-                got = 0
-                for plan in plans_by_subject[subj]:
-                    cards = [c for c in plan.pool if c.point_id == pid]
-                    got += take(plan, cards)
-                if got:
-                    opening.append(pid)
-                    opened_by_subject[subj] += 1
-                    opened_global += 1
-                    progressed = True
-                    break
+        by_subject[subj].sort(key=lambda pid: _new_point_key(meta[pid]))
+
+    def accept(subj: str, pid: str) -> bool:
+        got = 0
+        for plan in plans_by_subject[subj]:
+            got += take(plan, [c for c in plan.pool if c.point_id == pid])
+        return got > 0
+
+    opening = _round_robin_open(by_subject, ctx, accept)
 
     reviews = sorted((t for p in plans for t in p.review), key=lambda t: (-t[0], t[1].id))
     review_out = [card_out(c, cs, now) for _o, c, cs in reviews][:limit]
@@ -259,12 +303,36 @@ def next_points(db: Session, subject: str | None = None, limit: int = 5, now: da
         recheck.append({"point_id": p.id, "title": p.title, "stale_evidence": stale_evidence(p, evs, now)})
 
     meta = _point_meta(db)
-    cands = [
-        m for m in meta.values() if m["state"] in ("learning", "available") and (not subject or m["subject"] == subject)
-    ]
-    cands.sort(key=lambda m: (0 if m["state"] == "learning" else 1, *_sort_key_available(m)))
-    cands = cands[: max(0, limit)]
+    start, end = day_bounds_utc(today_local(now))
+    ctx = _open_ctx(db, meta, start, end)
+
+    def in_scope(m: dict) -> bool:
+        return (
+            m["state"] in ("learning", "available")
+            and (not subject or m["subject"] == subject)
+            and "legacy" not in (m["point"].tags or [])  # 迁移来的主线外旧课只留历史，不推荐
+        )
+
+    # 不占名额：已出过卡的点、单词点（与 /review/due 第 1 步一致）
+    cont = [m for pid, m in meta.items() if in_scope(m) and (pid in ctx.ever_opened or _is_vocab_meta(m))]
+    cont.sort(key=lambda m: (0 if m["state"] == "learning" else 1, *_sort_key_available(m)))
+    # 占名额：按学科轮流、学科内按 _new_point_key，受每学科 ≤2 / 全局 ≤3 约束（与 /review/due 第 2 步同一函数）
+    by_subject: dict[str, list[str]] = defaultdict(list)
+    for pid, m in meta.items():
+        if in_scope(m) and pid not in ctx.ever_opened and not _is_vocab_meta(m):
+            by_subject[m["subject"]].append(pid)
+    for subj in by_subject:
+        by_subject[subj].sort(key=lambda pid: _new_point_key(meta[pid]))
+    opening = _round_robin_open(by_subject, ctx, lambda _s, _p: True)
+    opening_set = set(opening)
+    cands = (cont + [meta[pid] for pid in opening])[: max(0, limit)]
+
     ids = [m["point"].id for m in cands]
+    stage_titles = dict(
+        db.execute(
+            select(Stage.id, Stage.title).where(Stage.id.in_([m["point"].stage_id for m in cands] or [""]))
+        ).all()
+    )
     blockers = dict(
         db.execute(
             select(Blocker.point_id, func.count())
@@ -294,14 +362,31 @@ def next_points(db: Session, subject: str | None = None, limit: int = 5, now: da
             {
                 "point_id": p.id,
                 "title": p.title,
+                "subject_id": p.subject_id,
+                "stage_id": p.stage_id,
+                "stage_title": stage_titles.get(p.stage_id),
+                "effort_hours": float(p.effort_hours) if p.effort_hours is not None else None,
+                "sources": p.sources or [],
                 "state": m["state"],
                 "reason": reason,
                 "unmet_soft": m["unmet_soft"],
                 "open_blockers": int(blockers.get(p.id, 0)),
                 "new_cards": n_new,
+                "opens_today": p.id in opening_set,  # 今天学它会占一个新开点名额
+                "opened_today": p.id in ctx.opened_today,  # 今天已经开过（已占名额）
             }
         )
-    return {"recheck": recheck, "next": nxt}
+    subj_ids = sorted({m["subject"] for m in meta.values()})
+    global_left = max(0, GLOBAL_NEW_POINTS - ctx.global_n)
+    quota = {
+        "global_left": global_left,
+        "by_subject_left": {
+            sid: min(global_left, max(0, PER_SUBJECT_NEW_POINTS - ctx.by_subject.get(sid, 0)))
+            for sid in subj_ids
+            if not subject or sid == subject
+        },
+    }
+    return {"recheck": recheck, "next": nxt, "new_point_quota": quota}
 
 
 def progress(db: Session, subject: str | None = None, stage: str | None = None, now: datetime | None = None) -> dict:
@@ -336,7 +421,13 @@ def progress(db: Session, subject: str | None = None, stage: str | None = None, 
     card_ids_q = select(Card.id).where(*card_filter)
     log_filter.append(ReviewLog.card_id.in_(card_ids_q))
     since30 = now - timedelta(days=30)
-    r30 = db.execute(select(ReviewLog.rating).where(*log_filter, ReviewLog.reviewed_at >= since30)).scalars().all()
+    # 记忆保持率不算新卡的第一次复习（那次是“学”，不是“记住没”）：去掉 reviewed_at == card_state.first_review 的那条
+    r30_rows = db.execute(
+        select(ReviewLog.rating, ReviewLog.reviewed_at, CardState.first_review)
+        .join(CardState, CardState.card_id == ReviewLog.card_id)
+        .where(*log_filter, ReviewLog.reviewed_at >= since30)
+    ).all()
+    r30 = [r for r, at, fr in r30_rows if fr is None or at != fr]
     retention = round(len([r for r in r30 if r >= 2]) / len(r30), 4) if r30 else None
 
     last7 = []

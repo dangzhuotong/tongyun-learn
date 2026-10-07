@@ -94,6 +94,7 @@ def _compute(db: Session, p: Point, ps: PointState | None, now: datetime) -> tup
     acc10 = len([r for r in last10 if r >= 3]) / len(last10) if last10 else 0.0
     fsrs_ok = len(C) >= MASTER_MIN_CARDS and ratio >= MASTER_RATIO and acc10 >= MASTER_ACC
     vocab = is_vocab(p)
+    C30: list[CardState] = []
     if vocab:
         cutoff = now - timedelta(days=VOCAB_AGE_DAYS)
         C30 = [c for c in C if c.first_review is not None and c.first_review <= cutoff]
@@ -146,9 +147,11 @@ def _compute(db: Session, p: Point, ps: PointState | None, now: datetime) -> tup
         o = ps.override_state
         s = o if (o != "available" or s == "locked") else s
 
+    ratio_base = C30 if vocab else C
     stats = {
-        "stable_ratio": round(ratio, 4),
-        "recent_acc": round(acc10, 4),
+        # 没有复习数据时给 null（不是 0.0），免得和“全忘了”混淆
+        "stable_ratio": round(ratio, 4) if ratio_base else None,
+        "recent_acc": round(acc10, 4) if last10 else None,
         "recent_n": len(last10),
         "reviewed_cards": len(C),
         "active_cards": n_active,
@@ -269,11 +272,16 @@ def point_stats(db: Session, point_ids: list[str], now: datetime | None = None) 
     for e in db.scalars(
         select(Evidence).where(Evidence.point_id.in_(point_ids)).order_by(Evidence.observed_at, Evidence.id)
     ):
+        prev = evidence[e.point_id].get(e.type)
+        last_passed = prev["last_passed_at"] if prev else None
+        if e.passed and e.reviewer in EVIDENCE_REVIEWERS and e.observed_at is not None:
+            last_passed = iso_local(e.observed_at)
         evidence[e.point_id][e.type] = {
             "passed": bool(e.passed),
             "score": _num(e.score),
             "max": _num(e.max_score),
             "at": iso_local(e.observed_at),
+            "last_passed_at": last_passed,  # 最近一次达标的时间，判 60 天窗口用
         }
     blockers = dict(
         db.execute(
@@ -290,8 +298,11 @@ def point_stats(db: Session, point_ids: list[str], now: datetime | None = None) 
             "state": ps.state if ps else None,
             "since": iso_local(ps.since) if ps else None,
             "cards": dict(cards[pid]),
-            "stable_ratio": snap.get("stable_ratio", 0.0),
-            "recent_acc": snap.get("recent_acc", 0.0),
+            # 旧快照里没复习过的点存的是 0.0，读时也按 null 处理
+            "stable_ratio": snap.get("stable_ratio") if snap.get("reviewed_cards") else None,
+            "recent_acc": snap.get("recent_acc") if snap.get("recent_n") else None,
+            "recent_n": snap.get("recent_n", 0),
+            "reviewed_cards": snap.get("reviewed_cards", 0),
             "avg_retrievability": round(sum(rs) / len(rs), 4) if rs else None,
             "next_due": iso_local(next_due.get(pid)),
             "evidence": evidence.get(pid, {}),

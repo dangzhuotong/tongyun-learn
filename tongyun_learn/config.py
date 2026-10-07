@@ -30,6 +30,8 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("KIE_API_KEY", "LEARN_KIE_API_KEY"),
     )
     tz: str = "Asia/Shanghai"
+    # 接口文档 /v1/docs、/v1/openapi.json：生产默认关闭，本机调试设 LEARN_DOCS_ENABLED=true
+    docs_enabled: bool = False
 
 
 @lru_cache

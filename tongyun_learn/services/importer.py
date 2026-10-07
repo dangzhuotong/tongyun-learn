@@ -5,6 +5,9 @@
 - 示例卡建成真卡（created_by=example，payload.example_src="<point_id>|<front_key>"）；
   未改过的 example 卡跟 YAML 同步，YAML 删掉的停用；阿学改过的（created_by 已变 axue）不动。
 - 幂等：同一份 YAML 重复导入，diff 全为 0。
+- 每次导入（含预演）都在 map_imports 记一行审计（dry_run=1 表示预演，库里其它表不变）；
+  预演时还没建学科行的新学科不记（外键）。
+- 结果里带 open_at_start（文件里无硬前置的点数，即「开局可学」）和 points_by_state（导入后的状态分布）。
 """
 
 import hashlib
@@ -17,10 +20,10 @@ from typing import Any
 
 import jsonschema
 import yaml
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from tongyun_learn.models import Card, Deck, MapImport, Point, PointPrereq, Stage, Subject
+from tongyun_learn.models import Card, Deck, MapImport, Point, PointPrereq, PointState, Stage, Subject
 from tongyun_learn.services.cardkeys import front_key
 from tongyun_learn.services.state import recompute_points
 from tongyun_learn.timeutil import utcnow
@@ -71,6 +74,8 @@ def _empty_result(subject_id: str, map_version: str | None) -> dict:
         "points": {"added": 0, "updated": 0, "deactivated": 0, "reactivated": 0},
         "prereqs": {"added": 0, "removed": 0},
         "example_cards": {"created": 0, "updated": 0, "deactivated": 0, "kept_edited": 0},
+        "open_at_start": 0,  # 文件里没有硬前置的知识点数（= validate.py 的「开局即可学」）
+        "points_by_state": {},  # 导入（或预演）后该学科启用知识点的状态分布
     }
 
 
@@ -448,6 +453,21 @@ def _apply(db: Session, parsed: list[Parsed], rep: Report, now: datetime) -> lis
     all_ids = list(db.scalars(select(Point.id).where(Point.subject_id.in_(subject_ids)).order_by(Point.ord)).all())
     recompute_points(db, _topo(db, all_ids), cause="import", now=now)
     db.flush()
+
+    # 5) 「开局可学」数 + 导入后状态分布（预演时也是导入后的样子，回滚前算好）
+    for f in parsed:
+        res = results[f.subject_id]
+        subj_points = [p for _pid, (ff, p) in yaml_points.items() if ff is f]
+        res["open_at_start"] = sum(
+            1 for p in subj_points if not any(pr["kind"] == "hard" for pr in p["prerequisites"])
+        )
+        rows = db.execute(
+            select(PointState.state, func.count())
+            .join(Point, Point.id == PointState.point_id)
+            .where(Point.subject_id == f.subject_id, Point.active.is_(True))
+            .group_by(PointState.state)
+        ).all()
+        res["points_by_state"] = {st: int(n) for st, n in sorted(rows)}
     return [results[f.subject_id] for f in parsed]
 
 
