@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from tongyun_learn.auth import Principal, get_principal, require
 from tongyun_learn.db import get_db
+from tongyun_learn.routers.deps import WriteDb, mark_dry
 from tongyun_learn.services import insights as svc
 
 router = APIRouter(tags=["insights"])
@@ -39,5 +40,6 @@ def get_week(_p: AnyP, db: Db, ago: Annotated[int, Query(ge=0, le=520)] = 0) -> 
 
 
 @router.patch("/points/{point_id}/state")
-def patch_state(point_id: str, body: StateIn, _p: Axue, db: Db) -> dict:
-    return svc.set_override(db, point_id, body.state, body.reason)
+def patch_state(point_id: str, body: StateIn, _p: Axue, db: WriteDb) -> dict:
+    out = svc.set_override(db, point_id, body.state, body.reason)
+    return mark_dry(db, out)

@@ -23,6 +23,7 @@ from tongyun_learn.models import (
     Stage,
     Subject,
 )
+from tongyun_learn.routers.deps import WriteDb, mark_dry
 from tongyun_learn.services import cards as card_svc
 from tongyun_learn.services import queue as queue_svc
 from tongyun_learn.services import review as review_svc
@@ -258,12 +259,13 @@ class DeckCardsBody(Strict):
 
 
 @router.post("/points/{point_id}/cards")
-def add_point_cards(point_id: str, body: PointCardsBody, p: Axue, db: Db) -> dict:
+def add_point_cards(point_id: str, body: PointCardsBody, p: Axue, db: WriteDb) -> dict:
     pt = db.get(Point, point_id)
     if pt is None:
         raise ApiError(404, "not_found", "知识点不存在")
     deck = card_svc.deck_for_point(db, pt)
-    return card_svc.add_cards(db, deck, [c.model_dump() for c in body.cards], created_by=p.name, point_id=point_id)
+    out = card_svc.add_cards(db, deck, [c.model_dump() for c in body.cards], created_by=p.name, point_id=point_id)
+    return mark_dry(db, out)
 
 
 class CardPatch(Strict):
@@ -275,8 +277,9 @@ class CardPatch(Strict):
 
 
 @router.patch("/cards/{card_id}")
-def patch_card(card_id: int, body: CardPatch, _p: Axue, db: Db) -> dict:
-    return card_svc.patch_card(db, card_id, body.model_dump(exclude_unset=True))
+def patch_card(card_id: int, body: CardPatch, _p: Axue, db: WriteDb) -> dict:
+    out = card_svc.patch_card(db, card_id, body.model_dump(exclude_unset=True))
+    return mark_dry(db, out)
 
 
 class Caps(Strict):
@@ -303,20 +306,21 @@ def list_decks(_p: AnyP, db: Db, subject: str | None = None) -> list[dict]:
 
 
 @router.post("/decks")
-def create_deck(body: DeckIn, _p: Axue, db: Db) -> dict:
+def create_deck(body: DeckIn, _p: Axue, db: WriteDb) -> dict:
     data = body.model_dump()
     if body.caps is not None:
         data["caps"] = body.caps.model_dump()
     deck, created = card_svc.create_deck(db, data)
-    return {**deck, "created": created}
+    return mark_dry(db, {**deck, "created": created})
 
 
 @router.post("/decks/{deck_id}/cards")
-def add_deck_cards(deck_id: int, body: DeckCardsBody, p: Axue, db: Db) -> dict:
+def add_deck_cards(deck_id: int, body: DeckCardsBody, p: Axue, db: WriteDb) -> dict:
     deck = db.get(Deck, deck_id)
     if deck is None:
         raise ApiError(404, "not_found", "卡组不存在")
-    return card_svc.add_cards(db, deck, [c.model_dump() for c in body.cards], created_by=p.name)
+    out = card_svc.add_cards(db, deck, [c.model_dump() for c in body.cards], created_by=p.name)
+    return mark_dry(db, out)
 
 
 # ───────────────────────── 复习 ─────────────────────────
@@ -360,15 +364,16 @@ class ReviewBatch(Strict):
 
 
 @router.post("/review")
-def post_review(body: ReviewIn, p: AnyP, db: Db) -> dict:
+def post_review(body: ReviewIn, p: AnyP, db: WriteDb) -> dict:
     out = review_svc.apply_one(db, body.model_dump(), p.name)
     db.commit()
-    return out
+    return mark_dry(db, out)
 
 
 @router.post("/review/batch")
-def post_review_batch(body: ReviewBatch, p: AnyP, db: Db) -> dict:
-    return review_svc.apply_batch(db, [i.model_dump() for i in body.items], p.name)
+def post_review_batch(body: ReviewBatch, p: AnyP, db: WriteDb) -> dict:
+    out = review_svc.apply_batch(db, [i.model_dump() for i in body.items], p.name)
+    return mark_dry(db, out)
 
 
 # ───────────────────────── 进度 / 课次 / 证据 / 推荐 ─────────────────────────
@@ -392,8 +397,9 @@ class SessionIn(Strict):
 
 
 @router.post("/sessions")
-def post_session(body: SessionIn, _p: Axue, db: Db) -> dict:
-    return tutor_svc.create_session(db, body.model_dump())
+def post_session(body: SessionIn, _p: Axue, db: WriteDb) -> dict:
+    out = tutor_svc.create_session(db, body.model_dump())
+    return mark_dry(db, out)
 
 
 class EvidenceIn(Strict):
@@ -412,8 +418,9 @@ class EvidenceIn(Strict):
 
 
 @router.post("/evidence")
-def post_evidence(body: EvidenceIn, _p: Axue, db: Db) -> dict:
-    return tutor_svc.create_evidence(db, body.model_dump())
+def post_evidence(body: EvidenceIn, _p: Axue, db: WriteDb) -> dict:
+    out = tutor_svc.create_evidence(db, body.model_dump())
+    return mark_dry(db, out)
 
 
 @router.get("/next")

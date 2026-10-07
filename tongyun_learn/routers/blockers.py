@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from tongyun_learn.auth import Principal, get_principal, require
 from tongyun_learn.db import get_db
 from tongyun_learn.errors import ApiError
+from tongyun_learn.routers.deps import WriteDb, mark_dry
 from tongyun_learn.services import blockers as blocker_svc
 
 router = APIRouter(tags=["blockers"])
@@ -35,13 +36,15 @@ class UpdateBlockerBody(Strict):
 
 
 @router.post("/blockers")
-def create_blocker(body: CreateBlockerBody, _p: Axue, db: Db) -> dict:
-    return blocker_svc.create_blocker(db, body.model_dump())
+def create_blocker(body: CreateBlockerBody, _p: Axue, db: WriteDb) -> dict:
+    out = blocker_svc.create_blocker(db, body.model_dump())
+    return mark_dry(db, out)
 
 
 @router.patch("/blockers/{blocker_id}")
-def update_blocker(blocker_id: int, body: UpdateBlockerBody, _p: Axue, db: Db) -> dict:
-    return blocker_svc.update_blocker(db, blocker_id, body.model_dump(exclude_unset=True))
+def update_blocker(blocker_id: int, body: UpdateBlockerBody, _p: Axue, db: WriteDb) -> dict:
+    out = blocker_svc.update_blocker(db, blocker_id, body.model_dump(exclude_unset=True))
+    return mark_dry(db, out)
 
 
 @router.get("/blockers")
