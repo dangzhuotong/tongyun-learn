@@ -348,8 +348,7 @@ def test_overdue_blocking_and_review_truncation_sorting(db_session: Session, lea
 
     # 2) 边界未阻断：删掉 1 张到期卡，使得到期数 = 10 (恰好等于 2*review_cap)
     card_to_drop = cards_overdue.pop()
-    db.delete(db.get(CardState, card_to_drop.id))
-    db.delete(card_to_drop)
+    card_to_drop.active = False  # 停卡（服务从不物理删卡；停用卡不进队列）
     db.commit()
 
     q_unblocked = build_queue(db, deck_id=deck.id, limit=50, principal="axue", now=now)
