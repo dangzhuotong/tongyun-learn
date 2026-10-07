@@ -78,7 +78,7 @@ def test_evidence_check_constraint_rejects_both_null(db_session: Session) -> Non
         stage_id=None,
     )
     db_session.add(invalid_evidence)
-    with pytest.raises(exc.IntegrityError):
+    with pytest.raises((exc.IntegrityError, exc.OperationalError))  # MySQL 8 reports CHECK violations as 3819 OperationalError:
         db_session.commit()
     db_session.rollback()
 
