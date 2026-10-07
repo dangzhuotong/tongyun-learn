@@ -80,7 +80,7 @@ def _compute(
 ) -> tuple[str, str, dict, bool | None]:
     """返回 (新状态, 未套人工覆盖的推导状态, stats 快照, needs_recheck 置位建议：True=置 1 / None=不动)。
 
-    fresh=True：不看上一次状态（撤销人工覆盖时用，避免把覆盖值当成“上次掌握”去走防抖分支）。"""
+    fresh=True：撤销人工覆盖时用，上一次状态改看快照里的 derived_state（不把覆盖值当成真实状态）。"""
     rows = db.execute(
         select(Card.id, CardState)
         .outerjoin(CardState, CardState.card_id == Card.id)
@@ -129,9 +129,14 @@ def _compute(
 
     has_session = db.scalar(select(func.count()).select_from(SessionPoint).where(SessionPoint.point_id == p.id)) > 0
 
-    # 人工覆盖生效期间（available 除外）存的 state 是覆盖值，不能拿来走掌握/生疏的防抖分支
-    overridden = ps is not None and ps.override_state not in (None, "available")
-    prev = None if (fresh or ps is None or overridden) else ps.state
+    # 防抖分支（掌握↔生疏）要看「上一次的真实状态」：人工覆盖生效期间 ps.state 存的是覆盖值，
+    # 所以覆盖中 / 刚撤销覆盖时改看快照里的 derived_state（每次重算都存，人工覆盖不污染它）
+    if ps is None:
+        prev = None
+    elif fresh or ps.override_state is not None:
+        prev = (ps.stats or {}).get("derived_state")
+    else:
+        prev = ps.state
     recheck: bool | None = None
     if prev == "mastered":
         s = "rusty" if (ratio < RUSTY_RATIO or acc10 < RUSTY_ACC) else "mastered"
@@ -162,6 +167,7 @@ def _compute(
         "recent_n": len(last10),
         "reviewed_cards": len(C),
         "active_cards": n_active,
+        "derived_state": derived,  # 不套人工覆盖的推导状态（撤销覆盖后回到它）
     }
     return s, derived, stats, recheck
 
@@ -187,7 +193,7 @@ def recompute_points(
 
     note：写进本次产生的 point_state_log.note（人工改状态的理由）。
     force_log：这些点即使状态没变也写一条 log（人工改状态要留痕）。
-    fresh：这些点不看上一次状态重新推导（撤销人工覆盖）。"""
+    fresh：这些点的上一次状态取快照 derived_state 而不是 ps.state（撤销人工覆盖）。"""
     now = now or utcnow()
     ev_set = set(evidence_point_ids)
     force = set(force_log)
@@ -329,5 +335,6 @@ def point_stats(db: Session, point_ids: list[str], now: datetime | None = None) 
             "evidence": evidence.get(pid, {}),
             "open_blockers": int(blockers.get(pid, 0)),
             "needs_recheck": bool(ps.needs_recheck) if ps else False,
+            "override_state": ps.override_state if ps else None,
         }
     return out

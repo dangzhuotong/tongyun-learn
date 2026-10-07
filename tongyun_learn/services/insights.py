@@ -349,6 +349,9 @@ def set_override(db: Session, point_id: str, state: str | None, reason: str) -> 
         recompute_points(db, [point_id], cause="manual", now=now)
         ps = db.get(PointState, point_id)
     prev_override = ps.override_state
+    if prev_override is None and "derived_state" not in (ps.stats or {}):
+        # 老快照没有 derived_state：此刻没覆盖，ps.state 就是真实状态，先记下来给防抖分支用
+        ps.stats = {**(ps.stats or {}), "derived_state": ps.state}
     ps.override_state = state
     ps.override_reason = reason[:500] if state is not None else None
     note = f"覆盖为 {state}：{reason}" if state is not None else f"撤销覆盖（原 {prev_override}）：{reason}"
