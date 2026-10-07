@@ -26,6 +26,13 @@ def main(argv: list[str] | None = None) -> int:
     with SessionLocal() as db:
         res = import_maps(db, texts, dry_run=not args.commit)
     print(json.dumps(res, ensure_ascii=False, indent=2))
+    if res["results"]:
+        parts = [f"{r['subject']} {r['open_at_start']}" for r in res["results"]]
+        avail = sum(r["points_by_state"].get("available", 0) for r in res["results"])
+        total = sum(r["open_at_start"] for r in res["results"])
+        mode = "预演" if res["dry_run"] else "已导入"
+        msg = f"[{mode}] 开局可学（无硬前置）{total} 个：{'，'.join(parts)}；导入后可学状态 {avail} 个"
+        print(msg, file=sys.stderr)
     return 1 if res["errors"] else 0
 
 

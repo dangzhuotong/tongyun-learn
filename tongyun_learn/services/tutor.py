@@ -16,13 +16,13 @@ EXPRESS_PASS = 0.75
 
 
 def express_to_rating(score: float, max_score: float) -> int:
-    """表达分→FSRS（8 分制）：≤3→1，4–5→2，6–7→3，8→4；非 8 分制先按比例换算再四舍五入。"""
-    s8 = round(score * 8 / max_score) if max_score else 0
-    if s8 <= 3:
+    """表达分→FSRS，直接按比例（与 passed ≥0.75 永远一致）：<0.5 Again，<0.75 Hard，<1 Good，=1 Easy。"""
+    r = score / max_score if max_score else 0.0
+    if r < 0.5:
         return 1
-    if s8 <= 5:
+    if r < EXPRESS_PASS:
         return 2
-    if s8 <= 7:
+    if r < 1:
         return 3
     return 4
 
@@ -133,7 +133,10 @@ def create_evidence(db: Session, body: dict) -> dict:
         )
     changes = []
     if pid:
-        changes = recompute_points(db, [pid], cause="evidence", cause_ref=str(ev.id), evidence_point_ids=[pid], now=now)
+        # 只有通过的证据才清「待复查」（没通过的不算复查完成）
+        changes = recompute_points(
+            db, [pid], cause="evidence", cause_ref=str(ev.id), evidence_point_ids=[pid] if passed else [], now=now
+        )
     if review is not None:
         changes = review["point_changes"] + changes
     db.commit()

@@ -429,7 +429,7 @@ def test_mastered_to_rusty_thresholds(db_session: Session, learn_env):  # noqa: 
 def test_rusty_to_mastered_and_needs_recheck(client: TestClient, db_session: Session, learn_env):  # noqa: F811
     """rusty → mastered 只需 ①②；
     need 类证据最近一次 >90 天时 needs_recheck=1；
-    随后对该点 POST 任意证据（哪怕没通过）needs_recheck 清 0。
+    随后对该点 POST 没通过的证据，needs_recheck 不清；通过的证据才清 0（阿学 10-07 联调口径）。
     """
     now = utcnow()
     db = db_session
@@ -475,9 +475,21 @@ def test_rusty_to_mastered_and_needs_recheck(client: TestClient, db_session: Ses
     assert r.status_code == 200, r.text
     assert r.json()["passed"] is False
 
-    # 校验 needs_recheck 已被清 0
+    # 没通过的证据不清待复查
     db.rollback()  # 结束当前事务（MySQL 可重复读快照）
     db.expire_all()  # 没开事务时 rollback 是空操作，仍要清身份映射
+    assert db.get(PointState, p.id).needs_recheck is True
+
+    # 通过的证据才清
+    r = client.post(
+        "/v1/evidence",
+        json={"point_id": p.id, "type": "selftest", "score": 9, "max": 10},
+        headers=AXUE,
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["passed"] is True
+    db.rollback()
+    db.expire_all()
     ps_after = db.get(PointState, p.id)
     assert ps_after.needs_recheck is False
 

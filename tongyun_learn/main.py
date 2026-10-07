@@ -28,8 +28,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         title="tongyun-learn",
         version=__version__,
         root_path=settings.root_path,
-        docs_url="/v1/docs",
-        openapi_url="/v1/openapi.json",
+        docs_url="/v1/docs" if settings.docs_enabled else None,
+        openapi_url="/v1/openapi.json" if settings.docs_enabled else None,
         redoc_url=None,
     )
 

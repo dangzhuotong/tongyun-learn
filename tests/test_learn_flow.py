@@ -50,7 +50,10 @@ def test_queue_review_session_evidence(client: TestClient, learn_env):  # noqa: 
     assert len(pts) <= 2  # 每学科每天最多开 2 个新点
     # 全局最多开 3 个新点
     qa = client.get("/v1/review/due?limit=200", headers=AXUE).json()
-    assert len({c["point_id"] for c in qa["new"] if c["point_id"]}) <= 3
+    word_decks = {d["id"] for d in client.get("/v1/decks", headers=AXUE).json() if d["kind"] == "en_word"}
+    # 单词卡组的点（tags 含 en_word）不占新开点名额
+    assert len({c["point_id"] for c in qa["new"] if c["point_id"] and c["deck_id"] not in word_decks}) <= 3
+    assert any(c["deck_id"] in word_decks for c in qa["new"])
     # web 看不到动手卡
     qw = client.get("/v1/review/due?limit=200", headers=WEB).json()
     assert all(c["card_type"] != "handson" for c in qw["new"])

@@ -451,12 +451,7 @@ def test_get_next_points_recheck_and_ordering(client: TestClient, db_session: Se
     res = client.get("/v1/next?subject=subj-next&limit=2", headers=AXUE).json()
     assert len(res["recheck"]) == 4
 
-    # 查阅全量排序（limit=10）
-    res_full = next_points(db, subject="subj-next", limit=10, now=now)
-    next_list = res_full["next"]
-    pids = [n["point_id"] for n in next_list]
-
-    # 期望顺序：
+    # 期望的学科内顺序（_new_point_key）：
     # 1. p_learning (学习中排在可学之前)
     # 2. p_s1_w3 (阶段 1，权重 3 最高)
     # 3. p_s1_w1_nosoft (阶段 1，权重 1，未满足软前置为 0 < 1)
@@ -469,4 +464,17 @@ def test_get_next_points_recheck_and_ordering(client: TestClient, db_session: Se
         p_s1_w1_soft.id,
         p_s2_w3.id,
     ]
-    assert pids[:5] == expected_order
+    from tongyun_learn.services import queue as queue_mod
+
+    meta = queue_mod._point_meta(db)
+    cand = [pid for pid in expected_order]
+    assert sorted(cand, key=lambda pid: queue_mod._new_point_key(meta[pid])) == expected_order
+
+    # /next 遵守新开点上限（每学科 ≤2）：这些点都还没出过卡，学习中的点也占名额（与 /review/due 一致）
+    res_full = next_points(db, subject="subj-next", limit=10, now=now)
+    next_list = res_full["next"]
+    pids = [n["point_id"] for n in next_list]
+    assert pids == expected_order[:2]
+    assert all(n["opens_today"] for n in next_list)
+    assert res_full["new_point_quota"]["by_subject_left"]["subj-next"] == 2
+    assert {"stage_title", "effort_hours", "sources", "stage_id"} <= set(next_list[0])
