@@ -201,7 +201,10 @@ def build_queue(
             if pid and pid not in ever_opened and pid in meta and pid not in by_subject[meta[pid]["subject"]]:
                 by_subject[meta[pid]["subject"]].append(pid)
     for subj in by_subject:
-        by_subject[subj].sort(key=lambda pid: _sort_key_available(meta[pid]))
+        # 学习中（只开过课、还没出过卡）的点优先，其次可学点按 §4 排序
+        by_subject[subj].sort(
+            key=lambda pid: (0 if meta[pid]["state"] == "learning" else 1, *_sort_key_available(meta[pid]))
+        )
     opening: list[str] = []
     progressed = True
     while progressed and opened_global < GLOBAL_NEW_POINTS:
