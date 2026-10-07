@@ -1,0 +1,566 @@
+# 知识地图：技术英语（贯穿 12 周，每天约 15 分钟 + 单词卡）
+# 目标：读技术文档、写 README 和 issue、听技术视频、面试表达。
+# 单词类「记忆卡」走 tongyun-words（kind=en_word），其余卡走 tongyun-learn（kind=qa），由阿学出题判分。
+# 字段说明见 design-notes.md 第 1 节和 schema.json。id 一旦导入永不改名、永不复用。
+schema_version: 1
+map_version: "2026-10-07.1"
+subject:
+  id: tech-english
+  prefix: en
+  title: 技术英语
+  goal: "能读官方英文文档、用英文写 README/issue/PR、听懂技术视频，并能用英文做面试自我介绍和讲项目。"
+  axue_area: 技术英语
+  description: "阶段之间可并行（单词卡每天都练），阶段顺序只用于推荐排序，解锁只看知识点前置。"
+
+stages:
+  # ───────────────────────── s1 ─────────────────────────
+  - id: en.s1-words
+    order: 1
+    title: 技术词汇与句子
+    weeks: "1-3"
+    goal: "认识常见技术词汇和社区缩写，能拆开文档里的长句。"
+    deliverable: "技术词卡组（tongyun-words）跑起来 + 10 个拆过的文档长句"
+    exit_criteria: "核心词卡 ≥80% 进入复习态；随机 5 个文档长句能找出主干并说清意思"
+    points:
+      - id: en.vocab-general
+        title: 通用技术词汇
+        description: "文档高频词：idempotent、deprecated、latency/throughput、concurrency、backward compatible 等。"
+        card_types: [记忆卡]
+        prerequisites: []
+        effort_hours: 3
+        interview_weight: 1
+        mastery_evidence: []
+        tags: [词汇, en_word]
+        example_cards:
+          - type: 记忆卡
+            front: "idempotent"
+            back: "幂等的：同一操作执行一次和执行多次，对系统状态的影响相同。例：PUT and DELETE are idempotent; POST is not."
+          - type: 记忆卡
+            front: "latency vs. throughput"
+            back: "latency 延迟：单个请求从发出到收到响应的时间；throughput 吞吐量：单位时间能处理的请求数。例：We reduced p99 latency from 800 ms to 200 ms."
+
+      - id: en.vocab-java
+        title: Java / 后端词汇
+        description: "thread-safe、race condition、lock contention、garbage collection、isolation level、connection pool 等。"
+        card_types: [记忆卡]
+        prerequisites:
+          - {id: en.vocab-general, kind: soft}
+        effort_hours: 3
+        interview_weight: 1
+        mastery_evidence: []
+        tags: [词汇, en_word, java]
+        example_cards:
+          - type: 记忆卡
+            front: "race condition"
+            back: "竞态条件：结果取决于多个线程执行的先后时序。例：Two threads incrementing a shared counter without synchronization is a classic race condition."
+          - type: 记忆卡
+            front: "thread-safe"
+            back: "线程安全的：多线程同时使用也能保持正确，调用方无需额外同步。例：HashMap is not thread-safe; use ConcurrentHashMap instead."
+
+      - id: en.vocab-ai
+        title: AI / 大模型词汇
+        description: "token、context window、embedding、retrieval、hallucination、inference、fine-tuning、prompt injection 等。"
+        card_types: [记忆卡]
+        prerequisites:
+          - {id: en.vocab-general, kind: soft}
+        effort_hours: 2
+        interview_weight: 1
+        mastery_evidence: []
+        tags: [词汇, en_word, ai]
+        example_cards:
+          - type: 记忆卡
+            front: "context window"
+            back: "上下文窗口：模型单次请求能容纳的 token 上限（通常包括输入和输出）。例：The document is too long to fit in the context window, so we chunk it."
+          - type: 记忆卡
+            front: "retrieval-augmented generation (RAG)"
+            back: "检索增强生成：先从知识库检索相关内容，再让模型依据这些内容生成回答。"
+
+      - id: en.abbreviations
+        title: 社区常用缩写
+        description: "LGTM、PTAL、nit、WIP、TL;DR、IIRC、AFAIK、e.g. / i.e. 等 issue/PR 里的高频缩写。"
+        card_types: [记忆卡]
+        prerequisites: []
+        effort_hours: 0.5
+        interview_weight: 0
+        mastery_evidence: []
+        tags: [词汇, 协作]
+        example_cards:
+          - type: 记忆卡
+            front: "LGTM / PTAL / nit"
+            back: "LGTM = Looks good to me（我看没问题，可以合并）；PTAL = Please take a look（请帮忙看一下）；nit = nitpick（小问题，不阻塞合并，可改可不改）。"
+          - type: 记忆卡
+            front: "e.g. 和 i.e. 的区别？"
+            back: "e.g. = for example，举例，列的不是全部；i.e. = that is，即/也就是说，换一种说法完全等同。"
+
+      - id: en.long-sentence
+        title: 文档长句拆解
+        description: "找主干（主谓宾）→ 剥定语从句/分词短语/被动语态 → 用中文复述。"
+        card_types: [理解卡]
+        prerequisites: []
+        effort_hours: 3
+        interview_weight: 0
+        mastery_evidence: [自测]
+        tags: [阅读, 语法]
+        example_cards:
+          - type: 理解卡
+            front: "拆句（ThreadPoolExecutor Javadoc）：A pool that is no longer referenced in a program AND has no remaining threads may be reclaimed (garbage collected) without being explicitly shutdown."
+            back: "主干：A pool may be reclaimed。that 引导的定语从句修饰 pool，两个条件同时满足（no longer referenced AND no remaining threads）；without being explicitly shutdown 是被动的介词短语。意思：程序里不再被引用、且没有剩余线程的线程池，即使没显式 shutdown 也可能被垃圾回收。"
+          - type: 理解卡
+            front: "拆句（List.subList Javadoc）：The returned list is backed by this list, so non-structural changes in the returned list are reflected in this list, and vice-versa."
+            back: "be backed by = 由……支撑（是视图，不是拷贝）。意思：subList 返回原列表的视图，对它做非结构性修改（如 set）会反映到原列表，反过来也一样。这也是 Java 面试坑：subList 不是独立副本。"
+
+      - id: en.spec-words
+        title: 规范用语与「保证」措辞
+        description: "RFC 2119 的 MUST/SHOULD/MAY；文档里的 not guaranteed、undefined、unspecified、thread-safe 等措辞。"
+        card_types: [记忆卡, 理解卡]
+        prerequisites:
+          - {id: en.long-sentence, kind: soft}
+        effort_hours: 1
+        interview_weight: 0
+        mastery_evidence: [自测]
+        tags: [阅读]
+        sources:
+          - {type: doc, ref: "https://www.rfc-editor.org/rfc/rfc2119", title: RFC 2119}
+        example_cards:
+          - type: 记忆卡
+            front: "规范里的 MUST / SHOULD / MAY 分别什么意思？"
+            back: "MUST：绝对要求；SHOULD：推荐，有充分理由并清楚后果时可以不遵守；MAY：可选。（RFC 2119）"
+          - type: 理解卡
+            front: "HashMap Javadoc: This class makes no guarantees as to the order of the map. 写代码时意味着什么？"
+            back: "不保证遍历顺序（还说明顺序可能随时间变化），代码不能依赖 HashMap 的遍历顺序。需要插入顺序用 LinkedHashMap，需要按 key 排序用 TreeMap。"
+
+  # ───────────────────────── s2 ─────────────────────────
+  - id: en.s2-reading
+    order: 2
+    title: 读技术文档
+    weeks: "2-6"
+    goal: "用 SQ3R 读官方文档、README、Javadoc、changelog 和报错，能用 3 句话复述。"
+    deliverable: "每周 3 篇 SQ3R 阅读记录（2 个问题 + 3 句复述）"
+    exit_criteria: "随机一节官方文档 15 分钟内读完并准确复述；能从英文报错里定位根因"
+    points:
+      - id: en.doc-navigation
+        title: 文档结构与快速定位（SQ3R）
+        description: "官方文档常见分区（Getting Started / How-to / Reference / Concepts）；按问题找到该看的页；SQ3R 五步。"
+        card_types: [理解卡, 动手卡]
+        prerequisites:
+          - {id: en.vocab-general, kind: hard}
+        effort_hours: 1
+        interview_weight: 0
+        mastery_evidence: [动手]
+        tags: [阅读, sq3r]
+        example_cards:
+          - type: 理解卡
+            front: "想查 Spring Boot 某个配置项的默认值，该去文档的哪一类页面？"
+            back: "Reference（参考）类页面，比如 Application Properties 附录；Getting Started/Tutorial 讲入门流程，How-to 解决具体任务，Concepts 讲原理，通常不列全部默认值。"
+          - type: 动手卡
+            front: "用 SQ3R 读 Spring AI ChatClient 文档的一节：先扫标题，写 2 个问题，读完合上用 3 句话复述。"
+            back: "验收：2 个问题是读之前写的；复述能回答这 2 个问题；没有照抄原文句子。"
+
+      - id: en.read-readme
+        title: 读 README 与 Quick start
+        description: "README 常见小节；快速判断项目是干什么的、怎么装、最小示例、许可证。"
+        card_types: [记忆卡, 动手卡]
+        prerequisites:
+          - {id: en.doc-navigation, kind: hard}
+        effort_hours: 1
+        interview_weight: 0
+        mastery_evidence: [动手]
+        tags: [阅读, 开源]
+        example_cards:
+          - type: 记忆卡
+            front: "README 里 Prerequisites、Installation、Usage、Contributing、License 各写什么？"
+            back: "Prerequisites：运行前需要的环境/依赖；Installation：安装步骤；Usage：怎么用、示例；Contributing：如何参与贡献；License：开源许可证（决定能否商用、是否要开源衍生作品）。"
+          - type: 动手卡
+            front: "读 LangChain4j 仓库 README，3 分钟内回答：它是做什么的？怎么引入依赖？用什么许可证？"
+            back: "验收：三个问题都用自己的话答出，并指出答案在 README 的哪一节。"
+
+      - id: en.read-javadoc
+        title: 读 Javadoc / API Reference
+        description: "看懂方法签名、@param/@return/@throws、线程安全说明、@apiNote/@implSpec/@implNote。"
+        card_types: [记忆卡, 理解卡]
+        prerequisites:
+          - {id: en.long-sentence, kind: hard}
+          - {id: en.vocab-java, kind: hard}
+          - {id: en.spec-words, kind: soft}
+        effort_hours: 2
+        interview_weight: 1
+        mastery_evidence: [自测]
+        tags: [阅读, java]
+        sources:
+          - {type: doc, ref: "https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/HashMap.html", title: HashMap Javadoc}
+        example_cards:
+          - type: 理解卡
+            front: "HashMap(int initialCapacity) 的 Javadoc 写着：Throws: IllegalArgumentException - if the initial capacity is negative. 是什么意思？"
+            back: "传入的初始容量为负数时，构造器会抛出 IllegalArgumentException。"
+          - type: 记忆卡
+            front: "Javadoc 里的 @apiNote、@implSpec、@implNote 区别？"
+            back: "@apiNote：给使用者的补充说明；@implSpec：实现（含子类重写）必须遵守的规范；@implNote：当前这个实现的细节，可能变化，不要依赖。"
+
+      - id: en.read-changelog
+        title: 读 Release notes / Changelog / 迁移指南
+        description: "语义化版本；breaking change、deprecated、removed；升级前看什么。"
+        card_types: [记忆卡, 理解卡]
+        prerequisites:
+          - {id: en.read-readme, kind: hard}
+        effort_hours: 1
+        interview_weight: 0
+        mastery_evidence: [自测]
+        tags: [阅读, 开源]
+        sources:
+          - {type: doc, ref: "https://semver.org/", title: Semantic Versioning}
+        example_cards:
+          - type: 记忆卡
+            front: "语义化版本 MAJOR.MINOR.PATCH 各在什么时候加？"
+            back: "MAJOR：有不兼容的 API 变更；MINOR：向后兼容地新增功能；PATCH：向后兼容的问题修复。"
+          - type: 理解卡
+            front: "Release notes 里的 breaking change、deprecated、removed 分别提醒你什么？"
+            back: "breaking change：不兼容变更，升级后可能要改代码；deprecated：已弃用，现在还能用，未来版本会移除，应尽快迁移；removed：已删除，升级后直接不可用。"
+
+      - id: en.read-errors
+        title: 读英文报错与堆栈
+        description: "异常类型 + message；Caused by 链；at 行号；helpful NullPointerException。"
+        card_types: [理解卡, 动手卡]
+        prerequisites:
+          - {id: en.vocab-java, kind: soft}
+        effort_hours: 1
+        interview_weight: 0
+        mastery_evidence: [自测]
+        tags: [阅读, 排障]
+        example_cards:
+          - type: 理解卡
+            front: "一段 Java 堆栈有好几个 Caused by:，根因一般看哪一个？"
+            back: "通常看最后（最底下）那个 Caused by:，它是最内层的原始异常；再看它下面第一行属于你自己代码的 at 行定位位置。"
+          - type: 理解卡
+            front: 'NullPointerException: Cannot invoke "String.length()" because "s" is null 是什么意思？'
+            back: "在值为 null 的变量 s 上调用了 length()。这是 JDK 14 引入的 helpful NullPointerException 提示（JDK 15 起默认开启），会直接指出哪个引用是 null。"
+
+      - id: en.read-ai-docs
+        title: 读大模型 API 与 Spring AI 文档
+        description: "看懂 temperature、top_p、max_tokens、stream、finish_reason 等参数说明。"
+        card_types: [记忆卡, 理解卡]
+        prerequisites:
+          - {id: en.vocab-ai, kind: hard}
+          - {id: en.read-readme, kind: soft}
+          - {id: jf.llm-basics, kind: soft}
+        effort_hours: 1.5
+        interview_weight: 1
+        mastery_evidence: [自测]
+        tags: [阅读, ai]
+        sources:
+          - {type: doc, ref: "https://docs.spring.io/spring-ai/reference/", title: Spring AI Reference}
+        example_cards:
+          - type: 理解卡
+            front: "max_tokens 设得太小会怎样？怎么从响应里看出来？"
+            back: "生成到上限就被截断，回答不完整；Chat Completions 响应里该条 choice 的 finish_reason 会是 length（正常结束是 stop）。"
+          - type: 记忆卡
+            front: "top_p (nucleus sampling) 是什么？和 temperature 怎么配合？"
+            back: "只从累计概率达到 p 的最可能那一批 token 里采样。官方一般建议 temperature 和 top_p 只调其中一个。"
+
+  # ───────────────────────── s3 ─────────────────────────
+  - id: en.s3-writing
+    order: 3
+    title: 写 commit / issue / README / PR
+    weeks: "5-9"
+    goal: "能用规范英文写 commit message、bug issue、README 和 PR 描述/评审意见。"
+    deliverable: "自己项目的英文 README + 2 条规范 issue + 一周的英文 commit 记录"
+    exit_criteria: "阿学抽查：issue 能让陌生人照着复现；README 的 Quick start 能被复制粘贴跑通"
+    points:
+      - id: en.commit-message
+        title: Commit message
+        description: "Conventional Commits 格式；祈使句；标题简短、正文写 why。"
+        card_types: [记忆卡, 动手卡]
+        prerequisites:
+          - {id: en.abbreviations, kind: soft}
+        effort_hours: 0.5
+        interview_weight: 0
+        mastery_evidence: [动手]
+        tags: [写作, git]
+        sources:
+          - {type: doc, ref: "https://www.conventionalcommits.org/", title: Conventional Commits}
+        example_cards:
+          - type: 记忆卡
+            front: "Conventional Commits 的格式？不兼容变更怎么标？"
+            back: "<type>(<scope>): <description>，如 fix(order): prevent duplicate payment callback。不兼容变更在类型后加 !（feat!: ...）或在 footer 写 BREAKING CHANGE: ...。"
+          - type: 动手卡
+            front: "把这条改成规范的英文 commit：「修了一下大模型超时的问题，加了重试」"
+            back: "参考：fix(llm): retry chat request on timeout。标题用祈使句（retry 而非 retried），不加句号，正文可补充为什么、重试几次。"
+
+      - id: en.write-issue
+        title: 写 bug issue
+        description: "Summary / Steps to reproduce / Expected / Actual / Environment / Logs。"
+        card_types: [记忆卡, 动手卡]
+        prerequisites:
+          - {id: en.read-errors, kind: hard}
+          - {id: en.commit-message, kind: soft}
+        effort_hours: 1
+        interview_weight: 0
+        mastery_evidence: [动手]
+        tags: [写作, 开源]
+        example_cards:
+          - type: 记忆卡
+            front: "一个好的 bug report 包含哪几块？"
+            back: "Summary（一句话问题）、Steps to reproduce（复现步骤）、Expected behavior（期望）、Actual behavior（实际）、Environment（版本、OS、JDK 等）、Logs/stack trace（相关日志，用代码块）。"
+          - type: 动手卡
+            front: "为「Spring Boot 启动时报 Failed to configure a DataSource」写一条英文 issue（假设给开源项目提）。"
+            back: "验收：标题说清现象；复现步骤可照做；贴了版本和完整报错（代码块）；写了自己已尝试过什么；无情绪化措辞。"
+
+      - id: en.write-readme
+        title: 写 README
+        description: "一句话说明项目 → Features → Quick start（可复制粘贴）→ Configuration → License。"
+        card_types: [理解卡, 动手卡]
+        prerequisites:
+          - {id: en.read-readme, kind: hard}
+        effort_hours: 2
+        interview_weight: 1
+        mastery_evidence: [动手]
+        tags: [写作, 开源]
+        example_cards:
+          - type: 理解卡
+            front: "README 开头第一段应该写什么？"
+            back: "一两句话说清这是什么、解决什么问题、给谁用（What & Why），让读者 10 秒内判断要不要继续看；安装和细节放后面。"
+          - type: 动手卡
+            front: "给你的 Spring Boot + Redis 小服务写英文 README（含 Quick start 和 API 示例）。"
+            back: "验收：别人按 Quick start 能跑起来；每个命令单独代码块；配置项和环境变量列表清楚；不含任何真实密钥。"
+
+      - id: en.write-pr-review
+        title: 写 PR 描述与评审意见
+        description: "PR 模板 What / Why / How tested；礼貌、具体的 review 措辞。"
+        card_types: [记忆卡, 理解卡, 动手卡]
+        prerequisites:
+          - {id: en.commit-message, kind: hard}
+          - {id: en.abbreviations, kind: soft}
+        effort_hours: 1
+        interview_weight: 0
+        mastery_evidence: [动手]
+        tags: [写作, 协作]
+        example_cards:
+          - type: 理解卡
+            front: "Review 时把 This is wrong. 改得更专业一点。"
+            back: "参考：Could we check for null here? If user is null, this line will throw an NPE. 要点：用提问或建议语气，说清原因和后果；小问题前面加 nit:。"
+          - type: 记忆卡
+            front: "PR 描述一般写哪几块？"
+            back: "What（改了什么）、Why（为什么改，关联 issue）、How tested（怎么测的）、Notes/Screenshots（风险、需要评审重点看的地方）。"
+
+      - id: en.ask-for-help
+        title: 提问与最小复现
+        description: "在 GitHub Discussions / Stack Overflow 提问：最小可复现示例（MRE）、已尝试过什么。"
+        card_types: [记忆卡, 动手卡]
+        prerequisites:
+          - {id: en.write-issue, kind: hard}
+        effort_hours: 0.5
+        interview_weight: 0
+        mastery_evidence: [动手]
+        tags: [写作, 开源]
+        example_cards:
+          - type: 记忆卡
+            front: "什么是 minimal reproducible example (MRE)？"
+            back: "用尽量少的代码完整复现问题：别人复制就能运行、删掉了无关部分、写明版本和输入/期望/实际输出。"
+          - type: 记忆卡
+            front: "提问时怎么说「我试过 X 和 Y，但还是 Z」？"
+            back: "I've tried X and Y, but Z still happens. 后面附上你尝试的具体命令或配置。"
+
+  # ───────────────────────── s4 ─────────────────────────
+  - id: en.s4-listening
+    order: 4
+    title: 听技术视频
+    weeks: "4-10"
+    goal: "听懂技术演讲和视频教程的主线，能 3 句话复述，能跟着英文视频做出东西。"
+    deliverable: "每周 1 个视频的 3 句复述 + 1 段 1 分钟跟读录音"
+    exit_criteria: "一个 15 分钟技术演讲开英文字幕能复述主线和 2 个细节；跟着英文教程做完一个小 demo"
+    points:
+      - id: en.listen-numbers
+        title: 数字、版本号与符号读法
+        description: "版本号、百分位、单位、代码符号（slash、dash、underscore、tilde、pipe）怎么读。"
+        card_types: [记忆卡]
+        prerequisites: []
+        effort_hours: 0.5
+        interview_weight: 1
+        mastery_evidence: []
+        tags: [听力, 口语]
+        example_cards:
+          - type: 记忆卡
+            front: "怎么读：Java 21、v2.1.0、p99 latency？"
+            back: "Java twenty-one；version two point one point zero（口语常把 0 读作 oh）；p ninety-nine latency（99% 的请求延迟低于这个值）。"
+          - type: 记忆卡
+            front: "这些符号英文怎么读：/ \\ - _ ~ | #"
+            back: "slash、backslash、dash（或 hyphen）、underscore、tilde、pipe、hash（美式也叫 pound）。"
+
+      - id: en.listen-signposts
+        title: 演讲结构信号词
+        description: "agenda、Let's dive into、under the hood、out of the box、trade-off、the takeaway is 等。"
+        card_types: [记忆卡]
+        prerequisites:
+          - {id: en.vocab-general, kind: soft}
+        effort_hours: 1
+        interview_weight: 0
+        mastery_evidence: []
+        tags: [听力, en_word]
+        example_cards:
+          - type: 记忆卡
+            front: "under the hood / out of the box"
+            back: "under the hood：在底层、内部实现上（Under the hood, Spring creates a proxy.）；out of the box：开箱即用，不用额外配置。"
+          - type: 记忆卡
+            front: "trade-off / the key takeaway"
+            back: "trade-off：取舍、权衡（There's a trade-off between consistency and latency.）；the key takeaway：最重要的结论/要点。"
+
+      - id: en.listen-shadowing
+        title: 跟读（Shadowing）
+        description: "跟读技术视频片段，练连读、弱读和节奏；录音对比。"
+        card_types: [动手卡]
+        prerequisites:
+          - {id: en.listen-numbers, kind: hard}
+        effort_hours: 3
+        interview_weight: 1
+        mastery_evidence: [动手]
+        tags: [听力, 口语]
+        example_cards:
+          - type: 动手卡
+            front: "选一个 1 分钟的技术视频片段（如 Spring 官方视频），落后半拍跟读 3 遍，录下最后一遍。"
+            back: "验收：语速基本跟上；技术词（Kubernetes、asynchronous、idempotent）重音正确；自己听录音标出 2 处和原声差别最大的地方。"
+
+      - id: en.listen-talk-summary
+        title: 听技术演讲并复述
+        description: "看一个 10–20 分钟会议演讲，抓 agenda 和结论，3 句话复述。"
+        card_types: [动手卡, 表达卡]
+        prerequisites:
+          - {id: en.listen-signposts, kind: hard}
+          - {id: en.listen-shadowing, kind: soft}
+        effort_hours: 3
+        interview_weight: 1
+        mastery_evidence: [动手]
+        tags: [听力]
+        example_cards:
+          - type: 动手卡
+            front: "看一个 15 分钟以内的大模型/Java 主题会议演讲，写下 agenda，再用 3 句英文复述：讲了什么问题、怎么解决、关键结论。"
+            back: "验收：3 句话覆盖问题、方案、结论；至少用上 1 个信号词（trade-off、takeaway 等）；阿学追问一个细节能答上。"
+
+      - id: en.listen-tutorial-follow
+        title: 跟着英文视频教程做
+        description: "边听边做：能跟上命令、代码讲解和报错排查。"
+        card_types: [动手卡]
+        prerequisites:
+          - {id: en.listen-numbers, kind: hard}
+          - {id: en.read-readme, kind: soft}
+        effort_hours: 3
+        interview_weight: 0
+        mastery_evidence: [动手]
+        tags: [听力, 实操]
+        example_cards:
+          - type: 动手卡
+            front: "跟一个英文 Spring AI 入门视频做出能跑的 demo，记录 3 个刚开始没听懂的词或句子。"
+            back: "验收：demo 能跑；3 个听不懂的点都查清并做成词卡。"
+
+  # ───────────────────────── s5 ─────────────────────────
+  - id: en.s5-speaking
+    order: 5
+    title: 英文面试与客户表达
+    weeks: "8-12"
+    goal: "能用英文做 1 分钟自我介绍、结论先行讲一个技术点、1 分钟讲项目、做需求澄清。"
+    deliverable: "英文自我介绍 + 项目介绍录音各一段（含阿学评分）"
+    exit_criteria: "英文表达卡 ≥6/8；模拟面试中英文问答能不中断地讲完 1 分钟"
+    points:
+      - id: en.self-intro
+        title: 英文自我介绍
+        description: "1 分钟：角色和年限 → 技术栈和代表工作 → 最近在做的 AI 项目 → 为什么申请。"
+        card_types: [表达卡]
+        prerequisites:
+          - {id: en.listen-shadowing, kind: soft}
+        effort_hours: 1.5
+        interview_weight: 2
+        mastery_evidence: [表达]
+        tags: [口语, 面试]
+        example_cards:
+          - type: 表达卡
+            front: "Please introduce yourself.（1 分钟）"
+            back: "结构参考：I'm a Java backend engineer with N years of experience, mainly working on ... . Recently I built ... with Spring AI, which ... (one result with a number). I'm interested in this role because ... . 评分：结论先行、有一个量化结果、不背诵腔。"
+
+      - id: en.explain-concept
+        title: 结论先行讲一个技术点
+        description: "用英文按「结论 → 原理 → 例子 → 坑」讲一个八股点。"
+        card_types: [表达卡]
+        prerequisites:
+          - {id: en.self-intro, kind: hard}
+          - {id: en.vocab-java, kind: soft}
+          - {id: jf.hashmap, kind: soft}
+        effort_hours: 2
+        interview_weight: 2
+        mastery_evidence: [表达]
+        tags: [口语, 面试]
+        example_cards:
+          - type: 表达卡
+            front: "In English: Why is HashMap not thread-safe?"
+            back: "参考：HashMap isn't thread-safe because its operations aren't synchronized. If two threads put entries at the same time, one update can overwrite the other, and in JDK 7 a concurrent resize could even create a loop in a bucket's linked list. For concurrent access, use ConcurrentHashMap."
+          - type: 表达卡
+            front: "In English: What's the difference between a process and a thread?"
+            back: "参考：A process is an independent program with its own memory space; a thread runs inside a process and shares that memory with other threads. So threads are cheaper to create and switch, but shared memory means you need synchronization to avoid race conditions."
+
+      - id: en.project-pitch-en
+        title: 英文 1 分钟项目介绍
+        description: "Problem → Solution → Architecture → Impact → Trade-off，接得住一个追问。"
+        card_types: [表达卡]
+        prerequisites:
+          - {id: en.explain-concept, kind: hard}
+          - {id: jf.project-pitch, kind: soft}
+        effort_hours: 2
+        interview_weight: 2
+        mastery_evidence: [表达]
+        tags: [口语, 面试, 项目]
+        example_cards:
+          - type: 表达卡
+            front: "Walk me through a project you're proud of.（1 分钟）"
+            back: "结构参考：The problem was ... (who, how painful). I built ... using Spring Boot and Spring AI with RAG over ... . As a result, ... (number). One trade-off I made was ... because ... . 评分同表达 4 维。"
+
+      - id: en.behavioral-star
+        title: 行为面试 STAR
+        description: "Situation / Task / Action / Result 讲经历；常见题准备 3 个故事复用。"
+        card_types: [记忆卡, 表达卡]
+        prerequisites:
+          - {id: en.self-intro, kind: hard}
+        effort_hours: 1.5
+        interview_weight: 2
+        mastery_evidence: [表达]
+        tags: [口语, 面试]
+        example_cards:
+          - type: 记忆卡
+            front: "STAR 分别代表什么？哪一部分最该展开？"
+            back: "Situation 背景、Task 你的任务、Action 你采取的行动、Result 结果。Action 最该展开，要讲「我」做了什么；Result 尽量带数字。"
+          - type: 表达卡
+            front: "Tell me about a time you disagreed with a teammate.（STAR，1–2 分钟）"
+            back: "评分：S/T 合计不超过 2 句；Action 讲你怎么用数据或实验说服对方而不是争吵；Result 有结论和你学到的东西。"
+
+      - id: en.clarify-and-confirm
+        title: 澄清需求与复述确认（客户沟通）
+        description: "开放式提问、追问细节、复述确认、礼貌地说「这个需要再确认」。"
+        card_types: [记忆卡, 表达卡]
+        prerequisites:
+          - {id: en.explain-concept, kind: hard}
+          - {id: jf.customer-communication, kind: soft}
+        effort_hours: 1.5
+        interview_weight: 3
+        mastery_evidence: [表达]
+        tags: [口语, fde, 客户沟通]
+        example_cards:
+          - type: 记忆卡
+            front: "英文里怎么复述确认对方需求？怎么请对方讲讲现状流程？"
+            back: "Just to make sure I understand, you'd like ..., is that right? / Could you walk me through how your team handles this today?"
+          - type: 表达卡
+            front: "演练（英文）：客户说 We want AI to answer our customers automatically. 你用 2 个澄清问题回应。"
+            back: "参考：Which types of questions take up most of your team's time today? / Are there cases where a human must always review the answer, for example refunds or complaints?"
+
+      - id: en.handle-unknown
+        title: 不会的时候怎么说
+        description: "诚实承认 + 说出已知思路 + 怎么验证；争取思考时间的说法。"
+        card_types: [记忆卡, 表达卡]
+        prerequisites:
+          - {id: en.explain-concept, kind: soft}
+        effort_hours: 0.5
+        interview_weight: 2
+        mastery_evidence: [表达]
+        tags: [口语, 面试]
+        example_cards:
+          - type: 记忆卡
+            front: "被问到没用过的技术时，英文怎么回答更好？"
+            back: "I haven't used X in production, but my understanding is that ... . If I needed to use it, I'd start by ... . 承认 + 已知思路 + 验证方式，比硬编或只说 I don't know 好。"
+          - type: 记忆卡
+            front: "需要几秒思考时怎么说？"
+            back: "That's a good question — let me think for a second. / Let me make sure I understand the question: ... ?"

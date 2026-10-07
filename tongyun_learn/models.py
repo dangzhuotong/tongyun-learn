@@ -50,7 +50,7 @@ MYSQL_TABLE_ARGS = {
 DT3 = DateTime().with_variant(mysql.DATETIME(fsp=3), "mysql")
 BIGINT_AI = BigInteger().with_variant(Integer, "sqlite")
 TINYINT = SmallInteger().with_variant(mysql.TINYINT(), "mysql")
-DOUBLE = Float().with_variant(mysql.DOUBLE(), "mysql")
+DOUBLE = Float().with_variant(mysql.DOUBLE(asdecimal=False), "mysql")  # 返回 float，别给 FSRS 传 Decimal
 CHAR64 = String(64).with_variant(mysql.CHAR(64), "mysql")
 MEDIUMTEXT = Text().with_variant(mysql.MEDIUMTEXT(), "mysql")
 

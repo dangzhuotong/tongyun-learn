@@ -72,6 +72,33 @@ pytest -q
 生产部署使用 systemd 单进程管理，详细 systemd unit 文件与安全注意事项请参考 [deploy/tongyun-learn.service](deploy/tongyun-learn.service)。
 注意：由于服务内置进程内令牌桶限流，请务必保持 `--workers 1` 单 worker 模式。
 
+## 学习接口（P3a）
+
+规格见定稿 `2026-10-07-tongyun-learn-schema.md` §2/§4。全部在 `/v1` 下，web 令牌只读 + `POST /review(/batch)`（看不到动手卡），其余写接口仅 axue。
+
+| 接口 | 说明 |
+|---|---|
+| `POST /maps/import?dry_run=true\|false` | 导入知识地图 YAML（`{files:[...]}`），校验 → 增量 upsert → diff；有 error 不写库；幂等 |
+| `GET /subjects`、`GET /subjects/{id}/map`、`GET /points/{id}` | 学科 / 整棵地图（带 PointStats、阶段 passed）/ 单点详情 |
+| `POST /points/{id}/cards`、`PATCH /cards/{id}` | 批量建卡（按 front 去重）/ 改卡停卡（示例卡改后 created_by→axue） |
+| `GET /decks`、`POST /decks`、`POST /decks/{id}/cards` | 卡组 |
+| `GET /review/due` | 每日队列：到期复习 + 新卡（配额、积压阻断、新开点每学科 2 / 全局 3） |
+| `POST /review`、`POST /review/batch` | 复习（py-fsrs，`client_review_id` 幂等，乱序只记日志；支持 en_word 形态） |
+| `GET /progress` | 各状态点数、今日到期、30 天保持率、近 7 天、阶段过关 |
+| `POST /sessions`、`POST /evidence` | 记课、记证据（服务端判 passed；带 card_id 同时写一次 FSRS） |
+| `GET /next` | 待复查点（全部）+ 推荐学习的点 |
+
+状态重算（`tongyun_learn/services/state.py`）在每次写入的同一事务里跑，沿硬前置下游连锁，不需要定时任务。
+
+### 种子数据（知识地图）
+
+`maps/` 下是阿学的知识地图副本（源文件在 box 的 `/workspace/learning/knowledge-maps/`）。导入是幂等的，可重复执行：
+
+```bash
+uv run python -m tongyun_learn.cli import-maps maps/english.yaml maps/java-fde.yaml            # 预演，打印 diff
+uv run python -m tongyun_learn.cli import-maps --commit maps/english.yaml maps/java-fde.yaml   # 真导入
+```
+
 ## AI 讲解接口
 
 `POST /v1/ai/explain` 为学习者提供单词记忆法（`word_mnemonic`）与长难句语法拆解（`sentence_grammar`）的 AI 助学接口。
