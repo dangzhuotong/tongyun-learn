@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from tongyun_learn import __version__
 from tongyun_learn.config import Settings, get_settings
 from tongyun_learn.errors import register_error_handlers
-from tongyun_learn.routers import ai, health
+from tongyun_learn.routers import ai, health, learn
 
 
 def _setup_logging() -> None:
@@ -48,6 +48,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app.include_router(health.router, prefix="/v1")
     app.include_router(ai.router, prefix="/v1")
+    app.include_router(learn.router, prefix="/v1")
     app.get("/healthz", tags=["health"])(health.liveness)
 
     return app
