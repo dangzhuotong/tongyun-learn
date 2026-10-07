@@ -1,0 +1,25 @@
+# /etc/systemd/system/tongyun-learn.service
+# 注意：
+# 1. 必须使用单 worker (--workers 1)，因为服务采用进程内令牌桶限流与状态调度。
+# 2. 环境变量文件 /etc/tongyun-learn.env：root:root + chmod 600（systemd 以 root 读取后注入，服务用户不需要能读）。
+# 3. User/Group 按服务器现有约定修改；依赖装在 /opt/tongyun/learn/venv（pip install -r requirements.txt）。
+
+[Unit]
+Description=tongyun-learn API
+After=network.target mysql.service
+
+[Service]
+Type=simple
+User=tongyun
+Group=tongyun
+WorkingDirectory=/opt/tongyun/learn/current
+EnvironmentFile=/etc/tongyun-learn.env
+ExecStart=/opt/tongyun/learn/venv/bin/uvicorn tongyun_learn.main:app --host 127.0.0.1 --port 8031 --workers 1 --root-path /learn/api --proxy-headers --forwarded-allow-ips 127.0.0.1
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+
+[Install]
+WantedBy=multi-user.target
