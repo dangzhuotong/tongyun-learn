@@ -250,6 +250,8 @@ class ReviewLog(Base):
     stability_after: Mapped[float | None] = mapped_column(DOUBLE, nullable=True)
     due_after: Mapped[datetime | None] = mapped_column(DT3, nullable=True)
     client_review_id: Mapped[str | None] = mapped_column(String(64), nullable=True, unique=True)
+    voided_at: Mapped[datetime | None] = mapped_column(DT3, nullable=True)
+    void_reason: Mapped[str | None] = mapped_column(String(500), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DT3, default=utcnow, nullable=False)
 
 
@@ -274,6 +276,8 @@ class StudySession(Base):
         nullable=True,
     )
     legacy_ref: Mapped[str | None] = mapped_column(String(64), nullable=True, unique=True)
+    voided_at: Mapped[datetime | None] = mapped_column(DT3, nullable=True)
+    void_reason: Mapped[str | None] = mapped_column(String(500), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DT3, default=utcnow, nullable=False)
 
 
@@ -325,6 +329,8 @@ class Evidence(Base):
     )
     observed_at: Mapped[datetime | None] = mapped_column(DT3, nullable=True)
     legacy_ref: Mapped[str | None] = mapped_column(String(64), nullable=True, unique=True)
+    voided_at: Mapped[datetime | None] = mapped_column(DT3, nullable=True)
+    void_reason: Mapped[str | None] = mapped_column(String(500), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DT3, default=utcnow, nullable=False)
 
 

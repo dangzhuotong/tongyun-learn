@@ -82,6 +82,7 @@ def weak_points(db: Session, subject: str | None = None, now: datetime | None = 
             Evidence.passed.is_(True),
             Evidence.reviewer.in_(EVIDENCE_REVIEWERS),
             Evidence.observed_at >= cutoff,
+            Evidence.voided_at.is_(None),
         )
     ):
         fresh_ev[pid].add(t)
@@ -185,11 +186,19 @@ def recall(db: Session, days: str = "1,3,7", now: datetime | None = None) -> lis
     再每个目标天数 n（n≤1 精确匹配，否则 ±1 天就近，较近的优先），同一天只出现一次。"""
     targets = parse_days(days)
     today = today_local(now)
-    last = db.scalar(select(func.max(StudySession.date)).where(StudySession.date < today))
+    last = db.scalar(
+        select(func.max(StudySession.date)).where(StudySession.date < today, StudySession.voided_at.is_(None))
+    )
     window_start = today - timedelta(days=max(targets) + 1)
     dates = set(
         db.scalars(
-            select(StudySession.date).where(StudySession.date >= window_start, StudySession.date < today).distinct()
+            select(StudySession.date)
+            .where(
+                StudySession.date >= window_start,
+                StudySession.date < today,
+                StudySession.voided_at.is_(None),
+            )
+            .distinct()
         ).all()
     )
     picked: list[tuple[str, date]] = []
@@ -208,7 +217,13 @@ def recall(db: Session, days: str = "1,3,7", now: datetime | None = None) -> lis
     open_blockers = list(db.scalars(select(Blocker).where(Blocker.status == "open").order_by(Blocker.created_at)))
     out = []
     for label, d in picked:
-        sess = list(db.scalars(select(StudySession).where(StudySession.date == d).order_by(StudySession.id)))
+        sess = list(
+            db.scalars(
+                select(StudySession)
+                .where(StudySession.date == d, StudySession.voided_at.is_(None))
+                .order_by(StudySession.id)
+            )
+        )
         items = _session_items(db, sess)
         sids = {it["session_id"] for it in items}
         pids = {pid for it in items for pid in it["point_ids"]}
@@ -241,7 +256,7 @@ def week_summary(db: Session, ago: int = 0, now: datetime | None = None) -> dict
     sessions = list(
         db.scalars(
             select(StudySession)
-            .where(StudySession.date >= mon, StudySession.date <= sun)
+            .where(StudySession.date >= mon, StudySession.date <= sun, StudySession.voided_at.is_(None))
             .order_by(StudySession.date, StudySession.id)
         )
     )
@@ -249,7 +264,10 @@ def week_summary(db: Session, ago: int = 0, now: datetime | None = None) -> dict
 
     logs = db.execute(
         select(ReviewLog.reviewed_at, ReviewLog.rating, ReviewLog.reviewer).where(
-            ReviewLog.applied.is_(True), ReviewLog.reviewed_at >= start, ReviewLog.reviewed_at < end
+            ReviewLog.applied.is_(True),
+            ReviewLog.voided_at.is_(None),
+            ReviewLog.reviewed_at >= start,
+            ReviewLog.reviewed_at < end,
         )
     ).all()
     n_rev = len(logs)
@@ -303,7 +321,11 @@ def week_summary(db: Session, ago: int = 0, now: datetime | None = None) -> dict
 
     ev_counts: dict[str, dict[str, int]] = defaultdict(lambda: {"total": 0, "passed": 0})
     for t_, passed in db.execute(
-        select(Evidence.type, Evidence.passed).where(Evidence.observed_at >= start, Evidence.observed_at < end)
+        select(Evidence.type, Evidence.passed).where(
+            Evidence.observed_at >= start,
+            Evidence.observed_at < end,
+            Evidence.voided_at.is_(None),
+        )
     ):
         ev_counts[t_]["total"] += 1
         ev_counts[t_]["passed"] += 1 if passed else 0

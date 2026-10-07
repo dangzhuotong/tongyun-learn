@@ -20,6 +20,7 @@
   「表达 6/8（结2原2例1坑1）」→ express（…:express，rubric 拆四维）。reviewer=migrate，达标按 §4 服务端规则。
 - blockers → blockers（legacy_ref=axue:blockers:<id>），lesson_id 换成 point_id，未解决→open、已解决→resolved。
 - skill_mastery、lessons.status 不迁，原值写进报告（迁移日志）备查；状态全部由新库数据重新推导。
+- 已作废的行重跑不恢复。
 源库 DATETIME 默认按北京时间理解（axue 命令行写库时 time_zone=+08:00），可用 --source-tz 改。
 """
 

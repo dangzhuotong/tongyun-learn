@@ -178,7 +178,13 @@ def card_row(c: Card, cs: CardState | None) -> dict:
 
 
 @router.get("/points/{point_id}")
-def get_point(point_id: str, p: AnyP, db: Db, include_inactive_cards: bool = False) -> dict:
+def get_point(
+    point_id: str,
+    p: AnyP,
+    db: Db,
+    include_inactive_cards: bool = False,
+    include_voided: bool = False,
+) -> dict:
     pt = db.get(Point, point_id)
     if pt is None:
         raise ApiError(404, "not_found", "知识点不存在")
@@ -196,6 +202,9 @@ def get_point(point_id: str, p: AnyP, db: Db, include_inactive_cards: bool = Fal
     if p.name == "web":
         cq = cq.where(Card.card_type != "handson")
     cards = [card_row(c, cs) for c, cs in db.execute(cq.order_by(Card.id)).all()]
+    eq = select(Evidence).where(Evidence.point_id == point_id)
+    if not include_voided:
+        eq = eq.where(Evidence.voided_at.is_(None))
     evidence = [
         {
             "id": e.id,
@@ -209,8 +218,10 @@ def get_point(point_id: str, p: AnyP, db: Db, include_inactive_cards: bool = Fal
             "card_id": e.card_id,
             "reviewer": e.reviewer,
             "observed_at": iso_local(e.observed_at),
+            "voided_at": iso_local(e.voided_at),
+            "void_reason": e.void_reason,
         }
-        for e in db.scalars(select(Evidence).where(Evidence.point_id == point_id).order_by(Evidence.observed_at.desc()))
+        for e in db.scalars(eq.order_by(Evidence.observed_at.desc(), Evidence.id.desc()))
     ]
     blockers = [
         {

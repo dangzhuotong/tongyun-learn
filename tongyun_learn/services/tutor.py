@@ -78,8 +78,12 @@ def create_evidence(db: Session, body: dict) -> dict:
         raise ApiError(404, "not_found", "知识点不存在")
     if sid and db.get(Stage, sid) is None:
         raise ApiError(404, "not_found", "阶段不存在")
-    if body.get("session_id") and db.get(StudySession, body["session_id"]) is None:
-        raise ApiError(404, "not_found", "课次不存在")
+    if body.get("session_id"):
+        sess = db.get(StudySession, body["session_id"])
+        if sess is None:
+            raise ApiError(404, "not_found", "课次不存在")
+        if sess.voided_at is not None:
+            raise ApiError(409, "session_voided", "课次已作废，不能再挂证据")
     card = None
     if body.get("card_id"):
         card = db.get(Card, body["card_id"])

@@ -51,8 +51,11 @@ def create_blocker(db: Session, data: Mapping[str, Any] | Any) -> dict:
 
     session_id = payload.get("session_id")
     if session_id is not None:
-        if db.get(StudySession, session_id) is None:
+        sess = db.get(StudySession, session_id)
+        if sess is None:
             raise ApiError(404, "session_not_found", "课次不存在")
+        if sess.voided_at is not None:
+            raise ApiError(409, "session_voided", "课次已作废，不能再挂卡点")
 
     raw_title = payload.get("title")
     title = (raw_title or "").strip()

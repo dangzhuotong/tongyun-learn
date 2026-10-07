@@ -299,7 +299,7 @@ def next_points(db: Session, subject: str | None = None, limit: int = 5, now: da
         q = q.where(Point.subject_id == subject)
     recheck = []
     for p, _ps in db.execute(q.order_by(Point.subject_id, Point.ord)).all():
-        evs = list(db.scalars(select(Evidence).where(Evidence.point_id == p.id)))
+        evs = list(db.scalars(select(Evidence).where(Evidence.point_id == p.id, Evidence.voided_at.is_(None))))
         recheck.append({"point_id": p.id, "title": p.title, "stale_evidence": stale_evidence(p, evs, now)})
 
     meta = _point_meta(db)
@@ -417,7 +417,7 @@ def progress(db: Session, subject: str | None = None, stage: str | None = None, 
         .join(CardState, CardState.card_id == Card.id)
         .where(*card_filter, CardState.due < end)
     )
-    log_filter = [ReviewLog.applied.is_(True)]
+    log_filter = [ReviewLog.applied.is_(True), ReviewLog.voided_at.is_(None)]
     card_ids_q = select(Card.id).where(*card_filter)
     log_filter.append(ReviewLog.card_id.in_(card_ids_q))
     since30 = now - timedelta(days=30)
@@ -479,7 +479,9 @@ def stage_status(db: Session, st: Stage) -> dict:
     learned = len([1 for _pid, s in rows if s in DONE_STATES])
     exit_ev = (
         db.scalar(
-            select(func.count()).select_from(Evidence).where(Evidence.stage_id == st.id, Evidence.passed.is_(True))
+            select(func.count())
+            .select_from(Evidence)
+            .where(Evidence.stage_id == st.id, Evidence.passed.is_(True), Evidence.voided_at.is_(None))
         )
         > 0
     )
