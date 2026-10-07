@@ -75,8 +75,12 @@ def stale_evidence(p: Point, evs: list[Evidence], now: datetime) -> list[list]:
     return out
 
 
-def _compute(db: Session, p: Point, ps: PointState | None, now: datetime) -> tuple[str, dict, bool | None]:
-    """返回 (新状态, stats 快照, needs_recheck 置位建议：True=置 1 / None=不动)。"""
+def _compute(
+    db: Session, p: Point, ps: PointState | None, now: datetime, fresh: bool = False
+) -> tuple[str, str, dict, bool | None]:
+    """返回 (新状态, 未套人工覆盖的推导状态, stats 快照, needs_recheck 置位建议：True=置 1 / None=不动)。
+
+    fresh=True：不看上一次状态（撤销人工覆盖时用，避免把覆盖值当成“上次掌握”去走防抖分支）。"""
     rows = db.execute(
         select(Card.id, CardState)
         .outerjoin(CardState, CardState.card_id == Card.id)
@@ -125,7 +129,9 @@ def _compute(db: Session, p: Point, ps: PointState | None, now: datetime) -> tup
 
     has_session = db.scalar(select(func.count()).select_from(SessionPoint).where(SessionPoint.point_id == p.id)) > 0
 
-    prev = ps.state if ps else None
+    # 人工覆盖生效期间（available 除外）存的 state 是覆盖值，不能拿来走掌握/生疏的防抖分支
+    overridden = ps is not None and ps.override_state not in (None, "available")
+    prev = None if (fresh or ps is None or overridden) else ps.state
     recheck: bool | None = None
     if prev == "mastered":
         s = "rusty" if (ratio < RUSTY_RATIO or acc10 < RUSTY_ACC) else "mastered"
@@ -143,6 +149,7 @@ def _compute(db: Session, p: Point, ps: PointState | None, now: datetime) -> tup
         s = "available"
     else:
         s = "locked"
+    derived = s
     if ps is not None and ps.override_state:
         o = ps.override_state
         s = o if (o != "available" or s == "locked") else s
@@ -156,7 +163,7 @@ def _compute(db: Session, p: Point, ps: PointState | None, now: datetime) -> tup
         "reviewed_cards": len(C),
         "active_cards": n_active,
     }
-    return s, stats, recheck
+    return s, derived, stats, recheck
 
 
 def _hard_dependents(db: Session, pid: str) -> list[str]:
@@ -172,10 +179,19 @@ def recompute_points(
     cause_ref: str | None = None,
     evidence_point_ids: Iterable[str] = (),
     now: datetime | None = None,
+    note: str | None = None,
+    force_log: Iterable[str] = (),
+    fresh: Iterable[str] = (),
 ) -> list[dict]:
-    """重算给定点并沿硬前置下游连锁。返回状态变化 [{point_id, from, to}]（调用方负责 commit）。"""
+    """重算给定点并沿硬前置下游连锁。返回状态变化 [{point_id, from, to}]（调用方负责 commit）。
+
+    note：写进本次产生的 point_state_log.note（人工改状态的理由）。
+    force_log：这些点即使状态没变也写一条 log（人工改状态要留痕）。
+    fresh：这些点不看上一次状态重新推导（撤销人工覆盖）。"""
     now = now or utcnow()
     ev_set = set(evidence_point_ids)
+    force = set(force_log)
+    fresh_set = set(fresh)
     queue: deque[str] = deque(dict.fromkeys(point_ids))
     queued = set(queue)
     changes: list[dict] = []
@@ -198,7 +214,7 @@ def recompute_points(
                     queue.append(d)
                     queued.add(d)
             continue
-        s, stats, recheck = _compute(db, p, ps, now)
+        s, derived, stats, recheck = _compute(db, p, ps, now, fresh=pid in fresh_set)
         if ps is None:
             ps = PointState(point_id=pid, state=s, since=now, ever_mastered=False, needs_recheck=False)
             db.add(ps)
@@ -206,15 +222,18 @@ def recompute_points(
             ps.needs_recheck = True
         if pid in ev_set:
             ps.needs_recheck = False
-        if s == "mastered":
+        # 掌握过 / 学过时间只认推导出来的状态，人工覆盖不污染（撤销覆盖后能回到真实状态）
+        if derived == "mastered":
             ps.ever_mastered = True
-        if s in ("learned", "mastered") and ps.learned_at is None:
+        if derived in ("learned", "mastered") and ps.learned_at is None:
             ps.learned_at = now
         ps.stats = stats
         ps.computed_at = now
-        if s != prev:
-            ps.state = s
-            ps.since = now
+        if s != prev or pid in force:
+            force.discard(pid)
+            if s != prev:
+                ps.state = s
+                ps.since = now
             db.add(
                 PointStateLog(
                     point_id=pid,
@@ -222,9 +241,11 @@ def recompute_points(
                     to_state=s,
                     cause=cause,
                     cause_ref=str(cause_ref)[:64] if cause_ref is not None else None,
+                    note=note[:500] if note else None,
                     created_at=now,
                 )
             )
+        if s != prev:
             changes.append({"point_id": pid, "from": prev, "to": s})
             if (prev in DONE_STATES) != (s in DONE_STATES) or prev is None:
                 for d in _hard_dependents(db, pid):
