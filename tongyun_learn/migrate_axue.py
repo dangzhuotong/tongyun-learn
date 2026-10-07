@@ -172,6 +172,13 @@ def _jsonable(o: Any) -> Any:
     raise TypeError(type(o).__name__)
 
 
+def _as_text(v: Any) -> Any:
+    """报告用：datetime/Decimal 转成 JSON 友好的值；快照 JSON 里读回来的已是字符串，原样返回。"""
+    if v is None or isinstance(v, (str, int, float)):
+        return v
+    return _jsonable(v)
+
+
 def write_snapshot(src: Source, path: str) -> None:
     doc = {
         "lessons": src.lessons,
@@ -504,7 +511,7 @@ class Migrator:
                 "area": m.get("area"),
                 "level": m.get("level"),
                 "note": m.get("note"),
-                "updated_at": _jsonable(m["updated_at"]) if m.get("updated_at") is not None else None,
+                "updated_at": _as_text(m.get("updated_at")),
             }
             for m in self.src.skill_mastery
         ]
