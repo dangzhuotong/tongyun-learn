@@ -3,7 +3,7 @@
 from collections import defaultdict
 from datetime import date, datetime
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from tongyun_learn.errors import ApiError
@@ -19,6 +19,41 @@ def _reason(reason: str | None) -> str:
     if not r:
         raise ApiError(422, "validation_error", "作废要写原因")
     return r
+
+
+def _clip(text: str) -> str:
+    return text if len(text) <= 500 else text[:500]
+
+
+def _void_linked_review(db: Session, ev: Evidence, reason: str, now: datetime) -> tuple[ReviewLog | None, bool]:
+    """作废这条证据写出来的复习。已经作废的不动（保留原原因）。返回 (复习, 是否要重放 FSRS)。"""
+    if ev.review_id is None:
+        return None, False
+    rev = db.get(ReviewLog, ev.review_id)
+    if rev is None or rev.voided_at is not None:
+        return None, False
+    rev.voided_at = now
+    rev.void_reason = _clip(f"[证据#{ev.id}] {reason}")
+    return rev, bool(rev.applied)
+
+
+def _restore_linked_review(db: Session, ev: Evidence) -> tuple[ReviewLog | None, bool]:
+    """只恢复「随这条证据作废」的复习。单独作废的复习保持作废。返回 (复习, 恢复前是否 applied)。"""
+    if ev.review_id is None:
+        return None, False
+    rev = db.get(ReviewLog, ev.review_id)
+    prefix = f"[证据#{ev.id}]"
+    if rev is None or rev.voided_at is None or not (rev.void_reason or "").startswith(prefix):
+        return None, False
+    was_applied = bool(rev.applied)
+    rev.voided_at = None
+    rev.void_reason = None
+    return rev, was_applied
+
+
+def _replay_cards(db: Session, card_ids: list[int]) -> None:
+    for card_id in dict.fromkeys(card_ids):
+        _replay_fsrs(db, card_id)
 
 
 def void_session(db: Session, session_id: int, reason: str, now: datetime | None = None) -> dict:
@@ -43,15 +78,28 @@ def void_session(db: Session, session_id: int, reason: str, now: datetime | None
             .order_by(Evidence.id)
         )
     )
+    cascaded_reviews: list[int] = []
+    replay_card_ids: list[int] = []
+    review_pids: list[str] = []
     for ev in cascaded_evs:
         ev.voided_at = now
-        ev.void_reason = f"[课次#{session.id}] {reason}"
+        ev.void_reason = _clip(f"[课次#{session.id}] {reason}")
+        rev, replay = _void_linked_review(db, ev, ev.void_reason, now)
+        if rev is None:
+            continue
+        cascaded_reviews.append(rev.id)
+        if rev.point_id:
+            review_pids.append(rev.point_id)
+        if replay:
+            replay_card_ids.append(rev.card_id)
 
     session_pids = list(db.scalars(select(SessionPoint.point_id).where(SessionPoint.session_id == session.id)))
     ev_pids = [ev.point_id for ev in cascaded_evs if ev.point_id]
-    affected_pids = sorted(set(session_pids) | set(ev_pids))
+    affected_pids = sorted(set(session_pids) | set(ev_pids) | set(review_pids))
 
-    db.flush()  # autoflush 关着，先把作废标记写下去，重算才看得到
+    db.flush()  # autoflush 关着，先把作废标记写下去，重放和重算才看得到
+    _replay_cards(db, replay_card_ids)
+    db.flush()
     changes = recompute_points(
         db,
         affected_pids,
@@ -68,6 +116,7 @@ def void_session(db: Session, session_id: int, reason: str, now: datetime | None
         "voided_at": iso_local(session.voided_at),
         "void_reason": session.void_reason,
         "cascaded_evidence": [ev.id for ev in cascaded_evs],
+        "cascaded_reviews": cascaded_reviews,
         "point_changes": changes,
     }
 
@@ -85,6 +134,9 @@ def restore_session(db: Session, session_id: int, reason: str | None = None, now
 
     prefix = f"[课次#{session.id}]"
     restored_evs = []
+    restored_reviews: list[int] = []
+    replay_card_ids: list[int] = []
+    review_pids: list[str] = []
     evs = list(
         db.scalars(
             select(Evidence)
@@ -100,11 +152,21 @@ def restore_session(db: Session, session_id: int, reason: str | None = None, now
             ev.voided_at = None
             ev.void_reason = None
             restored_evs.append(ev)
+            rev, was_applied = _restore_linked_review(db, ev)
+            if rev is None:
+                continue
+            restored_reviews.append(rev.id)
+            if rev.point_id:
+                review_pids.append(rev.point_id)
+            if was_applied:
+                replay_card_ids.append(rev.card_id)
 
     session_pids = list(db.scalars(select(SessionPoint.point_id).where(SessionPoint.session_id == session.id)))
     ev_pids = [ev.point_id for ev in restored_evs if ev.point_id]
-    affected_pids = sorted(set(session_pids) | set(ev_pids))
+    affected_pids = sorted(set(session_pids) | set(ev_pids) | set(review_pids))
 
+    db.flush()
+    _replay_cards(db, replay_card_ids)
     db.flush()
     changes = recompute_points(
         db,
@@ -119,6 +181,7 @@ def restore_session(db: Session, session_id: int, reason: str | None = None, now
     return {
         "session_id": session.id,
         "restored_evidence": [ev.id for ev in restored_evs],
+        "restored_reviews": restored_reviews,
         "point_changes": changes,
     }
 
@@ -134,14 +197,22 @@ def void_evidence(db: Session, evidence_id: int, reason: str, now: datetime | No
     reason = _reason(reason)
     ev.voided_at = now
     ev.void_reason = reason
+    rev, replay = _void_linked_review(db, ev, reason, now)
 
-    changes = []
-    if ev.point_id:
+    pids = [ev.point_id] if ev.point_id else []
+    if rev is not None and rev.point_id and rev.point_id not in pids:
+        pids.append(rev.point_id)
+
+    db.flush()
+    if replay and rev is not None:
+        _replay_fsrs(db, rev.card_id)
         db.flush()
+    changes = []
+    if pids:
         changes = recompute_points(
             db,
-            [ev.point_id],
-            rebase=[ev.point_id],
+            pids,
+            rebase=pids,
             cause="void",
             cause_ref=f"evidence:{ev.id}",
             now=now,
@@ -153,6 +224,7 @@ def void_evidence(db: Session, evidence_id: int, reason: str, now: datetime | No
         "evidence_id": ev.id,
         "voided_at": iso_local(ev.voided_at),
         "void_reason": ev.void_reason,
+        "cascaded_review_id": rev.id if rev is not None else None,
         "point_changes": changes,
     }
 
@@ -172,13 +244,21 @@ def restore_evidence(db: Session, evidence_id: int, reason: str | None = None, n
 
     ev.voided_at = None
     ev.void_reason = None
+    rev, was_applied = _restore_linked_review(db, ev)
 
-    changes = []
-    if ev.point_id:
+    pids = [ev.point_id] if ev.point_id else []
+    if rev is not None and rev.point_id and rev.point_id not in pids:
+        pids.append(rev.point_id)
+
+    db.flush()
+    if was_applied and rev is not None:
+        _replay_fsrs(db, rev.card_id)
         db.flush()
+    changes = []
+    if pids:
         changes = recompute_points(
             db,
-            [ev.point_id],
+            pids,
             cause="restore",
             cause_ref=f"evidence:{ev.id}",
             now=now,
@@ -190,6 +270,7 @@ def restore_evidence(db: Session, evidence_id: int, reason: str | None = None, n
         "evidence_id": ev.id,
         "voided_at": None,
         "void_reason": None,
+        "restored_review_id": rev.id if rev is not None else None,
         "point_changes": changes,
     }
 
@@ -403,6 +484,12 @@ def restore_review(db: Session, review_id: int, reason: str | None = None, now: 
     if rev.voided_at is None:
         raise ApiError(409, "not_voided", "复习记录未作废")
 
+    blocking = db.scalar(
+        select(Evidence.id).where(Evidence.review_id == rev.id, Evidence.voided_at.is_not(None)).limit(1)
+    )
+    if blocking is not None:
+        raise ApiError(409, "evidence_voided", "所属证据尚在作废状态，不能单独恢复该复习")
+
     rev.voided_at = None
     rev.void_reason = None
     db.flush()
@@ -450,8 +537,14 @@ def list_reviews(
     point: str | None = None,
     limit: int = 20,
     include_voided: bool = False,
+    principal: str | None = None,
 ) -> list[dict]:
     q = select(ReviewLog)
+    if principal == "web":
+        # 与 GET /points 一样：web 看不到动手卡，列表里也不露出它的复习
+        q = q.join(Card, Card.id == ReviewLog.card_id).where(
+            or_(Card.card_type.is_(None), Card.card_type != "handson")
+        )
     if not include_voided:
         q = q.where(ReviewLog.voided_at.is_(None))
     if card is not None:

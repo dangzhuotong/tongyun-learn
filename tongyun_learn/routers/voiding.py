@@ -110,4 +110,5 @@ def list_reviews(
         point=point,
         limit=limit,
         include_voided=include_voided,
+        principal=_p.name,
     )

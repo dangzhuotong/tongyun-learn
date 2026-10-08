@@ -319,3 +319,24 @@ def test_review_void_guards_and_edge_cases(client: TestClient, db_session) -> No
     db_session.expire_all()
     unapp_row2 = db_session.get(ReviewLog, unapp_rev_id)
     assert unapp_row2.voided_at is None
+
+
+def test_web_reviews_hide_handson(client: TestClient, db_session) -> None:
+    """web 可以读复习列表，但看不到动手卡的复习（和 GET /points 隐藏动手卡一致）。"""
+    _import_maps(client)
+    hand = db_session.scalar(select(Card).where(Card.active.is_(True), Card.card_type == "handson"))
+    other = db_session.scalar(
+        select(Card).where(Card.active.is_(True), Card.card_type != "handson", Card.point_id.is_not(None))
+    )
+    assert hand is not None and other is not None
+    assert client.post("/v1/review", json={"card_id": hand.id, "rating": 3}, headers=AXUE).status_code == 200
+    assert client.post("/v1/review", json={"card_id": other.id, "rating": 3}, headers=AXUE).status_code == 200
+
+    web = client.get("/v1/reviews?limit=200", headers=WEB)
+    assert web.status_code == 200
+    assert all(item["card_id"] != hand.id for item in web.json())
+    assert any(item["card_id"] == other.id for item in web.json())
+    assert client.get(f"/v1/reviews?card={hand.id}", headers=WEB).json() == []
+
+    axue = client.get(f"/v1/reviews?card={hand.id}", headers=AXUE).json()
+    assert any(item["card_id"] == hand.id for item in axue)

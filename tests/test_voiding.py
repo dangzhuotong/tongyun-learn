@@ -12,7 +12,7 @@ from sqlalchemy import select
 from tests.learn_helpers import AXUE, WEB, learn_env, map_texts  # noqa: F401
 from tongyun_learn.config import get_settings
 from tongyun_learn.migrate_axue import migrate
-from tongyun_learn.models import Card, Evidence, PointState, ReviewLog, StudySession
+from tongyun_learn.models import Card, CardState, Evidence, Point, PointState, ReviewLog, StudySession
 from tongyun_learn.timeutil import utcnow
 
 pytestmark = pytest.mark.usefixtures("learn_env")
@@ -249,6 +249,158 @@ def test_evidence_void_and_restore_flow(client: TestClient, db_session) -> None:
     r_conflict = client.post(f"/v1/evidence/{ev_casc_id}/restore", headers=AXUE)
     assert r_conflict.status_code == 409
     assert r_conflict.json()["error"]["code"] == "session_voided"
+
+
+def _one_active_card(db_session) -> tuple[str, int]:
+    """非单词、只有一张在用卡的知识点：作废那条复习后不能再靠「卡都复习过」停在学过。"""
+    from sqlalchemy import func
+
+    from tongyun_learn.services.state import is_vocab
+
+    rows = db_session.execute(
+        select(Card.point_id, func.min(Card.id))
+        .where(Card.active.is_(True), Card.point_id.is_not(None))
+        .group_by(Card.point_id)
+        .having(func.count() == 1)
+    ).all()
+    for pid, cid in rows:
+        point = db_session.get(Point, pid)
+        if point is not None and point.active and not is_vocab(point):
+            return pid, int(cid)
+    raise AssertionError("没有只有一张卡的知识点")
+
+
+def test_evidence_void_cascades_linked_review(client: TestClient, db_session) -> None:
+    """带 card_id 的证据会写一条复习。作废证据必须连这条复习一起作废并重放，否则点还能靠「卡都复习过」停在学过。"""
+    _import_maps(client)
+    pid, cid = _one_active_card(db_session)
+
+    ev = client.post(
+        "/v1/evidence",
+        json={"point_id": pid, "card_id": cid, "type": "handson", "passed": True},
+        headers=AXUE,
+    ).json()
+    ev_id = ev["evidence_id"]
+    rev_id = ev["review"]["review_id"]
+    db_session.expire_all()
+    assert db_session.get(Evidence, ev_id).review_id == rev_id
+    assert db_session.get(PointState, pid).state == "learned"
+    assert db_session.get(PointState, pid).learned_at is not None
+
+    dry = client.post(f"/v1/evidence/{ev_id}/void?dry_run=true", json={"reason": "预演作废"}, headers=AXUE)
+    assert dry.status_code == 200
+    assert dry.json().get("dry_run") is True
+    db_session.expire_all()
+    assert db_session.get(ReviewLog, rev_id).voided_at is None
+    assert db_session.get(Evidence, ev_id).voided_at is None
+    assert db_session.get(CardState, cid) is not None
+    assert db_session.get(PointState, pid).state == "learned"
+
+    voided = client.post(f"/v1/evidence/{ev_id}/void", json={"reason": "证据录错"}, headers=AXUE)
+    assert voided.status_code == 200
+    assert voided.json()["cascaded_review_id"] == rev_id
+    db_session.expire_all()
+    rev = db_session.get(ReviewLog, rev_id)
+    assert rev.voided_at is not None
+    assert rev.void_reason == f"[证据#{ev_id}] 证据录错"
+    assert db_session.get(CardState, cid) is None
+    ps = db_session.get(PointState, pid)
+    assert ps.state != "learned"
+    assert ps.learned_at is None
+
+    blocked = client.post(f"/v1/reviews/{rev_id}/restore", headers=AXUE)
+    assert blocked.status_code == 409
+    assert blocked.json()["error"]["code"] == "evidence_voided"
+    db_session.expire_all()
+    assert db_session.get(ReviewLog, rev_id).voided_at is not None
+
+    restored = client.post(f"/v1/evidence/{ev_id}/restore", headers=AXUE)
+    assert restored.status_code == 200
+    assert restored.json()["restored_review_id"] == rev_id
+    db_session.expire_all()
+    assert db_session.get(ReviewLog, rev_id).voided_at is None
+    assert db_session.get(Evidence, ev_id).voided_at is None
+    assert db_session.get(CardState, cid) is not None
+    assert db_session.get(PointState, pid).state == "learned"
+
+
+def test_session_void_cascades_linked_review(client: TestClient, db_session) -> None:
+    _import_maps(client)
+    pid, cid = _one_active_card(db_session)
+    sid = client.post(
+        "/v1/sessions",
+        json={"date": "2026-10-06", "point_ids": [pid], "summary": "带卡证据"},
+        headers=AXUE,
+    ).json()["session_id"]
+    ev = client.post(
+        "/v1/evidence",
+        json={"point_id": pid, "session_id": sid, "card_id": cid, "type": "handson", "passed": True},
+        headers=AXUE,
+    ).json()
+    ev_id = ev["evidence_id"]
+    rev_id = ev["review"]["review_id"]
+    db_session.expire_all()
+    assert db_session.get(PointState, pid).state == "learned"
+
+    dry = client.post(f"/v1/sessions/{sid}/void?dry_run=true", json={"reason": "预演"}, headers=AXUE)
+    assert dry.status_code == 200 and dry.json().get("dry_run") is True
+    db_session.expire_all()
+    assert db_session.get(StudySession, sid).voided_at is None
+    assert db_session.get(Evidence, ev_id).voided_at is None
+    assert db_session.get(ReviewLog, rev_id).voided_at is None
+    assert db_session.get(PointState, pid).state == "learned"
+
+    voided = client.post(f"/v1/sessions/{sid}/void", json={"reason": "课次录错"}, headers=AXUE)
+    assert voided.status_code == 200
+    body = voided.json()
+    assert ev_id in body["cascaded_evidence"]
+    assert rev_id in body["cascaded_reviews"]
+    db_session.expire_all()
+    assert db_session.get(Evidence, ev_id).void_reason == f"[课次#{sid}] 课次录错"
+    assert db_session.get(ReviewLog, rev_id).void_reason == f"[证据#{ev_id}] [课次#{sid}] 课次录错"
+    assert db_session.get(CardState, cid) is None
+    ps = db_session.get(PointState, pid)
+    assert ps.state != "learned"
+    assert ps.learned_at is None
+
+    blocked = client.post(f"/v1/reviews/{rev_id}/restore", headers=AXUE)
+    assert blocked.status_code == 409 and blocked.json()["error"]["code"] == "evidence_voided"
+
+    restored = client.post(f"/v1/sessions/{sid}/restore", headers=AXUE)
+    assert restored.status_code == 200
+    assert rev_id in restored.json()["restored_reviews"]
+    db_session.expire_all()
+    assert db_session.get(ReviewLog, rev_id).voided_at is None
+    assert db_session.get(Evidence, ev_id).voided_at is None
+    assert db_session.get(CardState, cid) is not None
+    assert db_session.get(PointState, pid).state == "learned"
+
+
+def test_independent_review_void_survives_evidence_restore(client: TestClient, db_session) -> None:
+    """复习若是单独作废的，恢复证据时不要把它捞回来。"""
+    _import_maps(client)
+    pid, cid = _one_active_card(db_session)
+    ev = client.post(
+        "/v1/evidence",
+        json={"point_id": pid, "card_id": cid, "type": "handson", "passed": True},
+        headers=AXUE,
+    ).json()
+    ev_id = ev["evidence_id"]
+    rev_id = ev["review"]["review_id"]
+
+    assert client.post(f"/v1/reviews/{rev_id}/void", json={"reason": "单独作废"}, headers=AXUE).status_code == 200
+    assert client.post(f"/v1/evidence/{ev_id}/void", json={"reason": "证据作废"}, headers=AXUE).status_code == 200
+    db_session.expire_all()
+    assert db_session.get(ReviewLog, rev_id).void_reason == "单独作废"
+
+    assert client.post(f"/v1/evidence/{ev_id}/restore", headers=AXUE).status_code == 200
+    db_session.expire_all()
+    rev = db_session.get(ReviewLog, rev_id)
+    assert rev.voided_at is not None
+    assert rev.void_reason == "单独作废"
+    assert db_session.get(Evidence, ev_id).voided_at is None
+    assert db_session.get(PointState, pid).state != "learned"
+    assert db_session.get(CardState, cid) is None
 
 
 def test_review_deduplication_voided(client: TestClient, db_session) -> None:

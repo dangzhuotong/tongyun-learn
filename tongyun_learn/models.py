@@ -306,6 +306,8 @@ class Evidence(Base):
     stage_id: Mapped[str | None] = mapped_column(String(64), ForeignKey("stages.id"), nullable=True)
     session_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("sessions.id"), nullable=True)
     card_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("cards.id"), nullable=True)
+    # 带 card_id 记证据时同时写的那条复习；作废/恢复证据时一起作废/恢复并重放 FSRS
+    review_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("review_log.id"), nullable=True)
     type: Mapped[str] = mapped_column(
         Enum(
             "selftest",

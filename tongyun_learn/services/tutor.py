@@ -135,6 +135,7 @@ def create_evidence(db: Session, body: dict) -> dict:
             "axue",
             now,
         )
+        ev.review_id = review["review_id"]
     changes = []
     if pid:
         # 只有通过的证据才清「待复查」（没通过的不算复查完成）
