@@ -9,7 +9,7 @@
 from collections import defaultdict
 from datetime import date, datetime, timedelta
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from tongyun_learn.errors import ApiError
@@ -214,17 +214,39 @@ def recall(db: Session, days: str = "1,3,7", now: datetime | None = None) -> lis
             picked.append((f"{n}d", d))
             used.add(d)
 
-    open_blockers = list(db.scalars(select(Blocker).where(Blocker.status == "open").order_by(Blocker.created_at)))
-    out = []
-    for label, d in picked:
-        sess = list(
+    if not picked:
+        return []
+    picked_dates = [d for _label, d in picked]
+    sessions = list(
+        db.scalars(
+            select(StudySession)
+            .where(StudySession.date.in_(picked_dates), StudySession.voided_at.is_(None))
+            .order_by(StudySession.id)
+        )
+    )
+    item_by_sid = {it["session_id"]: it for it in _session_items(db, sessions)}
+    sess_by_date: dict[date, list[StudySession]] = defaultdict(list)
+    for s in sessions:
+        sess_by_date[s.date].append(s)
+    all_sids = [s.id for s in sessions]
+    all_pids = {pid for it in item_by_sid.values() for pid in it["point_ids"]}
+    blocker_filters = []
+    if all_sids:
+        blocker_filters.append(Blocker.session_id.in_(all_sids))
+    if all_pids:
+        blocker_filters.append(Blocker.point_id.in_(all_pids))
+    open_blockers: list[Blocker] = []
+    if blocker_filters:
+        open_blockers = list(
             db.scalars(
-                select(StudySession)
-                .where(StudySession.date == d, StudySession.voided_at.is_(None))
-                .order_by(StudySession.id)
+                select(Blocker)
+                .where(Blocker.status == "open", or_(*blocker_filters))
+                .order_by(Blocker.created_at, Blocker.id)
             )
         )
-        items = _session_items(db, sess)
+    out = []
+    for label, d in picked:
+        items = [item_by_sid[s.id] for s in sess_by_date.get(d, []) if s.id in item_by_sid]
         sids = {it["session_id"] for it in items}
         pids = {pid for it in items for pid in it["point_ids"]}
         related = [b for b in open_blockers if b.session_id in sids or (b.point_id and b.point_id in pids)]

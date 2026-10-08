@@ -203,6 +203,71 @@ def test_get_recall(client: TestClient):
     assert client.get("/v1/recall?days=400", headers=AXUE).status_code == 422
 
 
+def test_recall_and_next_queries_stay_bounded(client: TestClient):
+    """回忆按天、待复查按点各只查一次；无关的未解决卡点不要整表扫进来。"""
+    from sqlalchemy import event
+
+    from tongyun_learn.db import SessionLocal, get_engine
+
+    _import_maps(client)
+    today = today_local()
+    for i in range(1, 13):
+        res = client.post(
+            "/v1/sessions",
+            json={"date": (today - timedelta(days=i)).isoformat(), "point_ids": ["jf.git-secrets"], "summary": str(i)},
+            headers=AXUE,
+        )
+        assert res.status_code == 200, res.text
+    related = client.post("/v1/blockers", json={"point_id": "jf.git-secrets", "title": "相关"}, headers=AXUE)
+    unrelated = client.post("/v1/blockers", json={"point_id": "jf.equals-hashcode", "title": "无关"}, headers=AXUE)
+    assert related.status_code == 200 and unrelated.status_code == 200
+    related_id = related.json()["id"]
+    unrelated_id = unrelated.json()["id"]
+
+    db = SessionLocal()
+    try:
+        rows = list(db.scalars(select(PointState).limit(30)))
+        assert len(rows) >= 25
+        for ps in rows:
+            ps.needs_recheck = True
+        db.commit()
+        n_recheck = len(rows)
+    finally:
+        db.close()
+
+    engine = get_engine()
+    bucket = {"n": 0}
+
+    def _count(*_args, **_kwargs) -> None:
+        bucket["n"] += 1
+
+    event.listen(engine, "before_cursor_execute", _count)
+    try:
+        bucket["n"] = 0
+        recall = client.get("/v1/recall?days=1,2,3,4,5,6,7,8,9,10", headers=AXUE)
+        assert recall.status_code == 200, recall.text
+        groups = recall.json()
+        recall_n = bucket["n"]
+
+        bucket["n"] = 0
+        nxt = client.get("/v1/next?limit=5", headers=AXUE)
+        assert nxt.status_code == 200, nxt.text
+        next_n = bucket["n"]
+    finally:
+        event.remove(engine, "before_cursor_execute", _count)
+
+    assert len(groups) >= 8
+    for g in groups:
+        ids = [b["id"] for b in g["open_blockers"]]
+        assert related_id in ids
+        assert unrelated_id not in ids
+    # 按天各查一遍课次+课次知识点会超过这条线；收成常量次查询后应远低于它
+    assert recall_n < 18
+    # 每个待复查点再查一遍证据会不少于待复查点数
+    assert next_n < n_recheck
+    assert len(nxt.json()["recheck"]) == n_recheck
+
+
 # ───────────────────────── GET /v1/summary/week ─────────────────────────
 
 
