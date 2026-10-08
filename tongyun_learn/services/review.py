@@ -83,13 +83,17 @@ def apply_one(db: Session, item: dict, principal: str, now: datetime | None = No
     if crid:
         dup = db.scalar(select(ReviewLog).where(ReviewLog.client_review_id == crid))
         if dup is not None:
-            return {
+            res = {
+                "review_id": dup.id,
                 "card_id": dup.card_id,
                 "card_state": card_state_out(db.get(CardState, dup.card_id)),
                 "applied": False,
                 "duplicate": True,
                 "point_changes": [],
             }
+            if dup.voided_at is not None:
+                res["voided"] = True
+            return res
     at = _reviewed_at(item.get("reviewed_at"), now)
     if item.get("kind") == "en_word":
         card = resolve_en_word_card(db, item, principal)
@@ -130,6 +134,7 @@ def apply_one(db: Session, item: dict, principal: str, now: datetime | None = No
     if applied and card.point_id:
         changes = recompute_points(db, [card.point_id], cause="review", cause_ref=str(log.id), now=now)
     return {
+        "review_id": log.id,
         "card_id": card.id,
         "card_state": card_state_out(cs),
         "applied": applied,

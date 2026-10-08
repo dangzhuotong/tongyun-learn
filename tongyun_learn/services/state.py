@@ -23,6 +23,7 @@ from tongyun_learn.models import (
     PointStateLog,
     ReviewLog,
     SessionPoint,
+    StudySession,
 )
 from tongyun_learn.services import srs
 from tongyun_learn.timeutil import iso_local, utcnow
@@ -75,8 +76,14 @@ def stale_evidence(p: Point, evs: list[Evidence], now: datetime) -> list[list]:
     return out
 
 
-def _compute(db: Session, p: Point, ps: PointState | None, now: datetime) -> tuple[str, dict, bool | None]:
-    """返回 (新状态, stats 快照, needs_recheck 置位建议：True=置 1 / None=不动)。"""
+def _compute(
+    db: Session, p: Point, ps: PointState | None, now: datetime, fresh: bool = False, rebase: bool = False
+) -> tuple[str, str, dict, bool | None]:
+    """返回 (新状态, 未套人工覆盖的推导状态, stats 快照, needs_recheck 置位建议：True=置 1 / None=不动)。
+
+    fresh=True：撤销人工覆盖时用，上一次状态改看快照里的 derived_state（不把覆盖值当成真实状态）。
+    rebase=True：作废数据后用，按剩余数据重推——不认粘性的「学过」（learned_at）；掌握↔生疏防抖只在
+    掌握依据还在（有复习过的卡、要求的每类证据至少有一条未作废的通过记录）时沿用。"""
     rows = db.execute(
         select(Card.id, CardState)
         .outerjoin(CardState, CardState.card_id == Card.id)
@@ -87,7 +94,7 @@ def _compute(db: Session, p: Point, ps: PointState | None, now: datetime) -> tup
     ratio = len([c for c in C if _stable(c)]) / len(C) if C else 0.0
     last10 = db.scalars(
         select(ReviewLog.rating)
-        .where(ReviewLog.point_id == p.id, ReviewLog.applied.is_(True))
+        .where(ReviewLog.point_id == p.id, ReviewLog.applied.is_(True), ReviewLog.voided_at.is_(None))
         .order_by(ReviewLog.reviewed_at.desc(), ReviewLog.id.desc())
         .limit(10)
     ).all()
@@ -102,7 +109,7 @@ def _compute(db: Session, p: Point, ps: PointState | None, now: datetime) -> tup
         fsrs_ok = len(C30) >= VOCAB_MIN_CARDS and ratio >= MASTER_RATIO and acc10 >= MASTER_ACC
 
     need = needed_evidence(p)
-    evs = db.scalars(select(Evidence).where(Evidence.point_id == p.id)).all()
+    evs = db.scalars(select(Evidence).where(Evidence.point_id == p.id, Evidence.voided_at.is_(None))).all()
 
     def ev_ok(t: str, days: int) -> bool:
         at = _latest_passed(evs, t)
@@ -123,9 +130,29 @@ def _compute(db: Session, p: Point, ps: PointState | None, now: datetime) -> tup
     ).all()
     hard_ok = all((not active) or (st in DONE_STATES) for _pid, active, st in hard)
 
-    has_session = db.scalar(select(func.count()).select_from(SessionPoint).where(SessionPoint.point_id == p.id)) > 0
+    has_session = (
+        db.scalar(
+            select(func.count())
+            .select_from(SessionPoint)
+            .join(StudySession, StudySession.id == SessionPoint.session_id)
+            .where(SessionPoint.point_id == p.id, StudySession.voided_at.is_(None))
+        )
+        > 0
+    )
 
-    prev = ps.state if ps else None
+    # 防抖分支（掌握↔生疏）要看「上一次的真实状态」：人工覆盖生效期间 ps.state 存的是覆盖值，
+    # 所以覆盖中 / 刚撤销覆盖时改看快照里的 derived_state（每次重算都存，人工覆盖不污染它）
+    if ps is None:
+        prev = None
+    elif fresh or ps.override_state is not None:
+        prev = (ps.stats or {}).get("derived_state")
+    else:
+        prev = ps.state
+    if rebase and prev in ("mastered", "rusty"):
+        basis = bool(C) and all(_latest_passed(evs, t) is not None for t in need)
+        if not basis:
+            prev = None
+    sticky_learned = ps is not None and ps.learned_at is not None and not rebase
     recheck: bool | None = None
     if prev == "mastered":
         s = "rusty" if (ratio < RUSTY_RATIO or acc10 < RUSTY_ACC) else "mastered"
@@ -135,7 +162,7 @@ def _compute(db: Session, p: Point, ps: PointState | None, now: datetime) -> tup
             recheck = True
     elif fsrs_ok and all(ev_ok(t, EVIDENCE_DAYS) for t in need):
         s = "mastered"
-    elif learned or (ps is not None and ps.learned_at is not None):
+    elif learned or sticky_learned:
         s = "learned"
     elif C or has_session:
         s = "learning"
@@ -143,6 +170,7 @@ def _compute(db: Session, p: Point, ps: PointState | None, now: datetime) -> tup
         s = "available"
     else:
         s = "locked"
+    derived = s
     if ps is not None and ps.override_state:
         o = ps.override_state
         s = o if (o != "available" or s == "locked") else s
@@ -155,8 +183,9 @@ def _compute(db: Session, p: Point, ps: PointState | None, now: datetime) -> tup
         "recent_n": len(last10),
         "reviewed_cards": len(C),
         "active_cards": n_active,
+        "derived_state": derived,  # 不套人工覆盖的推导状态（撤销覆盖后回到它）
     }
-    return s, stats, recheck
+    return s, derived, stats, recheck
 
 
 def _hard_dependents(db: Session, pid: str) -> list[str]:
@@ -172,10 +201,22 @@ def recompute_points(
     cause_ref: str | None = None,
     evidence_point_ids: Iterable[str] = (),
     now: datetime | None = None,
+    note: str | None = None,
+    force_log: Iterable[str] = (),
+    fresh: Iterable[str] = (),
+    rebase: Iterable[str] = (),
 ) -> list[dict]:
-    """重算给定点并沿硬前置下游连锁。返回状态变化 [{point_id, from, to}]（调用方负责 commit）。"""
+    """重算给定点并沿硬前置下游连锁。返回状态变化 [{point_id, from, to}]（调用方负责 commit）。
+
+    note：写进本次产生的 point_state_log.note（人工改状态的理由）。
+    force_log：这些点即使状态没变也写一条 log（人工改状态要留痕）。
+    fresh：这些点的上一次状态取快照 derived_state 而不是 ps.state（撤销人工覆盖）。
+    rebase：这些点按剩余数据重推（作废课次/证据/复习后），见 _compute；下游连锁的点照常重算。"""
     now = now or utcnow()
     ev_set = set(evidence_point_ids)
+    force = set(force_log)
+    fresh_set = set(fresh)
+    rebase_set = set(rebase)
     queue: deque[str] = deque(dict.fromkeys(point_ids))
     queued = set(queue)
     changes: list[dict] = []
@@ -198,7 +239,7 @@ def recompute_points(
                     queue.append(d)
                     queued.add(d)
             continue
-        s, stats, recheck = _compute(db, p, ps, now)
+        s, derived, stats, recheck = _compute(db, p, ps, now, fresh=pid in fresh_set, rebase=pid in rebase_set)
         if ps is None:
             ps = PointState(point_id=pid, state=s, since=now, ever_mastered=False, needs_recheck=False)
             db.add(ps)
@@ -206,15 +247,24 @@ def recompute_points(
             ps.needs_recheck = True
         if pid in ev_set:
             ps.needs_recheck = False
-        if s == "mastered":
+        # 掌握过 / 学过时间只认推导出来的状态，人工覆盖不污染（撤销覆盖后能回到真实状态）
+        if derived == "mastered":
             ps.ever_mastered = True
-        if s in ("learned", "mastered") and ps.learned_at is None:
+        if derived in ("learned", "mastered") and ps.learned_at is None:
             ps.learned_at = now
+        if pid in rebase_set:
+            # 作废后不再成立的「学过 / 掌握过」一并撤掉（它们只该来自有效数据）
+            if derived not in ("learned", "mastered", "rusty"):
+                ps.learned_at = None
+            if derived not in ("mastered", "rusty"):
+                ps.ever_mastered = False
         ps.stats = stats
         ps.computed_at = now
-        if s != prev:
-            ps.state = s
-            ps.since = now
+        if s != prev or pid in force:
+            force.discard(pid)
+            if s != prev:
+                ps.state = s
+                ps.since = now
             db.add(
                 PointStateLog(
                     point_id=pid,
@@ -222,9 +272,11 @@ def recompute_points(
                     to_state=s,
                     cause=cause,
                     cause_ref=str(cause_ref)[:64] if cause_ref is not None else None,
+                    note=note[:500] if note else None,
                     created_at=now,
                 )
             )
+        if s != prev:
             changes.append({"point_id": pid, "from": prev, "to": s})
             if (prev in DONE_STATES) != (s in DONE_STATES) or prev is None:
                 for d in _hard_dependents(db, pid):
@@ -270,7 +322,9 @@ def point_stats(db: Session, point_ids: list[str], now: datetime | None = None) 
             next_due[pid] = cs.due
     evidence: dict[str, dict] = defaultdict(dict)
     for e in db.scalars(
-        select(Evidence).where(Evidence.point_id.in_(point_ids)).order_by(Evidence.observed_at, Evidence.id)
+        select(Evidence)
+        .where(Evidence.point_id.in_(point_ids), Evidence.voided_at.is_(None))
+        .order_by(Evidence.observed_at, Evidence.id)
     ):
         prev = evidence[e.point_id].get(e.type)
         last_passed = prev["last_passed_at"] if prev else None
@@ -308,5 +362,6 @@ def point_stats(db: Session, point_ids: list[str], now: datetime | None = None) 
             "evidence": evidence.get(pid, {}),
             "open_blockers": int(blockers.get(pid, 0)),
             "needs_recheck": bool(ps.needs_recheck) if ps else False,
+            "override_state": ps.override_state if ps else None,
         }
     return out

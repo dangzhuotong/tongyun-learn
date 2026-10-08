@@ -250,6 +250,8 @@ class ReviewLog(Base):
     stability_after: Mapped[float | None] = mapped_column(DOUBLE, nullable=True)
     due_after: Mapped[datetime | None] = mapped_column(DT3, nullable=True)
     client_review_id: Mapped[str | None] = mapped_column(String(64), nullable=True, unique=True)
+    voided_at: Mapped[datetime | None] = mapped_column(DT3, nullable=True)
+    void_reason: Mapped[str | None] = mapped_column(String(500), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DT3, default=utcnow, nullable=False)
 
 
@@ -274,6 +276,8 @@ class StudySession(Base):
         nullable=True,
     )
     legacy_ref: Mapped[str | None] = mapped_column(String(64), nullable=True, unique=True)
+    voided_at: Mapped[datetime | None] = mapped_column(DT3, nullable=True)
+    void_reason: Mapped[str | None] = mapped_column(String(500), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DT3, default=utcnow, nullable=False)
 
 
@@ -302,6 +306,8 @@ class Evidence(Base):
     stage_id: Mapped[str | None] = mapped_column(String(64), ForeignKey("stages.id"), nullable=True)
     session_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("sessions.id"), nullable=True)
     card_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("cards.id"), nullable=True)
+    # 带 card_id 记证据时同时写的那条复习；作废/恢复证据时一起作废/恢复并重放 FSRS
+    review_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("review_log.id"), nullable=True)
     type: Mapped[str] = mapped_column(
         Enum(
             "selftest",
@@ -325,6 +331,8 @@ class Evidence(Base):
     )
     observed_at: Mapped[datetime | None] = mapped_column(DT3, nullable=True)
     legacy_ref: Mapped[str | None] = mapped_column(String(64), nullable=True, unique=True)
+    voided_at: Mapped[datetime | None] = mapped_column(DT3, nullable=True)
+    void_reason: Mapped[str | None] = mapped_column(String(500), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DT3, default=utcnow, nullable=False)
 
 

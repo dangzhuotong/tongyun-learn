@@ -1,0 +1,225 @@
+{
+ "_comment": "axue_learning 旧课程表（W1–W4，20 课）→ 知识点映射。point 为空 = 不在主线：有学习记录的迁成 misc.<code 小写>，没记录的不迁。来源 /workspace/personal/axue/db/seed_lessons.sql 与 knowledge-maps/design-notes.md §6。",
+ "lessons": [
+  {
+   "code": "W1D1",
+   "week": 1,
+   "day": 1,
+   "area": "开发编程",
+   "title": "Git与密钥安全",
+   "file_path": "/workspace/personal/axue/lessons/week1/W1D1-Git与密钥安全.md",
+   "ima_note_title": "第 1 周 周一 · Git与密钥安全",
+   "sort_order": 11,
+   "point": "jf.git-secrets"
+  },
+  {
+   "code": "W1D2",
+   "week": 1,
+   "day": 2,
+   "area": "Web",
+   "title": "HTTP一次请求全过程",
+   "file_path": "/workspace/personal/axue/lessons/week1/W1D2-HTTP一次请求全过程.md",
+   "ima_note_title": "第 1 周 周二 · HTTP一次请求全过程",
+   "sort_order": 12,
+   "point": null
+  },
+  {
+   "code": "W1D3",
+   "week": 1,
+   "day": 3,
+   "area": "AI",
+   "title": "大模型 API",
+   "file_path": "/workspace/personal/axue/lessons/week1/W1D3-大模型API.md",
+   "ima_note_title": "第 1 周 周三 · 大模型 API",
+   "sort_order": 13,
+   "point": "jf.llm-basics"
+  },
+  {
+   "code": "W1D4",
+   "week": 1,
+   "day": 4,
+   "area": "Web",
+   "title": "域名、DNS、端口与反向代理",
+   "file_path": "/workspace/personal/axue/lessons/week1/W1D4-域名DNS端口与反向代理.md",
+   "ima_note_title": "第 1 周 周四 · 域名、DNS、端口与反向代理",
+   "sort_order": 14,
+   "point": null
+  },
+  {
+   "code": "W1D5",
+   "week": 1,
+   "day": 5,
+   "area": "AI",
+   "title": "用 curl 调大模型 API 综合练习",
+   "file_path": "/workspace/personal/axue/lessons/week1/W1D5-用curl调大模型API综合练习.md",
+   "ima_note_title": "第 1 周 周五 · 用 curl 调大模型 API 综合练习",
+   "sort_order": 15,
+   "point": "jf.llm-api-java"
+  },
+  {
+   "code": "W2D1",
+   "week": 2,
+   "day": 1,
+   "area": "开发编程",
+   "title": "TypeScript 类型",
+   "file_path": "/workspace/personal/axue/lessons/week2/W2D1-TypeScript类型.md",
+   "ima_note_title": "第 2 周 周一 · TypeScript 类型",
+   "sort_order": 21,
+   "point": null
+  },
+  {
+   "code": "W2D2",
+   "week": 2,
+   "day": 2,
+   "area": "Web",
+   "title": "组件状态props与副作用",
+   "file_path": "/workspace/personal/axue/lessons/week2/W2D2-组件状态props与副作用.md",
+   "ima_note_title": "第 2 周 周二 · 组件状态props与副作用",
+   "sort_order": 22,
+   "point": "jf.frontend-enough"
+  },
+  {
+   "code": "W2D3",
+   "week": 2,
+   "day": 3,
+   "area": "AI",
+   "title": "结构化输出",
+   "file_path": "/workspace/personal/axue/lessons/week2/W2D3-结构化输出.md",
+   "ima_note_title": "第 2 周 周三 · 结构化输出",
+   "sort_order": 23,
+   "point": "jf.structured-output"
+  },
+  {
+   "code": "W2D4",
+   "week": 2,
+   "day": 4,
+   "area": "Web",
+   "title": "FastAPI接口从路由到数据库",
+   "file_path": "/workspace/personal/axue/lessons/week2/W2D4-FastAPI接口从路由到数据库.md",
+   "ima_note_title": "第 2 周 周四 · FastAPI接口从路由到数据库",
+   "sort_order": 24,
+   "point": null
+  },
+  {
+   "code": "W2D5",
+   "week": 2,
+   "day": 5,
+   "area": "Web",
+   "title": "加一个最简单的新接口",
+   "file_path": "/workspace/personal/axue/lessons/week2/W2D5-加一个最简单的新接口.md",
+   "ima_note_title": "第 2 周 周五 · 加一个最简单的新接口",
+   "sort_order": 25,
+   "point": null
+  },
+  {
+   "code": "W3D1",
+   "week": 3,
+   "day": 1,
+   "area": "开发编程",
+   "title": "读懂 AI 写的代码",
+   "file_path": "/workspace/personal/axue/lessons/week3/W3D1-读懂AI写的代码.md",
+   "ima_note_title": "第 3 周 周一 · 读懂 AI 写的代码",
+   "sort_order": 31,
+   "point": null
+  },
+  {
+   "code": "W3D2",
+   "week": 3,
+   "day": 2,
+   "area": "Web",
+   "title": "CORS与HTTPS",
+   "file_path": "/workspace/personal/axue/lessons/week3/W3D2-CORS与HTTPS.md",
+   "ima_note_title": "第 3 周 周二 · CORS与HTTPS",
+   "sort_order": 32,
+   "point": null
+  },
+  {
+   "code": "W3D3",
+   "week": 3,
+   "day": 3,
+   "area": "AI",
+   "title": "function calling 工具调用循环",
+   "file_path": "/workspace/personal/axue/lessons/week3/W3D3-function-calling工具调用循环.md",
+   "ima_note_title": "第 3 周 周三 · function calling 工具调用循环",
+   "sort_order": 33,
+   "point": "jf.function-calling"
+  },
+  {
+   "code": "W3D4",
+   "week": 3,
+   "day": 4,
+   "area": "开发编程",
+   "title": "Docker 与 compose",
+   "file_path": "/workspace/personal/axue/lessons/week3/W3D4-Docker与compose.md",
+   "ima_note_title": "第 3 周 周四 · Docker 与 compose",
+   "sort_order": 34,
+   "point": null
+  },
+  {
+   "code": "W3D5",
+   "week": 3,
+   "day": 5,
+   "area": "AI",
+   "title": "写一个最小 Agent",
+   "file_path": "/workspace/personal/axue/lessons/week3/W3D5-写一个最小Agent.md",
+   "ima_note_title": "第 3 周 周五 · 写一个最小 Agent",
+   "sort_order": 35,
+   "point": "jf.agent"
+  },
+  {
+   "code": "W4D1",
+   "week": 4,
+   "day": 1,
+   "area": "开发编程",
+   "title": "写测试",
+   "file_path": "/workspace/personal/axue/lessons/week4/W4D1-写测试.md",
+   "ima_note_title": "第 4 周 周一 · 写测试",
+   "sort_order": 41,
+   "point": null
+  },
+  {
+   "code": "W4D2",
+   "week": 4,
+   "day": 2,
+   "area": "Web",
+   "title": "鉴权：Cookie、Session 与 JWT",
+   "file_path": "/workspace/personal/axue/lessons/week4/W4D2-鉴权cookie-session-JWT.md",
+   "ima_note_title": "第 4 周 周二 · 鉴权：Cookie、Session 与 JWT",
+   "sort_order": 42,
+   "point": "jf.web-auth"
+  },
+  {
+   "code": "W4D3",
+   "week": 4,
+   "day": 3,
+   "area": "AI",
+   "title": "MCP是什么",
+   "file_path": "/workspace/personal/axue/lessons/week4/W4D3-MCP是什么.md",
+   "ima_note_title": "第 4 周 周三 · MCP是什么",
+   "sort_order": 43,
+   "point": "jf.mcp"
+  },
+  {
+   "code": "W4D4",
+   "week": 4,
+   "day": 4,
+   "area": "开发编程",
+   "title": "CI/CD一次push之后发生了什么",
+   "file_path": "/workspace/personal/axue/lessons/week4/W4D4-CI-CD一次push之后发生了什么.md",
+   "ima_note_title": "第 4 周 周四 · CI/CD一次push之后发生了什么",
+   "sort_order": 44,
+   "point": null
+  },
+  {
+   "code": "W4D5",
+   "week": 4,
+   "day": 5,
+   "area": "AI",
+   "title": "Embedding 与 RAG 入门",
+   "file_path": "/workspace/personal/axue/lessons/week4/W4D5-Embedding与RAG入门.md",
+   "ima_note_title": "第 4 周 周五 · Embedding 与 RAG 入门",
+   "sort_order": 45,
+   "point": "jf.rag"
+  }
+ ]
+}
