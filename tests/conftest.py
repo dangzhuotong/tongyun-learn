@@ -64,7 +64,20 @@ def client(app: FastAPI) -> Generator[TestClient, None, None]:
 @pytest.fixture
 def db_session(setup_test_db: str) -> Generator[Session, None, None]:
     session = SessionLocal()
+    # MySQL default is REPEATABLE READ. This session only observes rows committed by
+    # request handlers (those sessions stay on the engine default). A snapshot opened
+    # by an earlier SELECT would hide those commits, so a later get()/expire_all()
+    # still reads the old rows. READ COMMITTED makes each statement here see them.
+    # Reset before the connection goes back to the pool.
+    mysql = session.get_bind().dialect.name == "mysql"
+    if mysql:
+        session.connection().exec_driver_sql("SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED")
+        session.rollback()
     try:
         yield session
     finally:
+        if mysql:
+            session.rollback()
+            session.connection().exec_driver_sql("SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ")
+            session.rollback()
         session.close()

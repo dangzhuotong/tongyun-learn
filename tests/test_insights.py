@@ -86,7 +86,7 @@ def test_get_weak(client: TestClient, db_session):
     assert card_eq is not None
     cs_eq = db_session.get(CardState, card_eq.id)
     if cs_eq is None:
-        cs_eq = CardState(card_id=card_eq.id, lapses=3, state="review")
+        cs_eq = CardState(card_id=card_eq.id, lapses=3, state=2)  # FSRS review；列是 TINYINT
         db_session.add(cs_eq)
     else:
         cs_eq.lapses = 3
