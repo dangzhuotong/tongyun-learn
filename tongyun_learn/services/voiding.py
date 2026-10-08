@@ -7,7 +7,9 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from tongyun_learn.errors import ApiError
-from tongyun_learn.models import Blocker, Evidence, SessionPoint, StudySession
+from tongyun_learn.models import Blocker, Card, CardState, Evidence, ReviewLog, SessionPoint, StudySession
+from tongyun_learn.services import srs
+from tongyun_learn.services.review import card_state_out
 from tongyun_learn.services.state import recompute_points
 from tongyun_learn.timeutil import iso_local, utcnow
 
@@ -296,3 +298,181 @@ def list_sessions(
             }
         )
     return out
+
+
+def _replay_fsrs(db: Session, card_id: int) -> CardState | None:
+    remaining_reviews = list(
+        db.scalars(
+            select(ReviewLog)
+            .where(
+                ReviewLog.card_id == card_id,
+                ReviewLog.applied.is_(True),
+                ReviewLog.voided_at.is_(None),
+            )
+            .order_by(ReviewLog.reviewed_at.asc(), ReviewLog.id.asc())
+        )
+    )
+    if not remaining_reviews:
+        cs_row = db.get(CardState, card_id)
+        if cs_row is not None:
+            db.delete(cs_row)
+        return None
+
+    temp_cs: CardState | None = None
+    for r in remaining_reviews:
+        temp_cs = srs.apply_review(temp_cs, card_id, r.rating, r.reviewed_at)
+        r.stability_after = temp_cs.stability
+        r.due_after = temp_cs.due
+
+    cs_row = db.get(CardState, card_id)
+    if cs_row is None:
+        cs_row = CardState(card_id=card_id)
+        db.add(cs_row)
+    for field in (
+        "state",
+        "step",
+        "stability",
+        "difficulty",
+        "due",
+        "first_review",
+        "last_review",
+        "last_rating",
+        "reps",
+        "lapses",
+    ):
+        setattr(cs_row, field, getattr(temp_cs, field))
+    return cs_row
+
+
+def void_review(db: Session, review_id: int, reason: str, now: datetime | None = None) -> dict:
+    now = now or utcnow()
+    rev = db.get(ReviewLog, review_id)
+    if rev is None:
+        raise ApiError(404, "not_found", "复习记录不存在")
+    if rev.voided_at is not None:
+        raise ApiError(409, "already_voided", "复习记录已作废")
+
+    reason = _reason(reason)
+    rev.voided_at = now
+    rev.void_reason = reason
+    db.flush()
+
+    if not rev.applied:
+        cs_row = db.get(CardState, rev.card_id)
+        db.commit()
+        return {
+            "review_id": rev.id,
+            "card_id": rev.card_id,
+            "card_state": card_state_out(cs_row),
+            "point_changes": [],
+        }
+
+    cs_row = _replay_fsrs(db, rev.card_id)
+
+    card = db.get(Card, rev.card_id)
+    pid = rev.point_id or (card.point_id if card else None)
+    pids = [pid] if pid else []
+
+    db.flush()
+    changes = []
+    if pids:
+        changes = recompute_points(
+            db,
+            pids,
+            rebase=pids,
+            cause="void",
+            cause_ref=f"review:{rev.id}",
+            now=now,
+            note=reason,
+        )
+    db.commit()
+
+    return {
+        "review_id": rev.id,
+        "card_id": rev.card_id,
+        "card_state": card_state_out(cs_row),
+        "point_changes": changes,
+    }
+
+
+def restore_review(db: Session, review_id: int, reason: str | None = None, now: datetime | None = None) -> dict:
+    now = now or utcnow()
+    rev = db.get(ReviewLog, review_id)
+    if rev is None:
+        raise ApiError(404, "not_found", "复习记录不存在")
+    if rev.voided_at is None:
+        raise ApiError(409, "not_voided", "复习记录未作废")
+
+    rev.voided_at = None
+    rev.void_reason = None
+    db.flush()
+
+    if not rev.applied:
+        cs_row = db.get(CardState, rev.card_id)
+        db.commit()
+        return {
+            "review_id": rev.id,
+            "card_id": rev.card_id,
+            "card_state": card_state_out(cs_row),
+            "point_changes": [],
+        }
+
+    cs_row = _replay_fsrs(db, rev.card_id)
+
+    card = db.get(Card, rev.card_id)
+    pid = rev.point_id or (card.point_id if card else None)
+    pids = [pid] if pid else []
+
+    db.flush()
+    changes = []
+    if pids:
+        changes = recompute_points(
+            db,
+            pids,
+            cause="restore",
+            cause_ref=f"review:{rev.id}",
+            now=now,
+            note=(reason or "").strip() or None,
+        )
+    db.commit()
+
+    return {
+        "review_id": rev.id,
+        "card_id": rev.card_id,
+        "card_state": card_state_out(cs_row),
+        "point_changes": changes,
+    }
+
+
+def list_reviews(
+    db: Session,
+    card: int | None = None,
+    point: str | None = None,
+    limit: int = 20,
+    include_voided: bool = False,
+) -> list[dict]:
+    q = select(ReviewLog)
+    if not include_voided:
+        q = q.where(ReviewLog.voided_at.is_(None))
+    if card is not None:
+        q = q.where(ReviewLog.card_id == card)
+    if point and point.strip():
+        q = q.where(ReviewLog.point_id == point.strip())
+    q = q.order_by(ReviewLog.reviewed_at.desc(), ReviewLog.id.desc()).limit(limit)
+    rows = list(db.scalars(q))
+    return [
+        {
+            "review_id": r.id,
+            "card_id": r.card_id,
+            "point_id": r.point_id,
+            "rating": r.rating,
+            "reviewer": r.reviewer,
+            "client": r.client,
+            "reviewed_at": iso_local(r.reviewed_at),
+            "applied": bool(r.applied),
+            "client_review_id": r.client_review_id,
+            "voided_at": iso_local(r.voided_at),
+            "void_reason": r.void_reason,
+        }
+        for r in rows
+    ]

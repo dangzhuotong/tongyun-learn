@@ -84,6 +84,7 @@ def apply_one(db: Session, item: dict, principal: str, now: datetime | None = No
         dup = db.scalar(select(ReviewLog).where(ReviewLog.client_review_id == crid))
         if dup is not None:
             res = {
+                "review_id": dup.id,
                 "card_id": dup.card_id,
                 "card_state": card_state_out(db.get(CardState, dup.card_id)),
                 "applied": False,
@@ -133,6 +134,7 @@ def apply_one(db: Session, item: dict, principal: str, now: datetime | None = No
     if applied and card.point_id:
         changes = recompute_points(db, [card.point_id], cause="review", cause_ref=str(log.id), now=now)
     return {
+        "review_id": log.id,
         "card_id": card.id,
         "card_state": card_state_out(cs),
         "applied": applied,

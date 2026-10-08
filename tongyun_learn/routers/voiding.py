@@ -1,4 +1,4 @@
-"""课次与证据的作废、恢复及课次列表路由（定稿 P3b）。"""
+"""课次、证据与复习的作废、恢复及查询列表路由（定稿 P3b）。"""
 
 from typing import Annotated
 
@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from tongyun_learn.auth import Principal, require
 from tongyun_learn.db import get_db
+from tongyun_learn.errors import ApiError
 from tongyun_learn.routers.deps import WriteDb, mark_dry
 from tongyun_learn.services import voiding as voiding_svc
 
@@ -73,4 +74,40 @@ def list_sessions(
         subject=subject,
         include_voided=include_voided,
         limit=limit,
+    )
+
+
+@router.post("/reviews/{review_id}/void")
+def void_review(review_id: int, body: VoidIn, _p: Axue, db: WriteDb) -> dict:
+    out = voiding_svc.void_review(db, review_id, body.reason)
+    return mark_dry(db, out)
+
+
+@router.post("/reviews/{review_id}/restore")
+def restore_review(review_id: int, _p: Axue, db: WriteDb, body: RestoreIn | None = None) -> dict:
+    out = voiding_svc.restore_review(db, review_id, body.reason if body else None)
+    return mark_dry(db, out)
+
+
+@router.get("/reviews")
+def list_reviews(
+    _p: AnyP,
+    db: Db,
+    card: int | str | None = Query(default=None),
+    point: str | None = Query(default=None),
+    include_voided: bool = Query(default=False),
+    limit: int = Query(default=20, ge=1, le=200),
+) -> list[dict]:
+    card_id: int | None = None
+    if card is not None and str(card).strip():
+        try:
+            card_id = int(str(card).strip())
+        except ValueError as e:
+            raise ApiError(422, "validation_error", "card 必须是整数") from e
+    return voiding_svc.list_reviews(
+        db=db,
+        card=card_id,
+        point=point,
+        limit=limit,
+        include_voided=include_voided,
     )
