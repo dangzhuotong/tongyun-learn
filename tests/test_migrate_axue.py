@@ -1,6 +1,6 @@
 """axue_learning → tongyun_learn 迁移测试（定稿 P3b、决定 5；design-notes §6）。"""
 
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 
 import pytest
@@ -283,6 +283,8 @@ def test_migrate_commit_and_idempotence(client: TestClient, db_session):
     # 1. sessions 表 legacy_ref=axue:study_sessions:4 的课次
     s4 = db_session.scalar(select(StudySession).where(StudySession.legacy_ref == "axue:study_sessions:4"))
     assert s4 is not None
+    assert s4.legacy_ref == "axue:study_sessions:4"
+    assert s4.date == date(2026, 10, 3)
     assert s4.cues == ["问题1", "问题2"]
     assert s4.summary == "总结内容"
     assert s4.stuck == "卡点内容"
@@ -298,12 +300,16 @@ def test_migrate_commit_and_idempotence(client: TestClient, db_session):
     b2 = db_session.scalar(select(Blocker).where(Blocker.legacy_ref == "axue:blockers:2"))
     b3 = db_session.scalar(select(Blocker).where(Blocker.legacy_ref == "axue:blockers:3"))
     assert b2 is not None and b3 is not None
+    assert b2.legacy_ref == "axue:blockers:2"
+    assert b3.legacy_ref == "axue:blockers:3"
     assert b2.point_id == "jf.git-secrets"
     assert b3.point_id == "jf.git-secrets"
     assert b2.session_id == s4.id
     assert b3.session_id == s4.id
     assert b2.status == "open"
     assert b3.status == "open"
+    assert b2.resolved_at is None
+    assert b3.resolved_at is None
 
     # #1 → resolved、point_id 为空、detail 带领域
     b1 = db_session.scalar(select(Blocker).where(Blocker.legacy_ref == "axue:blockers:1"))
@@ -415,8 +421,6 @@ def test_migrate_from_json_snapshot_skill_mastery_str_updated_at(db_session):
 
 def test_snapshot_roundtrip_matches_direct(db_session, tmp_path):
     """源库读出来是 date/datetime/Decimal；导出快照再读回（变成字符串）迁移结果一致。"""
-    from datetime import date
-
     from tongyun_learn.migrate_axue import read_source_json, write_snapshot
 
     import_maps(db_session, map_texts(), dry_run=False)
@@ -434,3 +438,195 @@ def test_snapshot_roundtrip_matches_direct(db_session, tmp_path):
     assert direct["counts"] == via_json["counts"]
     assert direct["point_changes"] == via_json["point_changes"]
     assert via_json["skill_mastery"][0]["updated_at"] == "2026-10-03T09:00:00"
+
+
+def test_migrate_session_4_and_blockers_git_secrets_idempotence(db_session) -> None:
+    """证明 axue session #4（2026-10-03 的课，没有分数）和卡点 #2、#3 会挂到知识点 jf.git-secrets 上，
+
+    且重复跑迁移不会重复写入（按 legacy_ref 去重）。
+    """
+    # 1. 目标库导入知识地图（包含 jf.git-secrets）
+    import_maps(db_session, map_texts(), dry_run=False)
+    db_session.commit()
+
+    # 2. 构造假造的 axue 旧数据
+    # - session #4 指向 W1D1 那课（映射到 jf.git-secrets）、2026-10-03、没有分数
+    # - 卡点 #2、#3 关联到这节课与 session #4，状态为未解决
+    source = Source(
+        lessons=[
+            {
+                "id": 1,
+                "code": "W1D1",
+                "week": 1,
+                "day": 1,
+                "area": "开发编程",
+                "title": "Git与密钥安全",
+                "file_path": "/workspace/personal/axue/lessons/week1/W1D1-Git与密钥安全.md",
+                "status": "done",
+                "sort_order": 11,
+                "active": 1,
+            },
+        ],
+        sessions=[
+            {
+                "id": 4,
+                "lesson_id": 1,
+                "study_date": "2026-10-03",
+                "minutes": 50,
+                "self_test_score": None,
+                "self_test_total": None,
+                "notes": "线索: Git与密钥安全；.gitignore\n总结: 掌握了git-secrets扫描\n卡点: pre-commit hook配置异常",
+                "created_at": "2026-10-03 21:00:00",
+            },
+        ],
+        blockers=[
+            {
+                "id": 2,
+                "lesson_id": 1,
+                "session_id": 4,
+                "area": "开发编程",
+                "description": "卡点2：pre-commit hook 误拦截合规密钥模板",
+                "status": "未解决",
+                "created_at": "2026-10-03 21:30:00",
+                "resolved_at": None,
+            },
+            {
+                "id": 3,
+                "lesson_id": 1,
+                "session_id": 4,
+                "area": "开发编程",
+                "description": "卡点3：清理历史 commit 敏感内容时重写历史失败",
+                "status": "未解决",
+                "created_at": "2026-10-03 21:35:00",
+                "resolved_at": None,
+            },
+        ],
+        skill_mastery=[],
+    )
+
+    # 3. 执行迁移（真写库）
+    res1 = migrate(db_session, source, dry_run=False)
+    assert res1["errors"] == []
+    assert res1["counts"]["sessions"]["created"] == 1
+    assert res1["counts"]["blockers"]["created"] == 2
+
+    # 断言 1：这条课次挂在 jf.git-secrets 上，legacy_ref 能看出来源是 session 4，分数为空、不算成通过的证据
+    s4 = db_session.scalar(select(StudySession).where(StudySession.legacy_ref == "axue:study_sessions:4"))
+    assert s4 is not None
+    assert s4.legacy_ref == "axue:study_sessions:4"
+    assert s4.legacy_ref.endswith(":4")
+    assert s4.date == date(2026, 10, 3)
+    assert s4.source == "migrate"
+    assert s4.lesson_ref == "W1D1"
+    assert s4.summary == "掌握了git-secrets扫描"
+    assert s4.stuck == "pre-commit hook配置异常"
+
+    s4_pts = list(
+        db_session.scalars(select(SessionPoint.point_id).where(SessionPoint.session_id == s4.id)).all()
+    )
+    assert s4_pts == ["jf.git-secrets"]
+
+    # 分数为空：不生成任何 Evidence，不计入达标/通过证据
+    s4_evs = list(db_session.scalars(select(Evidence).where(Evidence.session_id == s4.id)).all())
+    assert len(s4_evs) == 0
+    git_evs = list(db_session.scalars(select(Evidence).where(Evidence.point_id == "jf.git-secrets")).all())
+    assert len(git_evs) == 0
+    assert not any(e.passed for e in git_evs)
+
+    # 知识点状态：有课次因此进入 learning，但无自测等通过证据，绝不计入 learned 或 mastered
+    ps_git = db_session.get(PointState, "jf.git-secrets")
+    assert ps_git is not None
+    assert ps_git.state == "learning"
+    assert ps_git.state not in ("learned", "mastered")
+    assert ps_git.learned_at is None
+
+    # 断言 2：卡点 #2、#3 挂在 jf.git-secrets 上，状态是未解决（open）
+    b2 = db_session.scalar(select(Blocker).where(Blocker.legacy_ref == "axue:blockers:2"))
+    b3 = db_session.scalar(select(Blocker).where(Blocker.legacy_ref == "axue:blockers:3"))
+    assert b2 is not None and b3 is not None
+    assert b2.legacy_ref == "axue:blockers:2"
+    assert b3.legacy_ref == "axue:blockers:3"
+    assert b2.point_id == "jf.git-secrets"
+    assert b3.point_id == "jf.git-secrets"
+    assert b2.session_id == s4.id
+    assert b3.session_id == s4.id
+    assert b2.status == "open"
+    assert b3.status == "open"
+    assert b2.resolved_at is None
+    assert b3.resolved_at is None
+
+    # 4. 记录数量基准
+    n_sessions_before = db_session.scalar(select(func.count()).select_from(StudySession))
+    n_blockers_before = db_session.scalar(select(func.count()).select_from(Blocker))
+    n_sp_before = db_session.scalar(select(func.count()).select_from(SessionPoint))
+    n_ev_before = db_session.scalar(select(func.count()).select_from(Evidence))
+
+    # 断言 3：再跑一次迁移，课次和卡点的数量不变（按 legacy_ref 幂等去重）
+    res2 = migrate(db_session, source, dry_run=False)
+    assert res2["errors"] == []
+    assert res2["counts"]["sessions"].get("created", 0) == 0
+    assert res2["counts"]["sessions"].get("updated", 0) == 0
+    assert res2["counts"]["sessions"].get("unchanged", 0) == 1
+    assert res2["counts"]["blockers"].get("created", 0) == 0
+    assert res2["counts"]["blockers"].get("updated", 0) == 0
+    assert res2["counts"]["blockers"].get("unchanged", 0) == 2
+
+    assert db_session.scalar(select(func.count()).select_from(StudySession)) == n_sessions_before
+    assert db_session.scalar(select(func.count()).select_from(Blocker)) == n_blockers_before
+    assert db_session.scalar(select(func.count()).select_from(SessionPoint)) == n_sp_before
+    assert db_session.scalar(select(func.count()).select_from(Evidence)) == n_ev_before
+
+    # 确认记录的数据库主键未变（没有删了重插）
+    s4_after = db_session.scalar(select(StudySession).where(StudySession.legacy_ref == "axue:study_sessions:4"))
+    b2_after = db_session.scalar(select(Blocker).where(Blocker.legacy_ref == "axue:blockers:2"))
+    b3_after = db_session.scalar(select(Blocker).where(Blocker.legacy_ref == "axue:blockers:3"))
+    assert s4_after.id == s4.id
+    assert b2_after.id == b2.id
+    assert b3_after.id == b3.id
+
+
+def test_migrate_blocker_associated_by_session_fallback(db_session) -> None:
+    """卡点未显式填写 lesson_id 但关联了 session_id 时，能从 session 继承知识点。"""
+    import_maps(db_session, map_texts(), dry_run=False)
+    db_session.commit()
+
+    source = Source(
+        lessons=[
+            {
+                "id": 1,
+                "code": "W1D1",
+                "title": "Git与密钥安全",
+                "active": 1,
+            },
+        ],
+        sessions=[
+            {
+                "id": 4,
+                "lesson_id": 1,
+                "study_date": "2026-10-03",
+                "notes": "线索: 密钥安全",
+                "created_at": "2026-10-03 21:00:00",
+            },
+        ],
+        blockers=[
+            {
+                "id": 2,
+                "lesson_id": None,  # lesson_id 为空
+                "session_id": 4,     # 关联到 session #4
+                "area": "开发编程",
+                "description": "通过 session 关联到 jf.git-secrets 的卡点",
+                "status": "未解决",
+                "created_at": "2026-10-03 21:30:00",
+            },
+        ],
+        skill_mastery=[],
+    )
+
+    res = migrate(db_session, source, dry_run=False)
+    assert res["errors"] == []
+
+    b2 = db_session.scalar(select(Blocker).where(Blocker.legacy_ref == "axue:blockers:2"))
+    assert b2 is not None
+    assert b2.point_id == "jf.git-secrets"
+    assert b2.status == "open"
+

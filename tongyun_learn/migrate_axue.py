@@ -470,9 +470,15 @@ class Migrator:
 
     # 3) 卡点
     def migrate_blockers(self, rep: Report, sid_map: dict[int, int]) -> None:
+        sessions_by_id = {int(s["id"]): s for s in self.src.sessions if s.get("id") is not None}
         for b in self.src.blockers:
             old_id = int(b["id"])
             lid = b.get("lesson_id")
+            old_sid = b.get("session_id")
+            if lid is None and old_sid is not None:
+                s_row = sessions_by_id.get(int(old_sid))
+                if s_row and s_row.get("lesson_id") is not None:
+                    lid = s_row["lesson_id"]
             pid = self.point_for_lesson.get(int(lid)) if lid is not None else None
             desc = (b.get("description") or "").strip() or "(空)"
             first = desc.splitlines()[0].strip()
@@ -480,19 +486,23 @@ class Migrator:
             detail = desc if desc != title else None
             if pid is None and b.get("area"):
                 detail = (detail or desc) + f"\n[axue_learning 领域：{b['area']}]"
-            old_sid = b.get("session_id")
             status = STATUS_MAP.get(b.get("status") or "未解决", "open")
+            b_created = self.utc(b.get("created_at"))
+            row = self.db.scalar(select(Blocker).where(Blocker.legacy_ref == f"axue:blockers:{old_id}"))
             attrs = {
                 "point_id": pid,
                 "session_id": sid_map.get(int(old_sid)) if old_sid is not None else None,
                 "title": title,
                 "detail": detail,
                 "status": status,
-                "created_at": self.utc(b.get("created_at")) or self.now,
                 "resolved_at": self.utc(b.get("resolved_at")) if status == "resolved" else None,
             }
+            if row is None:
+                attrs["created_at"] = b_created or self.now
+            elif b_created is not None:
+                attrs["created_at"] = b_created
             if status == "resolved" and attrs["resolved_at"] is None:
-                attrs["resolved_at"] = attrs["created_at"]
+                attrs["resolved_at"] = attrs.get("created_at") or (row.created_at if row else self.now)
             if old_sid is not None and int(old_sid) not in sid_map:
                 rep.warnings.append(f"blockers#{old_id} 引用的 session#{old_sid} 不存在，session_id 置空")
             _upsert(self.db, rep, "blockers", Blocker, f"axue:blockers:{old_id}", attrs)
