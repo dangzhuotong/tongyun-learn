@@ -20,6 +20,19 @@ SENTENCE_GRAMMAR_SYSTEM_PROMPT = (
     "difficulty(easy|medium|hard)。"
 )
 
+WORD_QUIZ_SYSTEM_PROMPT = (
+    "你是英语教学专家，为中国学习者根据错词列表生成复习测试卷。只输出一个 JSON 对象，不要 markdown、不要解释。"
+    "JSON 结构：{\"questions\":[{\"type\":\"cloze\"|\"choice\"|\"en2zh\",\"word\":\"原词\","
+    "\"stem\":\"题干\",\"options\":[\"A\",\"B\",\"C\",\"D\"],\"answer\":\"标准答案\",\"explain\":\"一句中文解析\"}]}。"
+    "要求："
+    "1. 题型 type 仅限 cloze（完形填空）、choice（单选题）、en2zh（英译中）。"
+    "2. choice 题型的 options 必须包含 4 个选项，且 answer 必须是其中一个选项；"
+    "cloze 和 en2zh 题型的 options 必须给空数组 []。"
+    "3. 题干 stem 不得直接包含 cloze 的答案原词（可用下划线 ___ 替代）。"
+    "4. 每个词至少出 1 题，总题数不超过输入词数的 2 倍。"
+    "5. explain 必须是一句简短的中文解析。"
+)
+
 
 def build_messages(kind: str, input_data: dict[str, Any]) -> list[dict[str, str]]:
     if kind == "word_mnemonic":
@@ -40,6 +53,24 @@ def build_messages(kind: str, input_data: dict[str, Any]) -> list[dict[str, str]
             user_content += f"\n上下文（仅供理解，不要讲解它）：{context}"
         return [
             {"role": "system", "content": SENTENCE_GRAMMAR_SYSTEM_PROMPT},
+            {"role": "user", "content": user_content},
+        ]
+    elif kind == "word_quiz":
+        words_list = input_data.get("words", [])
+        lines = []
+        for item in words_list:
+            if isinstance(item, dict):
+                w = item.get("word", "")
+                cn = item.get("cn")
+                if cn:
+                    lines.append(f"- {w}（参考释义：{cn}）")
+                else:
+                    lines.append(f"- {w}")
+            else:
+                lines.append(f"- {item}")
+        user_content = "请为以下错词生成复习测试卷：\n" + "\n".join(lines)
+        return [
+            {"role": "system", "content": WORD_QUIZ_SYSTEM_PROMPT},
             {"role": "user", "content": user_content},
         ]
     else:
