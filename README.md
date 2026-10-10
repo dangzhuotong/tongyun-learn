@@ -25,7 +25,7 @@ uv run uvicorn tongyun_learn.main:app --host 127.0.0.1 --port 8031 --reload
 接口文档（默认关闭，生产不开；本机调试设 `LEARN_DOCS_ENABLED=true` 后可看）：
 - `http://127.0.0.1:8031/v1/docs`、`/v1/openapi.json`
 
-AI 接口目前只有 `POST /v1/ai/explain`（P2）；`/ai/quiz`、`/ai/generate-deck` 属于 P4，尚未实现。
+AI 接口目前已实现 `POST /v1/ai/explain`（P2）与 `POST /v1/ai/quiz`（P4 错词复习卷）；`/ai/generate-deck` 属于 P4，尚未实现。
 
 ## 环境变量说明
 
@@ -90,6 +90,7 @@ pytest -q
 | `GET /progress` | 各状态点数、今日到期、30 天保持率、近 7 天、阶段过关 |
 | `POST /sessions`、`POST /evidence` | 记课、记证据（服务端判 passed；带 card_id 同时写一次 FSRS） |
 | `GET /next` | 待复查点（全部）+ 推荐学习的点 |
+| `POST /v1/ai/quiz` | 错词 AI 复习卷：输入 1–20 个错词生成复习测试卷（完形填空/单选/英译中），去重与规范排序后支持缓存与重试 |
 
 状态重算（`tongyun_learn/services/state.py`）在每次写入的同一事务里跑，沿硬前置下游连锁，不需要定时任务。
 
@@ -210,6 +211,52 @@ Authorization: Bearer <token>
       {"word": "optimize", "pos": "v.", "cn": "优化", "note": "常用于性能调优场景"}
     ],
     "difficulty": "medium"
+  }
+}
+```
+
+#### 3. 错词 AI 复习卷 (`POST /v1/ai/quiz`)
+
+**请求示例**：
+```json
+POST /learn/api/v1/ai/quiz
+Content-Type: application/json
+Authorization: Bearer <token>
+
+{
+  "words": [
+    {"word": "abandon", "cn": "放弃"},
+    {"word": "ability", "cn": "能力"}
+  ]
+}
+```
+
+**响应示例 (200 OK)**：
+```json
+{
+  "kind": "word_quiz",
+  "model": "gemini-3-8-flash-openai",
+  "prompt_ver": "q1",
+  "cached": false,
+  "content": {
+    "questions": [
+      {
+        "type": "cloze",
+        "word": "abandon",
+        "stem": "The crew had to ___ the sinking ship.",
+        "options": [],
+        "answer": "abandon",
+        "explain": "根据语境，船员不得不弃船，填 abandon。"
+      },
+      {
+        "type": "choice",
+        "word": "ability",
+        "stem": "He has demonstrated a great ___ to lead the team.",
+        "options": ["ability", "abandon", "absence", "abroad"],
+        "answer": "ability",
+        "explain": "ability 表示能力，符合语境。"
+      }
+    ]
   }
 }
 ```

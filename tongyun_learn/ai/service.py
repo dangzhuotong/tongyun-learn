@@ -40,6 +40,20 @@ def canonical_input(kind: str, input_data: dict[str, Any]) -> str:
         sentence = " ".join(str(input_data.get("sentence", "")).split())
         context = " ".join(str(input_data.get("context") or "").split())
         obj = {"context": context, "sentence": sentence}
+    elif kind == "word_quiz":
+        seen: set[str] = set()
+        words_list: list[dict[str, str]] = []
+        for item in input_data.get("words", []):
+            if not isinstance(item, dict):
+                continue
+            w = str(item.get("word", "")).strip()
+            c = str(item.get("cn") or "").strip()
+            key = w.lower()
+            if key not in seen:
+                seen.add(key)
+                words_list.append({"cn": c, "word": w})
+        words_list.sort(key=lambda x: x["word"].lower())
+        obj = {"words": words_list}
     else:
         obj = input_data
     return json.dumps(obj, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
@@ -157,7 +171,7 @@ async def explain(
         errors: list[str] = []
         try:
             parsed_obj = parse_json_text(res.text)
-            errors = validate(kind, parsed_obj)
+            errors = validate(kind, parsed_obj, input_data)
             if not errors:
                 valid = True
         except Exception as e:
@@ -198,7 +212,7 @@ async def explain(
 
         try:
             parsed_retry = parse_json_text(res_retry.text)
-            retry_errors = validate(kind, parsed_retry)
+            retry_errors = validate(kind, parsed_retry, input_data)
             if not retry_errors:
                 succeeded_model = model
                 succeeded_content = parsed_retry
