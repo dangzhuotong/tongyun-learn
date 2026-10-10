@@ -102,6 +102,10 @@ uv run python -m tongyun_learn.cli import-maps maps/english.yaml maps/java-fde.y
 uv run python -m tongyun_learn.cli import-maps --commit maps/english.yaml maps/java-fde.yaml   # 真导入
 ```
 
+### 学习看板联调
+
+看板依赖的 6 个接口契约字段、curl 自查与排查说明见 [docs/learn-board-integration.md](docs/learn-board-integration.md)。
+
 ## AI 讲解接口
 
 `POST /v1/ai/explain` 为学习者提供单词记忆法（`word_mnemonic`）与长难句语法拆解（`sentence_grammar`）的 AI 助学接口。
