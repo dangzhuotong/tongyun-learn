@@ -7,6 +7,7 @@ KINDS: dict[str, dict[str, str]] = {
     "word_mnemonic": {"prompt_ver": "w1"},
     "sentence_grammar": {"prompt_ver": "s1"},
     "word_quiz": {"prompt_ver": "q1"},
+    "word_deck": {"prompt_ver": "v1"},
 }
 
 WORD_MNEMONIC_SCHEMA: dict[str, Any] = {
@@ -190,10 +191,34 @@ WORD_QUIZ_SCHEMA: dict[str, Any] = {
     },
 }
 
+WORD_DECK_SCHEMA: dict[str, Any] = {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "required": ["words"],
+    "properties": {
+        "words": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+                "type": "object",
+                "required": ["word", "cn"],
+                "properties": {
+                    "word": {"type": "string"},
+                    "phonetic": {"type": "string"},
+                    "cn": {"type": "string"},
+                    "example": {"type": "string"},
+                    "example_cn": {"type": "string"},
+                },
+            },
+        },
+    },
+}
+
 SCHEMAS: dict[str, dict[str, Any]] = {
     "word_mnemonic": WORD_MNEMONIC_SCHEMA,
     "sentence_grammar": SENTENCE_GRAMMAR_SCHEMA,
     "word_quiz": WORD_QUIZ_SCHEMA,
+    "word_deck": WORD_DECK_SCHEMA,
 }
 
 _VALIDATORS: dict[str, Draft202012Validator] = {
@@ -251,5 +276,35 @@ def validate(kind: str, obj: Any, input_data: dict[str, Any] | None = None) -> l
                 missing = [w for w in sorted(input_word_set) if w not in quiz_word_set]
                 if missing:
                     errors.append(f"每个输入词至少出现在一题中，缺失单词: {', '.join(missing)}")
+
+    elif kind == "word_deck" and isinstance(obj, dict):
+        words = obj.get("words")
+        if isinstance(words, list):
+            n = 20
+            if input_data and "n" in input_data:
+                try:
+                    n = int(input_data["n"])
+                except (ValueError, TypeError):
+                    n = 20
+            if len(words) < 1 or len(words) > n:
+                errors.append(f"words 数量必须在 1 到 {n} 之间，实际返回 {len(words)}")
+
+            seen_lower: set[str] = set()
+            for i, item in enumerate(words):
+                if not isinstance(item, dict):
+                    continue
+                w = str(item.get("word", "")).strip()
+                c = str(item.get("cn", "")).strip()
+                if not (1 <= len(w) <= 64):
+                    errors.append(f"第 {i + 1} 个单词长度必须在 1 到 64 之间")
+                elif not re.search(r"[a-zA-Z]", w):
+                    errors.append(f"第 {i + 1} 个单词 '{w}' 必须包含英文字母")
+                if not c:
+                    errors.append(f"第 {i + 1} 个单词的 cn 释义不能为空")
+                if w:
+                    seen_lower.add(w.lower())
+
+            if not seen_lower:
+                errors.append("按小写去重后单词列表不得为空")
 
     return errors

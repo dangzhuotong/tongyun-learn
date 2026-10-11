@@ -25,7 +25,7 @@ uv run uvicorn tongyun_learn.main:app --host 127.0.0.1 --port 8031 --reload
 接口文档（默认关闭，生产不开；本机调试设 `LEARN_DOCS_ENABLED=true` 后可看）：
 - `http://127.0.0.1:8031/v1/docs`、`/v1/openapi.json`
 
-AI 接口目前已实现 `POST /v1/ai/explain`（P2）与 `POST /v1/ai/quiz`（P4 错词复习卷）；`/ai/generate-deck` 属于 P4，尚未实现。
+AI 接口目前已实现 `POST /v1/ai/explain`（P2）、`POST /v1/ai/quiz`（P4 错词复习卷）与 `POST /v1/ai/generate-deck`（P4 场景生成词书）。
 
 ## 环境变量说明
 
@@ -91,6 +91,7 @@ pytest -q
 | `POST /sessions`、`POST /evidence` | 记课、记证据（服务端判 passed；带 card_id 同时写一次 FSRS） |
 | `GET /next` | 待复查点（全部）+ 推荐学习的点 |
 | `POST /v1/ai/quiz` | 错词 AI 复习卷：输入 1–20 个错词生成复习测试卷（完形填空/单选/英译中），去重与规范排序后支持缓存与重试 |
+| `POST /v1/ai/generate-deck` | 场景 AI 词书卡组生成：按场景让 AI 生成英语单词卡并入库到 source='ai' 的卡组，支持缓存与重试 |
 
 ### P3b：卡点、薄弱点、回顾与软作废
 
@@ -109,7 +110,7 @@ pytest -q
 | `POST /sessions\|evidence\|reviews/{id}/void` | axue | 软作废一条课时 / 证据 / 复习，带原因；作废后按剩余记录重算状态 |
 | `POST /sessions\|evidence\|reviews/{id}/restore` | axue | 撤销作废 |
 
-AI 接口（`/v1/ai/*`）见下文「AI 讲解接口」和上表的 `POST /v1/ai/quiz`；`/v1/ai/generate-deck` 还没实现。
+AI 接口（`/v1/ai/*`）见下文「AI 接口说明」。
 
 状态重算（`tongyun_learn/services/state.py`）在每次写入的同一事务里跑，沿硬前置下游连锁，不需要定时任务。
 
@@ -277,6 +278,55 @@ Authorization: Bearer <token>
       }
     ]
   }
+}
+```
+
+#### 4. 场景 AI 词书卡组生成 (`POST /v1/ai/generate-deck`)
+
+按场景让 AI 生成英语单词卡，并自动创建或获取一个 `source='ai'` 的卡组入库（按小写 front 自动去重）。
+
+**请求示例**：
+```json
+POST /learn/api/v1/ai/generate-deck
+Content-Type: application/json
+Authorization: Bearer <token>
+
+{
+  "scenario": "外企技术面试",
+  "n": 20,
+  "deck_name": "AI·外企技术面试"
+}
+```
+
+**响应示例 (200 OK)**：
+```json
+{
+  "deck": {
+    "id": 1,
+    "subject_id": null,
+    "kind": "en_word",
+    "name": "AI·外企技术面试",
+    "source": "ai",
+    "review_cap": 60,
+    "new_cap": 8,
+    "new_cap_deep": null,
+    "meta": {
+      "scenario": "外企技术面试"
+    }
+  },
+  "added": 20,
+  "skipped": 0,
+  "cached": false,
+  "model": "gemini-3-8-flash-openai",
+  "words": [
+    {
+      "word": "concurrency",
+      "phonetic": "/kənˈkɜːrənsi/",
+      "cn": "并发",
+      "example": "Concurrency is hard to master.",
+      "example_cn": "并发很难精通。"
+    }
+  ]
 }
 ```
 

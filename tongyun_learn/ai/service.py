@@ -54,6 +54,13 @@ def canonical_input(kind: str, input_data: dict[str, Any]) -> str:
                 words_list.append({"cn": c, "word": w})
         words_list.sort(key=lambda x: x["word"].lower())
         obj = {"words": words_list}
+    elif kind == "word_deck":
+        scenario = " ".join(str(input_data.get("scenario", "")).split())
+        try:
+            n = int(input_data.get("n", 20))
+        except (ValueError, TypeError):
+            n = 20
+        obj = {"n": n, "scenario": scenario}
     else:
         obj = input_data
     return json.dumps(obj, ensure_ascii=False, sort_keys=True, separators=(",", ":"))

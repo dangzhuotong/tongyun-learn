@@ -33,6 +33,16 @@ WORD_QUIZ_SYSTEM_PROMPT = (
     "5. explain 必须是一句简短的中文解析。"
 )
 
+WORD_DECK_SYSTEM_PROMPT = (
+    "你是英语教学专家，为学习者根据指定场景生成一批实用英语单词卡。只输出一个 JSON 对象，不要 markdown、不要解释。"
+    "JSON 结构：{\"words\":[{\"word\":\"原词\",\"phonetic\":\"音标\",\"cn\":\"中文释义\","
+    "\"example\":\"英文例句\",\"example_cn\":\"例句中文翻译\"}]}。"
+    "要求："
+    "1. words 数量在 1 到 指定数量 n 之间，围绕指定场景挑选高频、地道词汇。"
+    "2. word 必须包含英文字母且长度 ≤64；cn 必须非空且简洁明了。"
+    "3. phonetic（音标）、example（英文例句）、example_cn（例句中文）尽量提供。"
+)
+
 
 def build_messages(kind: str, input_data: dict[str, Any]) -> list[dict[str, str]]:
     if kind == "word_mnemonic":
@@ -71,6 +81,14 @@ def build_messages(kind: str, input_data: dict[str, Any]) -> list[dict[str, str]
         user_content = "请为以下错词生成复习测试卷：\n" + "\n".join(lines)
         return [
             {"role": "system", "content": WORD_QUIZ_SYSTEM_PROMPT},
+            {"role": "user", "content": user_content},
+        ]
+    elif kind == "word_deck":
+        scenario = input_data.get("scenario", "")
+        n = input_data.get("n", 20)
+        user_content = f"场景：{scenario}\n请生成不超过 {n} 个词汇的词书卡片。"
+        return [
+            {"role": "system", "content": WORD_DECK_SYSTEM_PROMPT},
             {"role": "user", "content": user_content},
         ]
     else:
