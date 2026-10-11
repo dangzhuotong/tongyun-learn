@@ -34,8 +34,9 @@
 - **AI 错词复习卷**（`/ai-quiz`，部署后是 `/words/ai-quiz`）：从错词本选词，调 `/learn/api/v1/ai/quiz` 生成 cloze / 选择 / 英译中，本地判分。复用同一份学习服务地址和令牌。
 - **学习看板**（`/learn-board`，部署后是 `/words/learn-board`）：手机优先的只读页面，按顺序显示今天学什么（待复查在前，新点标出会不会占今天的新开名额）、待复习数和前几张卡的正面、卡点、各科统计（掌握数、各状态数、30 天保持率）、按阶段折叠的知识地图（点开一个点能看到硬前置和软前置）。
   - 复用设置里的同一份学习服务地址和令牌。没填令牌时只提示去设置，不发任何请求。
-  - 只调学习服务的 GET 接口：`/subjects`、`/subjects/{id}/map`、`/next`、`/review/due`、`/progress`、`/blockers`。每块单独加载、单独报错：令牌不对提示去设置改，连不上提示「连不上学习服务」；`/blockers` 还没上线（404）时显示「卡点记录即将接入」。
+  - 只调学习服务的 GET 接口：`/subjects`、`/subjects/{id}/map`、`/next`、`/review/due`、`/progress`、`/blockers`。每块单独加载、单独报错：令牌不对提示去设置改，连不上提示「连不上学习服务」；连到没有 `/blockers` 的旧版服务（404）时显示「卡点记录即将接入」。
   - 页面是 `ssr:false` 的纯客户端页面，静态产物里没有任何学习数据。
+- 本机联调、探活命令和常见错误见 [docs/tongyun-learn-integration.md](docs/tongyun-learn-integration.md)。
 - 默认关闭了原作者的第三方统计脚本（开关在 `app/tongyun/config.ts`）。
 
 ## Project Introduction
