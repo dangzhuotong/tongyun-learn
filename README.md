@@ -92,6 +92,25 @@ pytest -q
 | `GET /next` | 待复查点（全部）+ 推荐学习的点 |
 | `POST /v1/ai/quiz` | 错词 AI 复习卷：输入 1–20 个错词生成复习测试卷（完形填空/单选/英译中），去重与规范排序后支持缓存与重试 |
 
+### P3b：卡点、薄弱点、回顾与软作废
+
+都在 `/v1` 下。「任一令牌」指 web 和 axue 都能调；写接口只认 axue。
+
+| 接口 | 谁能调 | 说明 |
+|---|---|---|
+| `GET /blockers?status=&point=&limit=` | 任一令牌 | 卡点列表（默认 200 条，最多 500） |
+| `POST /blockers`、`PATCH /blockers/{id}` | axue | 记卡点 / 改状态（解决、搁置等） |
+| `GET /weak?subject=` | 任一令牌 | 薄弱点排行 |
+| `GET /recall?days=1,3,7` | 任一令牌 | 按间隔天数回顾当天学过的内容 |
+| `GET /summary/week?ago=0` | 任一令牌 | 周小结，`ago` 表示往前第几周 |
+| `PATCH /points/{id}/state` | axue | 手动改知识点状态 |
+| `GET /sessions?date_from=&date_to=&point=&subject=&include_voided=&limit=` | 任一令牌 | 课时记录，默认不含已作废 |
+| `GET /reviews?card=&point=&include_voided=&limit=` | 任一令牌 | 复习记录，默认不含已作废 |
+| `POST /sessions\|evidence\|reviews/{id}/void` | axue | 软作废一条课时 / 证据 / 复习，带原因；作废后按剩余记录重算状态 |
+| `POST /sessions\|evidence\|reviews/{id}/restore` | axue | 撤销作废 |
+
+AI 接口（`/v1/ai/*`）见下文「AI 讲解接口」和上表的 `POST /v1/ai/quiz`；`/v1/ai/generate-deck` 还没实现。
+
 状态重算（`tongyun_learn/services/state.py`）在每次写入的同一事务里跑，沿硬前置下游连锁，不需要定时任务。
 
 ### 种子数据（知识地图）
