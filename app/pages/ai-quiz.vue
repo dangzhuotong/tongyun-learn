@@ -1,6 +1,6 @@
 <!-- tongyun: AI 错词复习卷 -->
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { BasePage, BaseButton } from '@/base'
 import { useBaseStore } from '@/core/stores/base.ts'
@@ -42,6 +42,8 @@ const lastCorrect = ref(false)
 const correctCount = ref(0)
 
 let abortController: AbortController | null = null
+// tongyun: 追踪组件挂载状态，防止异步请求返回时更新已卸载组件
+let isMounted = false
 
 const wrongWords = computed(() => base.wrong?.words || [])
 
@@ -54,12 +56,27 @@ const progressText = computed(() => {
   return `${qIndex.value + 1} / ${questions.value.length}`
 })
 
+// tongyun: 错词本数据从 IndexedDB 异步载入时，默认全选候选词
+watch(
+  candidates,
+  next => {
+    if (selected.value.size === 0 && next.length > 0) {
+      selected.value = new Set(next.map(w => w.word.toLowerCase()))
+    }
+  },
+  { immediate: true }
+)
+
 onMounted(() => {
+  isMounted = true
   const all = candidates.value
-  selected.value = new Set(all.map(w => w.word.toLowerCase()))
+  if (selected.value.size === 0 && all.length > 0) {
+    selected.value = new Set(all.map(w => w.word.toLowerCase()))
+  }
 })
 
 onUnmounted(() => {
+  isMounted = false
   if (abortController) {
     abortController.abort()
     abortController = null
@@ -96,6 +113,8 @@ function resetQuizState() {
 }
 
 async function generate() {
+  // tongyun: 请求进行中阻止重复点击导致重复提交
+  if (loading.value) return
   errorMsg.value = ''
   notConfigured.value = false
 
@@ -120,6 +139,8 @@ async function generate() {
 
   try {
     const res = await aiQuiz(picked, { signal: abortController.signal })
+    // tongyun: 组件卸载后停止更新状态
+    if (!isMounted) return
     const qs = res?.content?.questions || []
     if (!qs.length) {
       errorMsg.value = '服务没有返回题目，请稍后再试'
@@ -130,15 +151,27 @@ async function generate() {
     resetQuizState()
     phase.value = 'quiz'
   } catch (err: any) {
-    if (err?.name === 'AbortError') return
-    if (err instanceof LearnError && err.code === 'not_configured') {
+    // tongyun: 主动取消或组件卸载后不更新状态
+    if (!isMounted || err?.name === 'AbortError') return
+    // tongyun: 401/403 鉴权失败与未配置一样引导去设置页填令牌
+    if (
+      err instanceof LearnError &&
+      (err.code === 'not_configured' ||
+        err.code === 'unauthorized' ||
+        err.code === 'forbidden' ||
+        err.status === 401 ||
+        err.status === 403)
+    ) {
       notConfigured.value = true
     }
     errorMsg.value = err instanceof LearnError ? err.message : '生成复习卷失败'
     phase.value = 'pick'
   } finally {
-    loading.value = false
-    abortController = null
+    // tongyun: 组件若仍挂载才重置 loading
+    if (isMounted) {
+      loading.value = false
+      abortController = null
+    }
   }
 }
 
@@ -151,8 +184,11 @@ function submitAnswer(choice?: string) {
     const pick = choice ?? choicePicked.value
     if (!pick) return
     choicePicked.value = pick
-    ok = pick === q.answer
+    // tongyun: 单选大小写/前后空白容错比较
+    ok = pick.trim().toLowerCase() === q.answer.trim().toLowerCase()
   } else {
+    // tongyun: 填空空输入时不提交，防止误按回车直接判错
+    if (!userInput.value.trim()) return
     ok = gradeQuizAnswer(userInput.value, q.answer)
   }
 
@@ -202,8 +238,8 @@ function again() {
           <div class="aq-toolbar">
             <span class="aq-muted">最多 20 个 · 已选 {{ selected.size }}</span>
             <div class="aq-toolbar-actions">
-              <button type="button" class="aq-text-btn" @click="selectAll">全选</button>
-              <button type="button" class="aq-text-btn" @click="clearAll">清空</button>
+              <button type="button" class="aq-text-btn" :disabled="loading" @click="selectAll">全选</button>
+              <button type="button" class="aq-text-btn" :disabled="loading" @click="clearAll">清空</button>
             </div>
           </div>
           <ul class="aq-word-list">
@@ -211,6 +247,7 @@ function again() {
               <label class="aq-word-item">
                 <input
                   type="checkbox"
+                  :disabled="loading"
                   :checked="selected.has(w.word.toLowerCase())"
                   @change="toggleWord(w.word)"
                 />
@@ -249,8 +286,8 @@ function again() {
             class="aq-option"
             :class="{
               picked: choicePicked === opt,
-              correct: answered && opt === current.answer,
-              wrong: answered && choicePicked === opt && opt !== current.answer,
+              correct: answered && opt.trim().toLowerCase() === current.answer.trim().toLowerCase(),
+              wrong: answered && choicePicked === opt && opt.trim().toLowerCase() !== current.answer.trim().toLowerCase(),
             }"
             :disabled="answered"
             @click="submitAnswer(opt)"

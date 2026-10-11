@@ -382,22 +382,32 @@ export function pickWrongWordsForQuiz(
   for (const w of words || []) {
     const word = (w?.word || '').trim()
     if (!word) continue
+    // tongyun: 过滤不含英文字母或超长（>64）的词，适配服务端 QuizWordItem 校验
+    if (word.length > 64 || !/[a-zA-Z]/.test(word)) continue
     const key = word.toLowerCase()
     if (seen.has(key)) continue
     seen.add(key)
-    const cn = w.trans?.[0]?.cn?.trim() || undefined
+    const rawCn = w.trans?.[0]?.cn?.trim()
+    // tongyun: 截断中文释义至 100 字符内，适配服务端 cn max_length=100
+    const cn = rawCn ? rawCn.slice(0, 100) : undefined
     out.push(cn ? { word, cn } : { word })
     if (out.length >= cap) break
   }
   return out
 }
 
-/** cloze / en2zh 本地判分：trim + 大小写不敏感全等 */
+/** cloze / en2zh 本地判分：trim + 大小写不敏感全等；多释义分号/逗号容错 */
 export function gradeQuizAnswer(userInput: string, answer: string): boolean {
   const a = (userInput || '').trim().toLowerCase()
   const b = (answer || '').trim().toLowerCase()
   if (!a || !b) return false
-  return a === b
+  if (a === b) return true
+  // tongyun: 中文释义可能包含分号/逗号/斜杠等分隔的多个义项或末尾标点，命中任一义项判对
+  const cleanB = b.replace(/[.。!！?？]+$/, '')
+  if (a === cleanB) return true
+  const parts = cleanB.split(/[,，;；/、]/).map(s => s.trim()).filter(Boolean)
+  if (parts.length > 1 && parts.includes(a)) return true
+  return false
 }
 
 export async function aiQuiz(
@@ -489,6 +499,10 @@ export async function aiQuiz(
       }
       if (serverCode === 'ai_daily_cap') {
         throw new LearnError('ai_daily_cap', '今天的 AI 次数已用完', 429)
+      }
+      // tongyun: 补充 422 参数校验错误提示，不回退为「服务暂时不可用」
+      if (res.status === 422 || serverCode === 'validation_error') {
+        throw new LearnError('validation_error', serverMsg || '请求参数不合法', 422)
       }
       if (res.status === 502 || res.status === 503 || serverCode.startsWith('ai_')) {
         const msg = serverMsg ? `服务暂时不可用：${serverMsg}` : '服务暂时不可用'

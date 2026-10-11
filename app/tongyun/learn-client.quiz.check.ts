@@ -27,6 +27,24 @@ assert(gradeQuizAnswer('  Abandon ', 'abandon') === true, 'cloze 大小写不敏
 assert(gradeQuizAnswer('ability', 'abandon') === false, '错误答案应判错')
 assert(gradeQuizAnswer('', 'abandon') === false, '空输入应判错')
 
+// tongyun: en2zh 多释义与标点容错测试
+assert(gradeQuizAnswer('放弃', '放弃；抛弃') === true, '分号多释义命中其一应判对')
+assert(gradeQuizAnswer('抛弃', '放弃，抛弃') === true, '逗号多释义命中其一应判对')
+assert(gradeQuizAnswer('放弃', '放弃。') === true, '末尾带句号应判对')
+assert(gradeQuizAnswer('坚持', '放弃；抛弃') === false, '非相关释义应判错')
+
+// tongyun: 脏词过滤与超长截断测试（服务端 QuizWordItem 契约）
+const dirtyWords = [
+  { word: '12345', trans: [{ cn: '纯数字' }] },
+  { word: '纯中文', trans: [{ cn: '无英文' }] },
+  { word: 'a'.repeat(65), trans: [{ cn: '超过64位' }] },
+  { word: 'valid', trans: [{ cn: 'x'.repeat(150) }] },
+]
+const cleanedDirty = pickWrongWordsForQuiz(dirtyWords, 20)
+assert(cleanedDirty.length === 1, `应只保留 1 个合规词，实际 ${cleanedDirty.length}`)
+assert(cleanedDirty[0].word === 'valid', `合规词应为 valid`)
+assert(cleanedDirty[0].cn?.length === 100, `超长 cn 应截断至 100 字符，实际 ${cleanedDirty[0].cn?.length}`)
+
 if (errors.length) {
   console.error('FAIL')
   for (const e of errors) console.error('-', e)
