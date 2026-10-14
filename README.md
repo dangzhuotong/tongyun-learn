@@ -43,9 +43,10 @@ AI 接口目前已实现 `POST /v1/ai/explain`（P2）、`POST /v1/ai/quiz`（P4
 - `LEARN_AI_DAILY_AXUE`: 阿学每日 AI 调用上限（默认 500）
 - `LEARN_AI_MODEL`: 主 AI 模型（默认 `gemini-3-8-flash-openai`）
 - `LEARN_AI_FALLBACK_MODEL`: 降级 AI 模型（默认 `deepseek-v4-1-flash`）
-- `LEARN_AI_TIMEOUT_S`: AI 请求超时秒数（默认 30.0）
+- `LEARN_AI_TIMEOUT_S`: 单次 AI 请求超时秒数（默认 30.0）
+- `LEARN_AI_TOTAL_BUDGET_S`: AI 请求全流程总预算秒数（默认 50.0，包含主模型重试与降级模型全流程）
 - `LEARN_KIE_BASE_URL`: KIE AI API 基础地址（默认 `https://api.kie.ai`）
-- `KIE_API_KEY`: KIE AI API 鉴权密钥（注意不加 LEARN_ 前缀，日志不泄露）
+- `KIE_API_KEY`: KIE AI API 鉴权密钥（注意不加 LEARN_ 前缀，亦支持 `LEARN_KIE_API_KEY`，日志与 repr 自动脱敏）
 - `LEARN_TZ`: 服务时区（默认 `Asia/Shanghai`）
 
 ## 数据库迁移
@@ -66,9 +67,14 @@ alembic downgrade base
 # 代码规范与静态检查
 ruff check .
 
+# 运行纯逻辑单元测试（零外部依赖、内存毫秒级执行）
+pytest -q tests/test_cardkeys.py tests/test_timeutil.py tests/test_srs.py tests/test_tutor_logic.py tests/test_insights_logic.py tests/test_ai_logic.py tests/test_errors.py tests/test_helpers_logic.py
+
 # 运行全量单元测试与集成测试
 pytest -q
 ```
+
+详细测试体系设计原则与覆盖矩阵见 [docs/test-coverage.md](docs/test-coverage.md)。
 
 ## 生产部署
 
@@ -90,8 +96,9 @@ pytest -q
 | `GET /progress` | 各状态点数、今日到期、30 天保持率、近 7 天、阶段过关 |
 | `POST /sessions`、`POST /evidence` | 记课、记证据（服务端判 passed；带 card_id 同时写一次 FSRS） |
 | `GET /next` | 待复查点（全部）+ 推荐学习的点 |
-| `POST /v1/ai/quiz` | 错词 AI 复习卷：输入 1–20 个错词生成复习测试卷（完形填空/单选/英译中），去重与规范排序后支持缓存与重试 |
-| `POST /v1/ai/generate-deck` | 场景 AI 词书卡组生成：按场景让 AI 生成英语单词卡并入库到 source='ai' 的卡组，支持缓存与重试 |
+| `POST /ai/explain` | AI 讲解助记与语法拆解：单词记忆法（`word_mnemonic`）与长难句语法拆解（`sentence_grammar`），带缓存与限流配额校验 |
+| `POST /ai/quiz` | 错词 AI 复习卷：输入 1–20 个错词生成复习测试卷（完形填空/单选/英译中），去重与规范排序后支持缓存与重试 |
+| `POST /ai/generate-deck` | 场景 AI 词书卡组生成：按场景让 AI 生成英语单词卡并入库到 source='ai' 的卡组，支持缓存与重试 |
 
 ### P3b：卡点、薄弱点、回顾与软作废
 
