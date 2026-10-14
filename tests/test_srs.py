@@ -11,12 +11,12 @@ from tongyun_learn.services.srs import apply_review, retrievability, to_fsrs
 def test_to_fsrs_none_and_zero_state():
     card_none = to_fsrs(None)
     assert isinstance(card_none, FsrsCard)
-    assert card_none.state == State.New
+    assert card_none.state == FsrsCard().state
 
     cs_zero = CardState(card_id=1, state=0)
     card_zero = to_fsrs(cs_zero)
     assert isinstance(card_zero, FsrsCard)
-    assert card_zero.state == State.New
+    assert card_zero.state == FsrsCard().state
 
 
 def test_to_fsrs_with_active_state():
