@@ -58,8 +58,17 @@ export default defineNuxtConfig({
       htmlAttrs: {
         lang: 'zh-CN',
       },
-      // tongyun: 使用 withBaseURL 为 favicon 加上应用 baseURL，避免子路径部署时 404
-      link: [{ rel: 'icon', type: 'image/x-icon', href: withBaseURL('/favicon.ico', appBaseURL) }],
+      // tongyun: 官方主标「云芽」。奶茶 #FDC89C、云 #FCF4E1、芽 #A4C48C。
+      // SVG 与 PNG 取自 tongyun-scaffold/brand；favicon.ico 由 yunya-512.png 缩小生成。
+      // withBaseURL 避免子路径部署时图标 404。
+      link: [
+        { rel: 'icon', type: 'image/svg+xml', href: withBaseURL('/yunya-mark.svg', appBaseURL) },
+        { rel: 'icon', type: 'image/png', sizes: '48x48', href: withBaseURL('/favicon-48.png', appBaseURL) },
+        { rel: 'icon', type: 'image/png', sizes: '96x96', href: withBaseURL('/favicon-96.png', appBaseURL) },
+        { rel: 'icon', type: 'image/png', sizes: '512x512', href: withBaseURL('/yunya-512.png', appBaseURL) },
+        { rel: 'apple-touch-icon', sizes: '180x180', href: withBaseURL('/favicon-180.png', appBaseURL) },
+        { rel: 'icon', type: 'image/x-icon', href: withBaseURL('/favicon.ico', appBaseURL) },
+      ],
     },
   },
   // ssr: false,
