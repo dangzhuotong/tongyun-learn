@@ -34,6 +34,15 @@ def test_health_db_failure(client: TestClient) -> None:
         assert "timeout" not in resp.text
 
 
+def test_health_time_uses_configured_timezone(client: TestClient) -> None:
+    from tongyun_learn.config import Settings
+
+    with patch("tongyun_learn.routers.health.get_settings", return_value=Settings(tz="UTC")):
+        resp = client.get("/v1/health")
+    assert resp.status_code == 200
+    assert resp.json()["time"].endswith("+00:00")
+
+
 def test_unknown_path_404(client: TestClient) -> None:
     resp = client.get("/v1/non_existent_route")
     assert resp.status_code == 404

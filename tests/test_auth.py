@@ -1,4 +1,5 @@
 import hashlib
+from dataclasses import FrozenInstanceError
 from typing import Annotated
 
 import pytest
@@ -8,6 +9,7 @@ from fastapi.testclient import TestClient
 from tongyun_learn.auth import Principal, get_principal, require
 from tongyun_learn.config import get_settings
 from tongyun_learn.db import SessionLocal
+from tongyun_learn.errors import ApiError
 from tongyun_learn.limits import reset_rate_limiter
 from tongyun_learn.main import create_app
 from tongyun_learn.models import ApiUsage
@@ -113,3 +115,98 @@ def test_auth_web_token_and_axue_token():
         )
         assert resp_axue_allowed.status_code == 200
         assert resp_axue_allowed.json() == {"principal": "axue"}
+
+
+def _fake_request(auth: str | None):
+    """get_principal 只读取 request.headers.get("Authorization")，用极简替身即可离线直测。"""
+
+    class _Req:
+        headers = {"Authorization": auth} if auth is not None else {}
+
+    return _Req()
+
+
+def test_get_principal_rejects_missing_empty_and_whitespace_tokens():
+    settings = get_settings()
+    cases = [
+        None,  # 无 Authorization
+        "",  # 空头
+        "Bearer",  # 缺少空格
+        "Bearer ",  # 只有前缀
+        "Bearer     ",  # 前缀后全是空白
+        "bearer web-test-token",  # 大小写不匹配
+        "Token web-test-token",  # 方案不对
+    ]
+    with SessionLocal() as db:
+        for value in cases:
+            with pytest.raises(ApiError) as exc:
+                get_principal(_fake_request(value), db, settings)
+            assert exc.value.status_code == 401
+            assert exc.value.code == "unauthorized"
+            assert exc.value.headers == {"WWW-Authenticate": "Bearer"}
+
+
+def test_get_principal_strips_surrounding_whitespace():
+    settings = get_settings()
+    with SessionLocal() as db:
+        principal = get_principal(_fake_request(f"Bearer   {WEB_TOKEN}  "), db, settings)
+    assert principal == Principal(name="web")
+
+
+def test_principal_is_frozen():
+    principal = Principal(name="web")
+    with pytest.raises(FrozenInstanceError):
+        principal.name = "axue"  # type: ignore[misc]
+
+
+def test_require_without_roles_forbids_every_token():
+    app = create_app()
+
+    @app.get("/test/no-roles")
+    def no_roles(p: Annotated[Principal, Depends(require())]):
+        return {"principal": p.name}
+
+    with TestClient(app) as test_client:
+        for token in (WEB_TOKEN, AXUE_TOKEN):
+            resp = test_client.get("/test/no-roles", headers={"Authorization": f"Bearer {token}"})
+            assert resp.status_code == 403
+            assert resp.json()["error"]["code"] == "forbidden"
+
+
+def test_require_multiple_roles_allows_each_listed_role():
+    app = create_app()
+
+    @app.get("/test/both")
+    def both(p: Annotated[Principal, Depends(require("web", "axue"))]):
+        return {"principal": p.name}
+
+    with TestClient(app) as test_client:
+        resp_web = test_client.get("/test/both", headers={"Authorization": f"Bearer {WEB_TOKEN}"})
+        assert resp_web.status_code == 200
+        assert resp_web.json() == {"principal": "web"}
+
+        resp_axue = test_client.get("/test/both", headers={"Authorization": f"Bearer {AXUE_TOKEN}"})
+        assert resp_axue.status_code == 200
+        assert resp_axue.json() == {"principal": "axue"}
+
+
+def test_only_web_token_configured_rejects_axue_token(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv("LEARN_TOKEN_AXUE_SHA256", "")
+    get_settings.cache_clear()
+    reset_rate_limiter()
+
+    app = create_app()
+
+    @app.get("/test/principal")
+    def read_principal(p: Annotated[Principal, Depends(get_principal)]):
+        return {"principal": p.name}
+
+    with TestClient(app) as test_client:
+        resp_web = test_client.get("/test/principal", headers={"Authorization": f"Bearer {WEB_TOKEN}"})
+        assert resp_web.status_code == 200
+        assert resp_web.json() == {"principal": "web"}
+
+        # 未配置 axue 哈希：即便请求带上 axue 令牌也必须 401，而不是误判为 axue
+        resp_axue = test_client.get("/test/principal", headers={"Authorization": f"Bearer {AXUE_TOKEN}"})
+        assert resp_axue.status_code == 401
+        assert resp_axue.json()["error"]["code"] == "unauthorized"
