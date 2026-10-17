@@ -2,7 +2,7 @@
 import type { NuxtError } from '#app'
 
 const props = defineProps({
-  error: Object as () => NuxtError
+  error: Object as () => NuxtError,
 })
 </script>
 
@@ -10,6 +10,6 @@ const props = defineProps({
   <div class="h-screen center flex-col">
     <h1>{{ error?.statusCode }}</h1>
     <h2>{{ error?.message }}</h2>
-    <NuxtLink to="/words">返回首页</NuxtLink>
+    <NuxtLink to="/learn-board">返回学习看板</NuxtLink>
   </div>
 </template>

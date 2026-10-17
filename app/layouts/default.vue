@@ -47,8 +47,10 @@ const { locales, setLocale } = useI18n()
 const route = useRoute()
 
 const showIcon = $computed(() => {
-  return ['/words', '/articles', '/setting', '/help', '/doc', '/feedback'].includes(route.path)
+  return ['/words', '/typewords', '/articles', '/setting', '/help', '/doc', '/feedback'].includes(route.path)
 })
+
+const isBoard = $computed(() => route.path === '/' || route.path === '/learn-board')
 
 onMounted(() => {
   init()
@@ -83,45 +85,16 @@ function onMouseLeave() {
             <IconFluentPin20Regular v-else class="flex-shrink-0 -transform-rotate-45" />
           </BaseIcon>
         </div>
-        <NuxtLink to="/words" class="row">
-          <IconFluentTextUnderlineDouble20Regular />
-          <span>{{ $t('words') }}</span>
-        </NuxtLink>
-        <NuxtLink id="article" to="/articles" class="row">
-          <IconFluentBookLetter20Regular />
-          <span>{{ $t('articles') }}</span>
-        </NuxtLink>
-        <!-- tongyun: 学习看板入口 -->
-        <NuxtLink to="/learn-board" class="row">
+        <!-- tongyun: 侧栏只留学习看板和设置。背单词在 /typewords -->
+        <NuxtLink to="/learn-board" class="row" :class="{ 'router-link-active': isBoard }">
           <IconFluentDataHistogram20Regular />
           <span>学习看板</span>
         </NuxtLink>
-        <!-- tongyun: AI 错词复习卷入口 -->
-        <NuxtLink to="/ai-quiz" class="row">
-          <IconFluentBookQuestionMark20Regular />
-          <span>错词复习</span>
-        </NuxtLink>
-        <NuxtLink to="/feedback" class="row">
-          <IconFluentCommentEdit20Regular />
-          <span>{{ $t('feedback') }}</span>
-        </NuxtLink>
-        <NuxtLink to="/doc" class="row">
-          <IconFluentDocument20Regular />
-          <span>{{ $t('document') }}</span>
-        </NuxtLink>
-        <NuxtLink to="/help" class="row">
-          <IconFluentQuestionCircle20Regular />
-          <span>{{ $t('help') }}</span>
-        </NuxtLink>
-        <!--        <div class="row" @click="router.push('/user')">-->
-        <!--          <IconFluentPerson20Regular/>-->
-        <!--          <span >用户</span>-->
-        <!--        </div>-->
       </div>
       <div class="px-4 pb-2 border-0 border-t-1 border-solid border-[var(--color-line)]">
-        <NuxtLink to="/setting" class="row">
+        <NuxtLink to="/setting?index=0" class="row" title="填写学习服务令牌">
           <IconFluentSettings20Regular />
-          <span>{{ $t('setting') }}</span>
+          <span>设置</span>
           <div class="red-point" :class="!settingStore.sideExpand && 'top-1 right-0'" v-if="runtimeStore.isError"></div>
         </NuxtLink>
       </div>
@@ -130,31 +103,13 @@ function onMouseLeave() {
     <!-- 移动端顶部菜单栏 -->
     <div class="mobile-top-nav" :class="{ collapsed: settingStore.mobileNavCollapsed }">
       <div class="nav-items">
-        <div class="nav-item" @click="router.push('/')" :class="{ active: route.path === '/' }">
-          <IconFluentHome20Regular />
-          <span>{{ $t('home_page') }}</span>
-        </div>
-        <div class="nav-item" @click="router.push('/words')" :class="{ active: route.path?.includes('/words') }">
-          <IconFluentTextUnderlineDouble20Regular />
-          <span>{{ $t('words') }}</span>
-        </div>
-        <div class="nav-item" @click="router.push('/articles')" :class="{ active: route.path?.includes('/articles') }">
-          <IconFluentBookLetter20Regular />
-          <span>{{ $t('articles') }}</span>
-        </div>
-        <!-- tongyun: 学习看板入口 -->
-        <div class="nav-item" @click="router.push('/learn-board')" :class="{ active: route.path === '/learn-board' }">
+        <div class="nav-item" @click="router.push('/learn-board')" :class="{ active: isBoard }">
           <IconFluentDataHistogram20Regular />
-          <span>看板</span>
+          <span>学习看板</span>
         </div>
-        <!-- tongyun: AI 错词复习卷入口 -->
-        <div class="nav-item" @click="router.push('/ai-quiz')" :class="{ active: route.path === '/ai-quiz' }">
-          <IconFluentBookQuestionMark20Regular />
-          <span>复习卷</span>
-        </div>
-        <div class="nav-item" @click="router.push('/setting')" :class="{ active: route.path === '/setting' }">
+        <div class="nav-item" @click="router.push('/setting?index=0')" :class="{ active: route.path === '/setting' }">
           <IconFluentSettings20Regular />
-          <span>{{ $t('setting') }}</span>
+          <span>设置</span>
           <div class="red-point" v-if="runtimeStore.isError"></div>
         </div>
       </div>

@@ -3,6 +3,7 @@
 import { computed } from 'vue'
 import type { NextResp } from '@/tongyun/learn-board-api'
 import { stateLabel, stateColor } from '@/tongyun/learn-board-api'
+import { boardSubjectLabel, subjectSlot } from '@/tongyun/learn-board-glance'
 
 interface Props {
   data: NextResp
@@ -20,10 +21,30 @@ const hasItems = computed(() => {
 const subjectQuotas = computed(() => {
   const bySub = props.data?.new_point_quota?.by_subject_left || {}
   return Object.entries(bySub).map(([subId, left]) => {
-    const title = props.subjectTitles[subId] || subId
+    const known = props.subjectTitles[subId]
+    const title = known || boardSubjectLabel({ id: subId, title: subId })
     return { id: subId, title, left }
   })
 })
+
+function subjectChip(subjectId?: string) {
+  if (!subjectId) return ''
+  const known = props.subjectTitles[subjectId]
+  return known || boardSubjectLabel({ id: subjectId, title: subjectId })
+}
+
+function subjectChipClass(subjectId?: string) {
+  const label = subjectChip(subjectId)
+  if (label === 'Java') return 'is-java'
+  if (label === '英语') return 'is-en'
+  const slot = subjectSlot({
+    id: subjectId,
+    title: subjectId ? props.subjectTitles[subjectId] || '' : '',
+  })
+  if (slot === 'java') return 'is-java'
+  if (slot === 'english') return 'is-en'
+  return ''
+}
 </script>
 
 <template>
@@ -34,28 +55,16 @@ const subjectQuotas = computed(() => {
         今天还能新开 <strong>{{ data?.new_point_quota?.global_left ?? 0 }}</strong> 个点
       </span>
       <div v-if="subjectQuotas.length > 0" class="lb-quota-subjects">
-        <span
-          v-for="sq in subjectQuotas"
-          :key="sq.id"
-          class="lb-quota-chip"
-        >
-          {{ sq.title }} 剩 {{ sq.left }}
-        </span>
+        <span v-for="sq in subjectQuotas" :key="sq.id" class="lb-quota-chip"> {{ sq.title }} 剩 {{ sq.left }} </span>
       </div>
     </div>
 
     <!-- 列表或空提示 -->
-    <div v-if="!hasItems" class="lb-today-empty">
-      今天没有要学的新点
-    </div>
+    <div v-if="!hasItems" class="lb-today-empty">今天没有要学的新点</div>
 
     <div v-else class="lb-today-list">
       <!-- 待复查条目 -->
-      <div
-        v-for="item in data.recheck || []"
-        :key="'recheck-' + item.point_id"
-        class="lb-today-item lb-recheck-item"
-      >
+      <div v-for="item in data.recheck || []" :key="'recheck-' + item.point_id" class="lb-today-item lb-recheck-item">
         <div class="lb-item-top">
           <span class="lb-badge lb-badge-recheck">待复查</span>
           <span class="lb-item-title">{{ item.title }}</span>
@@ -63,19 +72,19 @@ const subjectQuotas = computed(() => {
       </div>
 
       <!-- 下一步条目 -->
-      <div
-        v-for="item in data.next || []"
-        :key="'next-' + item.point_id"
-        class="lb-today-item lb-next-item"
-      >
+      <div v-for="item in data.next || []" :key="'next-' + item.point_id" class="lb-today-item lb-next-item">
         <div class="lb-item-main">
           <div class="lb-item-title-row">
+            <span
+              v-if="subjectChip(item.subject_id)"
+              class="lb-subject-chip"
+              :class="subjectChipClass(item.subject_id)"
+            >
+              {{ subjectChip(item.subject_id) }}
+            </span>
             <span class="lb-item-title font-bold">{{ item.title }}</span>
             <span class="lb-state-pill">
-              <span
-                class="lb-state-dot"
-                :style="{ backgroundColor: stateColor(item.state) }"
-              />
+              <span class="lb-state-dot" :style="{ backgroundColor: stateColor(item.state) }" />
               <span class="lb-state-text">{{ stateLabel(item.state) }}</span>
             </span>
           </div>
@@ -90,24 +99,9 @@ const subjectQuotas = computed(() => {
         </div>
 
         <div class="lb-item-tag-box">
-          <span
-            v-if="item.opens_today"
-            class="lb-badge lb-badge-opens-today"
-          >
-            占今天新开名额
-          </span>
-          <span
-            v-else-if="item.opened_today"
-            class="lb-badge lb-badge-opened-today"
-          >
-            今天已开
-          </span>
-          <span
-            v-else
-            class="lb-badge lb-badge-no-quota"
-          >
-            不占名额
-          </span>
+          <span v-if="item.opens_today" class="lb-badge lb-badge-opens-today"> 占今天新开名额 </span>
+          <span v-else-if="item.opened_today" class="lb-badge lb-badge-opened-today"> 今天已开 </span>
+          <span v-else class="lb-badge lb-badge-no-quota"> 不占名额 </span>
         </div>
       </div>
     </div>
@@ -283,5 +277,30 @@ const subjectQuotas = computed(() => {
   background: var(--color-card-bg);
   color: var(--color-sub-text);
   border: 1px solid var(--color-item-border);
+}
+
+.lb-subject-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--color-card-bg);
+  border: 1px solid var(--color-item-border);
+  color: var(--color-main-text);
+  flex-shrink: 0;
+
+  &.is-java {
+    background: rgba(59, 130, 246, 0.15);
+    border-color: rgba(59, 130, 246, 0.45);
+    color: #2563eb;
+  }
+
+  &.is-en {
+    background: rgba(20, 184, 166, 0.15);
+    border-color: rgba(20, 184, 166, 0.45);
+    color: #0d9488;
+  }
 }
 </style>

@@ -3,12 +3,7 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { BaseButton, BaseInput, Toast } from '@/base'
 import SettingItem from '@/components/setting/SettingItem.vue'
-import {
-  getLearnConfig,
-  saveLearnConfig,
-  clearLearnConfig,
-  learnCheckAuth,
-} from '@/tongyun/learn-client'
+import { getLearnConfig, saveLearnConfig, clearLearnConfig, learnCheckAuth } from '@/tongyun/learn-client'
 
 const router = useRouter()
 
@@ -62,26 +57,15 @@ function onClear() {
     <div class="flex flex-col gap-3 max-w-xl my-2">
       <div class="flex items-center gap-3">
         <span class="w-20 shrink-0 text-sm opacity-80">服务地址</span>
-        <BaseInput
-          class="flex-1"
-          v-model="url"
-          placeholder="/learn/api/"
-          clearable
-        />
+        <BaseInput class="flex-1" v-model="url" placeholder="/learn/api/" clearable />
       </div>
       <div class="flex items-center gap-3">
         <span class="w-20 shrink-0 text-sm opacity-80">令牌</span>
-        <BaseInput
-          class="flex-1"
-          v-model="token"
-          type="password"
-          placeholder="web 令牌"
-          clearable
-        />
+        <BaseInput class="flex-1" v-model="token" type="password" placeholder="web 令牌" clearable />
       </div>
       <div class="flex items-center justify-between gap-3 mt-1">
-        <!-- tongyun: 学习看板 / 错词复习卷入口 -->
-        <div class="flex flex-wrap items-center gap-x-4 gap-y-1">
+        <!-- tongyun: 看板在侧栏。TypeWords 背单词/文章/错词只留在设置里，不进主侧栏 -->
+        <div class="flex flex-col gap-1">
           <button
             type="button"
             class="text-sm text-[var(--color-link)] hover:underline cursor-pointer bg-transparent border-none p-0 inline-flex items-center min-h-[44px]"
@@ -89,13 +73,30 @@ function onClear() {
           >
             打开学习看板
           </button>
-          <button
-            type="button"
-            class="text-sm text-[var(--color-link)] hover:underline cursor-pointer bg-transparent border-none p-0 inline-flex items-center min-h-[44px]"
-            @click="router.push('/ai-quiz')"
-          >
-            AI 错词复习卷
-          </button>
+          <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+            <span class="opacity-60">TypeWords</span>
+            <button
+              type="button"
+              class="text-[var(--color-link)] hover:underline cursor-pointer bg-transparent border-none p-0 inline-flex items-center min-h-[44px]"
+              @click="router.push('/typewords')"
+            >
+              背单词
+            </button>
+            <button
+              type="button"
+              class="text-[var(--color-link)] hover:underline cursor-pointer bg-transparent border-none p-0 inline-flex items-center min-h-[44px]"
+              @click="router.push('/articles')"
+            >
+              文章
+            </button>
+            <button
+              type="button"
+              class="text-[var(--color-link)] hover:underline cursor-pointer bg-transparent border-none p-0 inline-flex items-center min-h-[44px]"
+              @click="router.push('/ai-quiz')"
+            >
+              错词复习
+            </button>
+          </div>
         </div>
         <div class="flex gap-3 justify-end">
           <BaseButton type="info" @click="onClear">清除</BaseButton>

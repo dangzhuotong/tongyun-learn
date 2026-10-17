@@ -4,18 +4,14 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { BasePage } from '@/base'
 import { getLearnConfig } from '@/tongyun/learn-client'
-import type {
-  Subject,
-  NextResp,
-  ReviewDueResp,
-  Blocker,
-} from '@/tongyun/learn-board-api'
+import type { Subject, NextResp, ReviewDueResp, Blocker } from '@/tongyun/learn-board-api'
 import {
   fetchSubjects,
   fetchNext,
   fetchReviewDue,
   fetchOpenBlockers,
   fetchProgress,
+  fetchMap,
 } from '@/tongyun/learn-board-api'
 import LbBlock from '@/components/tongyun/learn-board/LbBlock.vue'
 import LbToday from '@/components/tongyun/learn-board/LbToday.vue'
@@ -23,6 +19,15 @@ import LbReview from '@/components/tongyun/learn-board/LbReview.vue'
 import LbBlockers from '@/components/tongyun/learn-board/LbBlockers.vue'
 import LbSubjects from '@/components/tongyun/learn-board/LbSubjects.vue'
 import LbMap from '@/components/tongyun/learn-board/LbMap.vue'
+import LbMapStatus from '@/components/tongyun/learn-board/LbMapStatus.vue'
+import {
+  JAVA_SUBJECT_ID,
+  boardSubjectLabel,
+  resolveBoardSubjects,
+  summarizeMap,
+  mapStatusLine,
+  type MapStatusSummary,
+} from '@/tongyun/learn-board-glance'
 
 useSeoMeta({
   title: '学习看板',
@@ -71,13 +76,102 @@ const subjectsData = ref<Subject[]>([])
 const retention = ref<Record<string, number | null | undefined>>({})
 const retentionLoaded = ref<Record<string, boolean>>({})
 
+const javaMapState = ref<BlockState>('loading')
+const englishMapState = ref<BlockState>('loading')
+const javaSummary = ref<MapStatusSummary | null>(null)
+const englishSummary = ref<MapStatusSummary | null>(null)
+const javaSubjectId = ref(JAVA_SUBJECT_ID)
+const javaSubjectTitle = ref('Java')
+const englishSubjectId = ref('')
+const englishSubjectTitle = ref('英语')
+const javaMissingText = ref('')
+const englishMissingText = ref('')
+
 const subjectTitles = computed(() => {
   const titles: Record<string, string> = {}
+  const resolved = resolveBoardSubjects(subjectsData.value)
   for (const s of subjectsData.value) {
-    titles[s.id] = s.title
+    if (resolved.java?.id === s.id) titles[s.id] = 'Java'
+    else if (resolved.english?.id === s.id) titles[s.id] = '英语'
+    else titles[s.id] = boardSubjectLabel(s)
   }
+  titles[JAVA_SUBJECT_ID] = titles[JAVA_SUBJECT_ID] || 'Java'
   return titles
 })
+
+const todayHeadline = computed(() => {
+  const recheck = todayData.value.recheck?.[0]
+  if (recheck?.title) return `待复查 ${recheck.title}`
+  const next = todayData.value.next?.[0]
+  if (next?.title) {
+    const sub = next.subject_id ? subjectTitles.value[next.subject_id] : ''
+    return sub ? `${next.title}（${sub}）` : next.title
+  }
+  if (todayState.value === 'ok') return '今天没有要学的新点'
+  return ''
+})
+
+const javaHeadline = computed(() => (javaSummary.value ? mapStatusLine(javaSummary.value) : ''))
+
+function markMapPair(state: BlockState) {
+  javaMapState.value = state
+  englishMapState.value = state
+}
+
+async function loadOneMap(subject: Subject | null, slot: 'java' | 'english') {
+  const isJava = slot === 'java'
+  const setState = (s: BlockState) => {
+    if (isJava) javaMapState.value = s
+    else englishMapState.value = s
+  }
+  const setSummary = (s: MapStatusSummary | null) => {
+    if (isJava) javaSummary.value = s
+    else englishSummary.value = s
+  }
+  const setMissing = (s: string) => {
+    if (isJava) javaMissingText.value = s
+    else englishMissingText.value = s
+  }
+
+  if (!subject) {
+    setSummary(null)
+    setMissing(isJava ? '学科列表里没有 Java（java-fde）' : '学科列表里没有英语')
+    if (isJava) {
+      javaSubjectId.value = JAVA_SUBJECT_ID
+      javaSubjectTitle.value = 'Java'
+    } else {
+      englishSubjectId.value = ''
+      englishSubjectTitle.value = '英语'
+    }
+    setState('ok')
+    return
+  }
+
+  if (isJava) {
+    javaSubjectId.value = subject.id
+    javaSubjectTitle.value = 'Java'
+  } else {
+    englishSubjectId.value = subject.id
+    englishSubjectTitle.value = subject.title && subject.title !== '英语' ? subject.title : '英语'
+  }
+  setMissing('')
+
+  const res = await fetchMap(subject.id)
+  if (res.ok && res.data) {
+    setSummary(summarizeMap(res.data))
+    setState('ok')
+  } else if (res.kind === 'bad_token' || res.kind === 'no_token') {
+    setSummary(null)
+    setState('bad_token')
+  } else if (res.kind === 'not_found') {
+    setSummary(null)
+    setMissing(isJava ? '还没有 Java（java-fde）的地图' : '还没有英语地图')
+    setState('ok')
+  } else {
+    setSummary(null)
+    setState('unreachable')
+  }
+}
 
 function goToSetting() {
   router.push('/setting?index=0')
@@ -90,6 +184,10 @@ async function loadAll(initial = true) {
     reviewState.value = 'loading'
     blockersState.value = 'loading'
     subjectsState.value = 'loading'
+    javaMapState.value = 'loading'
+    englishMapState.value = 'loading'
+    javaMissingText.value = ''
+    englishMissingText.value = ''
   }
 
   const [subjSettled, nextSettled, revSettled, blockSettled] = await Promise.allSettled([
@@ -151,11 +249,13 @@ async function loadAll(initial = true) {
   if (subjSettled.status === 'fulfilled') {
     const res = subjSettled.value
     if (res.ok) {
-      subjectsData.value = res.data
+      const resolved = resolveBoardSubjects(res.data)
+      subjectsData.value = resolved.ordered
       subjectsState.value = 'ok'
+      await Promise.all([loadOneMap(resolved.java, 'java'), loadOneMap(resolved.english, 'english')])
 
       // 并行拉 progress
-      const currentSubjects = res.data
+      const currentSubjects = resolved.ordered
       const newRet: Record<string, number | null | undefined> = {}
       const newRetLoaded: Record<string, boolean> = {}
 
@@ -170,11 +270,14 @@ async function loadAll(initial = true) {
       retentionLoaded.value = newRetLoaded
     } else if (res.kind === 'bad_token' || res.kind === 'no_token') {
       subjectsState.value = 'bad_token'
+      markMapPair('bad_token')
     } else {
       subjectsState.value = 'unreachable'
+      markMapPair('unreachable')
     }
   } else {
     subjectsState.value = 'unreachable'
+    markMapPair('unreachable')
   }
 }
 
@@ -211,14 +314,14 @@ onMounted(() => {
         <div class="lb-header-info">
           <h1 class="lb-title">学习看板</h1>
           <p class="lb-subtitle">{{ todayDateText }}</p>
+          <p v-if="hasToken" class="lb-pair-line">Java（java-fde） · 英语</p>
+          <p v-if="hasToken && (todayHeadline || javaHeadline)" class="lb-glance">
+            <span v-if="todayHeadline">今天：{{ todayHeadline }}</span>
+            <span v-if="javaHeadline">Java 地图：{{ javaHeadline }}</span>
+          </p>
         </div>
         <div v-if="hasToken" class="lb-header-actions">
-          <button
-            type="button"
-            class="lb-refresh-btn"
-            :disabled="refreshing"
-            @click="handleRefresh"
-          >
+          <button type="button" class="lb-refresh-btn" :disabled="refreshing" @click="handleRefresh">
             {{ refreshing ? '刷新中…' : '刷新' }}
           </button>
         </div>
@@ -229,41 +332,50 @@ onMounted(() => {
 
       <!-- 未配置 token 时的提示卡片 -->
       <div v-else-if="!hasToken" class="lb-no-token-card">
-        <p class="lb-no-token-text">先去设置填令牌</p>
-        <button type="button" class="lb-go-setting-btn" @click="goToSetting">
-          去设置
-        </button>
+        <p class="lb-no-token-text">先去设置填写令牌。填好后这里会显示今天学什么，以及 Java 和英语。</p>
+        <button type="button" class="lb-go-setting-btn" @click="goToSetting">去设置</button>
       </div>
 
-      <!-- 正常数据区块 -->
+      <!-- 正常数据区块。首屏：今天学什么 + Java 地图状态 + 英语 -->
       <div v-else class="lb-sections">
-        <!-- 1. 今天学什么 & 2. 待复习：>=1024px 双列并排，手机端单列 -->
-        <div class="lb-top-grid">
-          <LbBlock title="今天学什么" :state="todayState">
+        <div class="lb-first-screen">
+          <LbBlock title="今天学什么" :state="todayState" prominent>
             <LbToday :data="todayData" :subject-titles="subjectTitles" />
           </LbBlock>
 
+          <LbBlock title="Java 地图状态" :state="javaMapState" prominent accent="java">
+            <LbMapStatus
+              :summary="javaSummary"
+              :subject-id="javaSubjectId"
+              :subject-title="javaSubjectTitle"
+              :missing-text="javaMissingText"
+            />
+          </LbBlock>
+
+          <LbBlock title="英语" :state="englishMapState" prominent>
+            <LbMapStatus
+              :summary="englishSummary"
+              :subject-id="englishSubjectId"
+              :subject-title="englishSubjectTitle"
+              :missing-text="englishMissingText"
+            />
+          </LbBlock>
+        </div>
+
+        <div class="lb-top-grid">
           <LbBlock title="待复习" :state="reviewState">
             <LbReview :data="reviewData" />
           </LbBlock>
         </div>
 
         <!-- 3. 卡在哪 -->
-        <LbBlock
-          title="卡在哪"
-          :state="blockersState"
-          :soon-text="blockersSoonText"
-        >
+        <LbBlock title="卡在哪" :state="blockersState" :soon-text="blockersSoonText">
           <LbBlockers :items="blockersData" />
         </LbBlock>
 
         <!-- 4. 各科统计 -->
         <LbBlock title="各科统计" :state="subjectsState">
-          <LbSubjects
-            :subjects="subjectsData"
-            :retention="retention"
-            :retention-loaded="retentionLoaded"
-          />
+          <LbSubjects :subjects="subjectsData" :retention="retention" :retention-loaded="retentionLoaded" />
         </LbBlock>
 
         <!-- 5. 知识地图 -->
@@ -277,7 +389,7 @@ onMounted(() => {
 
 <style scoped lang="scss">
 .lb-container {
-  max-width: 960px;
+  max-width: 1120px;
   margin: 0 auto;
   width: 100%;
   box-sizing: border-box;
@@ -312,6 +424,24 @@ onMounted(() => {
   margin: 0;
   font-size: 14px;
   color: var(--color-sub-text);
+}
+
+.lb-pair-line {
+  margin: 2px 0 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-main-text);
+}
+
+.lb-glance {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin: 8px 0 0;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--color-main-text);
 }
 
 .lb-header-actions {
@@ -398,14 +528,24 @@ onMounted(() => {
   gap: 20px;
 }
 
+.lb-first-screen {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  align-items: start;
+
+  @media (min-width: 840px) {
+    grid-template-columns: 1.15fr 1fr;
+  }
+
+  @media (min-width: 1280px) {
+    grid-template-columns: 1.2fr 1fr 0.95fr;
+  }
+}
+
 .lb-top-grid {
   display: grid;
   grid-template-columns: 1fr;
   gap: 20px;
-
-  @media (min-width: 1024px) {
-    grid-template-columns: 1fr 1fr;
-    align-items: start;
-  }
 }
 </style>

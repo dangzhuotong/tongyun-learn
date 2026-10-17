@@ -54,7 +54,7 @@ export default defineNuxtConfig({
     baseURL: appBaseURL,
     // keepalive: true,
     head: {
-      title: 'Type Words — 免费英语单词练习 | Free English Typing Practice', // default fallback title
+      title: '学习看板', // tongyun: 站点入口是学习看板
       htmlAttrs: {
         lang: 'zh-CN',
       },
@@ -73,7 +73,9 @@ export default defineNuxtConfig({
   },
   // ssr: false,
   routeRules: {
+    '/': { ssr: false }, // tongyun: 根路径就是学习看板
     '/words': { ssr: false },
+    '/typewords': { ssr: false }, // tongyun: 背单词次要入口，与 /words 同一页
     '/articles': { ssr: false },
     '/setting': { ssr: false },
     '/learn-board': { ssr: false }, // tongyun: 学习看板，纯客户端，静态产物不含数据
@@ -184,6 +186,8 @@ export default defineNuxtConfig({
   nitro: {
     prerender: {
       ignore: appBaseURL === '/' ? [] : [withBaseURL('/manifest.json', appBaseURL)],
+      // tongyun: /typewords 是 /words 的别名，静态产物里也要有这一页
+      routes: ['/typewords'],
     },
     devProxy: {
       '/baidu': {

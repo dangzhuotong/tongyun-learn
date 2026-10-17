@@ -4,6 +4,7 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import type { Subject, SubjectMap, MapStage, MapPoint } from '@/tongyun/learn-board-api'
 import { fetchMap, POINT_STATES, stateLabel, stateColor } from '@/tongyun/learn-board-api'
+import { resolveBoardSubjects } from '@/tongyun/learn-board-glance'
 
 interface Props {
   subjects: Subject[]
@@ -105,13 +106,16 @@ function getStageStateCounts(stage: MapStage) {
     const st = p.stats?.state || 'locked'
     counts[st] = (counts[st] || 0) + 1
   }
-  return POINT_STATES
-    .map(s => ({ key: s.key, color: s.color, count: counts[s.key] || 0 }))
-    .filter(s => s.count > 0)
+  return POINT_STATES.map(s => ({ key: s.key, color: s.color, count: counts[s.key] || 0 })).filter(s => s.count > 0)
 }
 
 function goToSetting() {
   router.push('/setting?index=0')
+}
+
+function preferredSubjectId(subs: Subject[]): string {
+  if (!subs?.length) return ''
+  return resolveBoardSubjects(subs).java?.id || subs[0].id
 }
 
 function reload() {
@@ -129,8 +133,9 @@ watch(
   subs => {
     if (subs && subs.length > 0) {
       if (!selectedSubjectId.value || !subs.some(s => s.id === selectedSubjectId.value)) {
-        selectedSubjectId.value = subs[0].id
-        loadMap(subs[0].id)
+        const id = preferredSubjectId(subs)
+        selectedSubjectId.value = id
+        loadMap(id)
       }
     }
   },
@@ -139,8 +144,9 @@ watch(
 
 onMounted(() => {
   if (props.subjects.length > 0 && !selectedSubjectId.value) {
-    selectedSubjectId.value = props.subjects[0].id
-    loadMap(props.subjects[0].id)
+    const id = preferredSubjectId(props.subjects)
+    selectedSubjectId.value = id
+    loadMap(id)
   }
 })
 </script>
@@ -169,54 +175,29 @@ onMounted(() => {
 
       <div v-else-if="mapState === 'bad_token'" class="lb-state-box">
         <p class="lb-state-text">令牌不对，去设置改</p>
-        <button type="button" class="lb-action-btn" @click="goToSetting">
-          去设置
-        </button>
+        <button type="button" class="lb-action-btn" @click="goToSetting">去设置</button>
       </div>
 
       <div v-else-if="mapState === 'unreachable'" class="lb-state-box">
         <p class="lb-state-text">连不上学习服务</p>
       </div>
 
-      <div v-else-if="mapState === 'ok' && sortedStages.length === 0" class="lb-map-empty">
-        暂无阶段数据
-      </div>
+      <div v-else-if="mapState === 'ok' && sortedStages.length === 0" class="lb-map-empty">暂无阶段数据</div>
 
       <div v-else-if="mapState === 'ok'" class="lb-stages-list">
-        <div
-          v-for="stage in sortedStages"
-          :key="stage.id"
-          class="lb-stage-card"
-        >
+        <div v-for="stage in sortedStages" :key="stage.id" class="lb-stage-card">
           <!-- 阶段折叠头（整行可点，>=44px 高） -->
-          <button
-            type="button"
-            class="lb-stage-header"
-            @click="toggleStage(stage.id)"
-          >
+          <button type="button" class="lb-stage-header" @click="toggleStage(stage.id)">
             <div class="lb-stage-header-left">
-              <span class="lb-stage-arrow" :class="{ 'is-open': openStages[stage.id] }">
-                ▸
-              </span>
-              <span class="lb-stage-title">
-                第 {{ stage.ord }} 阶段 · {{ stage.title }}
-              </span>
-              <span v-if="stage.passed" class="lb-stage-passed-badge">
-                已通过
-              </span>
+              <span class="lb-stage-arrow" :class="{ 'is-open': openStages[stage.id] }"> ▸ </span>
+              <span class="lb-stage-title"> 第 {{ stage.ord }} 阶段 · {{ stage.title }} </span>
+              <span v-if="stage.passed" class="lb-stage-passed-badge"> 已通过 </span>
             </div>
 
             <!-- 该阶段各状态计数小圆点 -->
             <div class="lb-stage-header-right">
-              <span
-                v-for="item in getStageStateCounts(stage)"
-                :key="item.key"
-                class="lb-stage-stat-pill"
-              >
-                <span
-                  class="lb-stat-dot"
-                  :style="{ backgroundColor: item.color }"
-                />
+              <span v-for="item in getStageStateCounts(stage)" :key="item.key" class="lb-stage-stat-pill">
+                <span class="lb-stat-dot" :style="{ backgroundColor: item.color }" />
                 <span class="lb-stat-count">{{ item.count }}</span>
               </span>
             </div>
@@ -224,15 +205,9 @@ onMounted(() => {
 
           <!-- 阶段展开后的点列表 -->
           <div v-if="openStages[stage.id]" class="lb-stage-points">
-            <div v-if="!stage.points || stage.points.length === 0" class="lb-points-empty">
-              该阶段暂无知识点
-            </div>
+            <div v-if="!stage.points || stage.points.length === 0" class="lb-points-empty">该阶段暂无知识点</div>
 
-            <div
-              v-for="point in stage.points"
-              :key="point.id"
-              class="lb-point-group"
-            >
+            <div v-for="point in stage.points" :key="point.id" class="lb-point-group">
               <!-- 知识点行（按钮，>=44px 高） -->
               <button
                 type="button"
@@ -241,17 +216,11 @@ onMounted(() => {
                 @click="togglePoint(point.id)"
               >
                 <div class="lb-point-left">
-                  <span
-                    class="lb-point-dot"
-                    :style="{ backgroundColor: stateColor(point.stats?.state) }"
-                  />
+                  <span class="lb-point-dot" :style="{ backgroundColor: stateColor(point.stats?.state) }" />
                   <span class="lb-point-title">{{ point.title }}</span>
                 </div>
                 <div class="lb-point-right">
-                  <span
-                    class="lb-point-state-text"
-                    :style="{ color: stateColor(point.stats?.state) }"
-                  >
+                  <span class="lb-point-state-text" :style="{ color: stateColor(point.stats?.state) }">
                     {{ stateLabel(point.stats?.state) }}
                   </span>
                   <span class="lb-expand-indicator">
@@ -262,24 +231,12 @@ onMounted(() => {
 
               <!-- 点击展开的前置详情 -->
               <div v-if="expandedPointId === point.id" class="lb-prereqs-box">
-                <div
-                  v-if="!point.prereqs || point.prereqs.length === 0"
-                  class="lb-prereq-empty"
-                >
-                  没有前置
-                </div>
+                <div v-if="!point.prereqs || point.prereqs.length === 0" class="lb-prereq-empty">没有前置</div>
 
                 <div v-else class="lb-prereq-list">
-                  <div
-                    v-for="pr in point.prereqs"
-                    :key="pr.id"
-                    class="lb-prereq-row"
-                  >
+                  <div v-for="pr in point.prereqs" :key="pr.id" class="lb-prereq-row">
                     <div class="lb-prereq-left">
-                      <span
-                        class="lb-prereq-kind-badge"
-                        :class="pr.kind === 'hard' ? 'kind-hard' : 'kind-soft'"
-                      >
+                      <span class="lb-prereq-kind-badge" :class="pr.kind === 'hard' ? 'kind-hard' : 'kind-soft'">
                         {{ pr.kind === 'hard' ? '硬前置' : '软前置' }}
                       </span>
                       <span class="lb-prereq-title">

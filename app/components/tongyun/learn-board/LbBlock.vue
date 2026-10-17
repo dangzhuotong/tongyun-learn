@@ -6,9 +6,15 @@ interface Props {
   title: string
   state: 'loading' | 'ok' | 'bad_token' | 'unreachable' | 'soon'
   soonText?: string
+  prominent?: boolean
+  accent?: 'java' | ''
 }
 
-defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+  soonText: '',
+  prominent: false,
+  accent: '',
+})
 
 const router = useRouter()
 
@@ -18,7 +24,13 @@ function goToSetting() {
 </script>
 
 <template>
-  <section class="lb-block">
+  <section
+    class="lb-block"
+    :class="{
+      'is-prominent': props.prominent,
+      'is-java': props.accent === 'java',
+    }"
+  >
     <header class="lb-block-header">
       <h2 class="lb-block-title">{{ title }}</h2>
       <div v-if="$slots.extra" class="lb-block-extra">
@@ -33,9 +45,7 @@ function goToSetting() {
 
       <div v-else-if="state === 'bad_token'" class="lb-state-box lb-state-bad-token">
         <p class="lb-state-text">令牌不对，去设置改</p>
-        <button type="button" class="lb-action-btn" @click="goToSetting">
-          去设置
-        </button>
+        <button type="button" class="lb-action-btn" @click="goToSetting">去设置</button>
       </div>
 
       <div v-else-if="state === 'unreachable'" class="lb-state-box lb-state-unreachable">
@@ -80,6 +90,15 @@ function goToSetting() {
   font-weight: 600;
   color: var(--color-main-text);
   line-height: 1.4;
+}
+
+.lb-block.is-prominent .lb-block-title {
+  font-size: 18px;
+}
+
+.lb-block.is-java {
+  border-color: var(--color-select-bg);
+  box-shadow: 0 0 0 1px var(--color-select-bg);
 }
 
 .lb-block-extra {
@@ -132,7 +151,9 @@ function goToSetting() {
   color: var(--color-main-text);
   cursor: pointer;
   touch-action: manipulation;
-  transition: opacity 0.2s, background 0.2s;
+  transition:
+    opacity 0.2s,
+    background 0.2s;
 
   &:hover {
     background: var(--color-fourth);
