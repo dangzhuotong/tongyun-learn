@@ -2,8 +2,6 @@ import pytest
 
 from tongyun_learn.errors import ApiError
 from tongyun_learn.services.tutor import (
-    EXPRESS_PASS,
-    SELFTEST_PASS,
     express_to_rating,
     judge_passed,
 )

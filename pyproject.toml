@@ -30,6 +30,7 @@ select = ["E", "F", "I", "B", "UP"]
 
 [tool.ruff.lint.per-file-ignores]
 "migrations/versions/*.py" = ["E501"]
+"tongyun_learn/data/en_curriculum.py" = ["E501"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

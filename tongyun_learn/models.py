@@ -446,3 +446,82 @@ class MapImport(Base):
     dry_run: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     diff: Mapped[Any | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DT3, default=utcnow, nullable=False)
+
+
+class Unit(Base):
+    """云芽英语线性单元。track=en 是开发英语主线，track=en-life 是生活旁路。"""
+
+    __tablename__ = "units"
+    __table_args__ = (
+        UniqueConstraint("track", "ord", name="uq_units_track_ord"),
+        Index("ix_units_track_ord", "track", "ord"),
+        MYSQL_TABLE_ARGS,
+    )
+
+    id: Mapped[int] = mapped_column(BIGINT_AI, primary_key=True, autoincrement=True)
+    track: Mapped[str] = mapped_column(String(32), nullable=False)
+    ord: Mapped[int] = mapped_column(SmallInteger, nullable=False)
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    kind: Mapped[str] = mapped_column(String(16), nullable=False)
+    graduate_rule_json: Mapped[Any | None] = mapped_column(JSON, nullable=True)
+    active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DT3, default=utcnow, nullable=False)
+
+
+class UnitWord(Base):
+    __tablename__ = "unit_words"
+    __table_args__ = (
+        UniqueConstraint("unit_id", "ord", name="uq_unit_words_unit_id_ord"),
+        Index("ix_unit_words_card_id", "card_id"),
+        MYSQL_TABLE_ARGS,
+    )
+
+    unit_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("units.id"), primary_key=True)
+    card_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("cards.id"), primary_key=True)
+    ord: Mapped[int] = mapped_column(SmallInteger, nullable=False)
+
+
+class TypeEvent(Base):
+    """一次手敲（词阶段 A 或句阶段 B）。"""
+
+    __tablename__ = "type_events"
+    __table_args__ = (
+        CheckConstraint("phase IN ('A', 'B')", name="phase_ab"),
+        Index("ix_type_events_card_id_created_at", "card_id", "created_at"),
+        Index("ix_type_events_user_name_created_at", "user_name", "created_at"),
+        MYSQL_TABLE_ARGS,
+    )
+
+    id: Mapped[int] = mapped_column(BIGINT_AI, primary_key=True, autoincrement=True)
+    card_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("cards.id"), nullable=False)
+    unit_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("units.id"), nullable=True)
+    user_name: Mapped[str] = mapped_column(String(16), nullable=False)
+    phase: Mapped[str] = mapped_column(String(1), nullable=False)
+    correct: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    typed: Mapped[str] = mapped_column(Text, nullable=False)
+    expected: Mapped[str | None] = mapped_column(Text, nullable=True)
+    duration_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    error_shape: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    sentence_index: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
+    client_event_id: Mapped[str | None] = mapped_column(String(64), nullable=True, unique=True)
+    review_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("review_log.id"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DT3, default=utcnow, nullable=False)
+
+
+class CoachPlan(Base):
+    """教练给出的薄弱点摘要和队列。user_name 是令牌名（web / axue）。"""
+
+    __tablename__ = "coach_plans"
+    __table_args__ = (
+        Index("ix_coach_plans_user_name_created_at", "user_name", "created_at"),
+        MYSQL_TABLE_ARGS,
+    )
+
+    id: Mapped[int] = mapped_column(BIGINT_AI, primary_key=True, autoincrement=True)
+    user_name: Mapped[str] = mapped_column(String(16), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DT3, default=utcnow, nullable=False)
+    summary: Mapped[str] = mapped_column(Text, nullable=False)
+    queue_json: Mapped[Any] = mapped_column(JSON, nullable=False)
+    until: Mapped[datetime] = mapped_column(DT3, nullable=False)
+    source: Mapped[str] = mapped_column(String(16), nullable=False)
+    weak_json: Mapped[Any | None] = mapped_column(JSON, nullable=True)

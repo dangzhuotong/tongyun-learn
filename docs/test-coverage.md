@@ -31,7 +31,7 @@
 | **AI 校验规则** | `ai/schemas.py` | `tests/test_ai_quiz.py`<br>`tests/test_ai_generate_deck.py` | 校验逻辑测试 | 错词卷题型规则（choice 选项数、答案闭环、cloze 答案泄漏防范）、场景词书单词长度与字母检查 |
 | **鉴权与权限** | `auth.py` | `tests/test_auth.py` | 端点测试 | Bearer Token 缺失、格式错误、签名比对、Web 与 阿学 角色权限隔离（如写接口 403 拦截） |
 | **限流与配额** | `limits.py` | `tests/test_limits.py` | 逻辑与集成测试 | 进程内滑动令牌桶每分钟限流（HTTP 429 带 Retry-After）、每日 AI 配额按 Token 累加与日切重置、缓存命中不扣配额 |
-| **数据模型与迁移** | `models.py`<br>`migrations/` | `tests/test_models.py` | 数据库测试 | 17 张核心业务表完整性、CHECK 约束（证据所属关系校验）、Alembic 迁移双向升级降级周期 |
+| **数据模型与迁移** | `models.py`<br>`migrations/` | `tests/test_models.py` | 数据库测试 | 21 张核心业务表完整性、CHECK 约束（证据所属关系校验）、Alembic 迁移双向升级降级周期 |
 | **阿学数据迁移** | `migrate_axue.py` | `tests/test_migrate_axue.py` | 迁移逻辑与幂等测试 | 康奈尔笔记文本结构解析（`parse_card`、`parse_feynman`、`parse_express`）、旧课次与卡点映射、重复迁移无副作用验证 |
 | **健康检查** | `routers/health.py` | `tests/test_health.py` | 路由集成测试 | `/v1/health`、`/healthz` 存活探针、数据库连接故障降级（503）、全局 404 格式化 |
 | **AI 助学接口** | `routers/ai.py` | `tests/test_ai_explain.py`<br>`tests/test_ai_quiz.py`<br>`tests/test_ai_generate_deck.py` | 路由集成测试 | 单词助记与长难句拆解（P2）、错词复习卷（P4）、场景词书生成入库（P4）、缓存命中、模型格式异常重试与降级模型兜底 |
@@ -39,6 +39,7 @@
 | **学习洞察** | `routers/insights.py` | `tests/test_insights.py` | 路由集成测试 | 薄弱点排行（`GET /v1/weak`）、间隔复习回顾（`GET /v1/recall`）、每周学习总结（`GET /v1/summary/week`）、人工状态覆盖与撤销防抖（`PATCH /v1/points/{id}/state`） |
 | **软作废与恢复** | `routers/voiding.py` | `tests/test_voiding.py` | 路由集成测试 | 课次作废及证据级联作废、证据单独作废及关联复习连带处理、FSRS 复习链路时间序列重放、课次与复习列表过滤 |
 | **学习核心** | `routers/learn.py` | `tests/test_p3a_feedback.py` | 路由集成测试 | 知识地图导入审计（`POST /v1/maps/import`）、开局可学点计算、无复习数据时的指标 null 呈现、30天保持率过滤新卡初次学习 |
+| **云芽英语手敲** | `routers/en_learn.py`<br>`services/en_progress.py`<br>`services/en_coach.py` | `tests/test_en_typing.py` | 纯逻辑 + 路由集成 | 判分与错误形态、毕业门槛、生活词 20% 上限、今日队列、敲击入库与 FSRS、无密钥规则教练、DeepSeek 假响应入库 |
 
 ---
 

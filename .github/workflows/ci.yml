@@ -73,7 +73,7 @@ jobs:
           engine = create_engine(url)
           tables = inspect(engine).get_table_names()
           print("MySQL tables:", sorted(tables))
-          assert len(tables) == 18, f"Expected 18 tables, got {len(tables)}: {tables}"
+          assert len(tables) == 22, f"Expected 22 tables, got {len(tables)}: {tables}"
           '
 
       - name: Run tests against MySQL

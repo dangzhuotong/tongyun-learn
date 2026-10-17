@@ -27,15 +27,19 @@ EXPECTED_TABLES = {
     "ai_cache",
     "api_usage",
     "map_imports",
+    "units",
+    "unit_words",
+    "type_events",
+    "coach_plans",
 }
 
 
-def test_all_17_tables_exist() -> None:
+def test_all_core_tables_exist() -> None:
     engine = get_engine()
     inspector = inspect(engine)
     tables = set(inspector.get_table_names())
     assert EXPECTED_TABLES.issubset(tables), f"Missing tables: {EXPECTED_TABLES - tables}"
-    assert len(EXPECTED_TABLES) == 17
+    assert len(EXPECTED_TABLES) == 21
 
 
 def test_ai_cache_and_api_usage_crud(db_session: Session) -> None:
