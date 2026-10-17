@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // tongyun: 设置页只留学习偏好；不再有学习服务地址/令牌（站点不依赖后端）
 import { onMounted, ref } from 'vue'
+import { NGSL_ATTRIBUTION } from '@/tongyun/english/wordlist'
 import { getEnglishPrefs, saveEnglishPrefs, type EnglishPrefs } from '@/tongyun/english/prefs'
 
 definePageMeta({
@@ -55,6 +56,7 @@ function toggle(key: keyof EnglishPrefs, value: boolean) {
       </div>
       <p class="hint">敲句那一屏的中文提示会留着，不然整句没有可看的题目。上面的中文开关管词义和例句译文。</p>
     </div>
+    <p class="hint credit">词表：{{ NGSL_ATTRIBUTION }} 许可：<a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener">CC BY-SA 4.0</a>，来源 <a href="https://www.newgeneralservicelist.com/" target="_blank" rel="noopener">newgeneralservicelist.com</a>。</p>
   </section>
 </template>
 
@@ -118,6 +120,10 @@ h1 {
   justify-content: flex-end;
   gap: 10px;
   flex-wrap: wrap;
+}
+
+.credit {
+  margin-top: 18px;
 }
 
 .prefs {

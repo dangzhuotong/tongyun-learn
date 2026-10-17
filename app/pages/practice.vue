@@ -9,6 +9,7 @@ import { gradePrefsOf, gradeTyped, markLetters } from '@/tongyun/english/grade'
 import { getEnglishPrefs, type EnglishPrefs } from '@/tongyun/english/prefs'
 import type { PracticeStep, TodayQueue, TypeEventBody } from '@/tongyun/english/types'
 import { buildLocalQueue } from '@/tongyun/english/local-queue'
+import { advanceProgress, getLevel, loadWordlist, recordResult } from '@/tongyun/english/wordlist'
 
 definePageMeta({
   layout: 'yunya',
@@ -194,6 +195,13 @@ async function advance() {
   saveError.value = ''
   try {
     if (localMode.value) {
+      // tongyun: 本地记录对错次数/稳定度；敲完词算学过，游标线性前进
+      const cur = step.value
+      if (cur.stage === 'A') {
+        recordResult(cur.word, attempt.value.correct && !attempt.value.usedCorrection)
+        const lv = getLevel()
+        if (cur.unitTitle.startsWith(`L${lv}`)) advanceProgress(lv, cur.word, await loadWordlist())
+      }
       index.value += 1
       if (index.value < (queue.value?.items.length || 0)) {
         resetCard()
@@ -283,7 +291,7 @@ onUnmounted(() => {
 
     <div v-else-if="finished" class="yy-card wait done">
       <p class="done-title">这一轮敲完了</p>
-      <p v-if="localMode">本地词书这一轮练完了。</p>
+      <p v-if="localMode">这一轮练完了，对错已记在这台浏览器。</p>
       <p v-else>这一轮敲完了，记录已保存。</p>
       <button v-if="localMode" type="button" class="yy-btn" @click="load">再来一轮</button>
       <div class="actions">

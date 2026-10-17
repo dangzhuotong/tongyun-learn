@@ -1,16 +1,28 @@
 import { describe, expect, it } from 'vitest'
-import { pickLocal, wordToStep } from './local-queue'
+import { entryToSteps, roundToQueue } from './local-queue'
+import { pickRound, type WordEntry } from './wordlist'
 
-describe('local queue', () => {
-  it('maps a dict word into a step without card_id', () => {
-    const s = wordToStep({ id: 1, word: 'cancel', phonetic0: 'ˈkæns(ə)l', trans: [{ pos: 'v.', cn: '取消' }] }, 0)!
-    expect(s.word).toBe('cancel')
-    expect(s.cardId).toBeNull()
-    expect(s.meaning).toBe('v. 取消')
+const mk = (word: string, level: number): WordEntry => ({
+  word, level, phonetic: '/x/', meaning: 'n. 词', example: `Use ${word} here.`, example_zh: '例句', tag: 'general', source: '自编',
+})
+const list = [...Array.from({ length: 12 }, (_, i) => mk('a' + i, 1)), mk('b0', 2)]
+
+describe('wordlist queue', () => {
+  it('builds word then sentence steps', () => {
+    const s = entryToSteps(mk('ensure', 1), 0)
+    expect(s.map(x => x.stage)).toEqual(['A', 'B'])
+    expect(s[1].sentence).toBe('Use ensure here.')
+    expect(s[0].cardId).toBeNull()
   })
-  it('picks at most N playable words', () => {
-    const list = Array.from({ length: 50 }, (_, i) => ({ id: i, word: 'w' + 'a'.repeat(i % 5 + 1) }))
-    const q = pickLocal(list, 20)
-    expect(q.items.length).toBe(20)
+  it('is linear within a level and never jumps level', () => {
+    const r1 = pickRound(list, 1, {}, {})
+    expect(r1.map(w => w.word)).toEqual(Array.from({ length: 10 }, (_, i) => 'a' + i))
+    const r2 = pickRound(list, 1, {}, { 1: 10 })
+    expect(r2.map(w => w.word)).toEqual(['a10', 'a11'])
+    expect(roundToQueue(r2, 1).items.every(i => i.unitTitle.startsWith('L1'))).toBe(true)
+  })
+  it('puts unstable learned words first', () => {
+    const r = pickRound(list, 1, { a3: { right: 0, wrong: 2, last: 1, stability: 0 } }, { 1: 10 })
+    expect(r[0].word).toBe('a3')
   })
 })

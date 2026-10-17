@@ -1,0 +1,117 @@
+{
+ "version": "0.1-sample",
+ "license": "CC BY-SA 4.0",
+ "attribution": "词条取自 New General Service List 1.2 / New Academic Word List 1.2（Browne, Culligan & Phillips），https://www.newgeneralservicelist.com/ ，CC BY-SA 4.0（https://creativecommons.org/licenses/by-sa/4.0/）。已筛选修改；释义与例句为橦云自编。本文件按 CC BY-SA 4.0 共享。",
+ "words": [
+  {
+   "word": "ensure",
+   "phonetic": "/ɪnˈʃʊə(r)/",
+   "meaning": "v. 确保",
+   "example": "Make sure the method ensures the list is never null.",
+   "example_zh": "确保这个方法返回的列表永不为空。",
+   "tag": "general",
+   "level": 1,
+   "point_id": "en.vocab-general",
+   "source": "NGSL 1.2"
+  },
+  {
+   "word": "require",
+   "phonetic": "/rɪˈkwaɪə(r)/",
+   "meaning": "v. 需要；要求",
+   "example": "This endpoint requires a valid token in the header.",
+   "example_zh": "这个接口要求请求头带有效令牌。",
+   "tag": "general",
+   "level": 1,
+   "point_id": "en.vocab-general",
+   "source": "NGSL 1.2"
+  },
+  {
+   "word": "available",
+   "phonetic": "/əˈveɪləbl/",
+   "meaning": "adj. 可用的",
+   "example": "The new API is available since version 3.2.",
+   "example_zh": "新接口从 3.2 版本起可用。",
+   "tag": "general",
+   "level": 1,
+   "point_id": "en.vocab-general",
+   "source": "NGSL 1.2"
+  },
+  {
+   "word": "value",
+   "phonetic": "/ˈvæljuː/",
+   "meaning": "n. 值；价值",
+   "example": "The map returns null if no value is found for the key.",
+   "example_zh": "找不到该键对应的值时，map 返回 null。",
+   "tag": "general",
+   "level": 1,
+   "point_id": "en.vocab-general",
+   "source": "NGSL 1.2"
+  },
+  {
+   "word": "increase",
+   "phonetic": "/ɪnˈkriːs/",
+   "meaning": "v. 增加",
+   "example": "Increase the pool size if requests keep timing out.",
+   "example_zh": "如果请求一直超时，就调大连接池。",
+   "tag": "general",
+   "level": 1,
+   "point_id": "en.vocab-general",
+   "source": "NGSL 1.2"
+  },
+  {
+   "word": "reduce",
+   "phonetic": "/rɪˈdjuːs/",
+   "meaning": "v. 减少",
+   "example": "Caching can reduce database load a lot.",
+   "example_zh": "缓存能大幅降低数据库压力。",
+   "tag": "general",
+   "level": 1,
+   "point_id": "en.vocab-general",
+   "source": "NGSL 1.2"
+  },
+  {
+   "word": "current",
+   "phonetic": "/ˈkʌrənt/",
+   "meaning": "adj. 当前的",
+   "example": "Print the current thread name for debugging.",
+   "example_zh": "打印当前线程名方便调试。",
+   "tag": "general",
+   "level": 1,
+   "point_id": "en.vocab-general",
+   "source": "NGSL 1.2"
+  },
+  {
+   "word": "default",
+   "phonetic": "/dɪˈfɔːlt/",
+   "meaning": "n./adj. 默认（值）",
+   "example": "The default timeout is 30 seconds.",
+   "example_zh": "默认超时是 30 秒。",
+   "tag": "general",
+   "level": 1,
+   "point_id": "en.vocab-general",
+   "source": "NAWL 1.2（待核实是否收录）"
+  },
+  {
+   "word": "specific",
+   "phonetic": "/spəˈsɪfɪk/",
+   "meaning": "adj. 具体的；特定的",
+   "example": "Catch a specific exception instead of Exception.",
+   "example_zh": "捕获具体异常，而不是笼统的 Exception。",
+   "tag": "general",
+   "level": 1,
+   "point_id": "en.vocab-general",
+   "source": "NGSL 1.2"
+  },
+  {
+   "word": "approach",
+   "phonetic": "/əˈprəʊtʃ/",
+   "meaning": "n. 方法；思路",
+   "example": "My approach is to cache the result in Redis first.",
+   "example_zh": "我的思路是先把结果缓存到 Redis。",
+   "tag": "general",
+   "level": 1,
+   "point_id": "en.vocab-general",
+   "source": "NGSL 1.2"
+  }
+ ]
+}

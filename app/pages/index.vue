@@ -5,6 +5,7 @@ import { getLearnConfig } from '@/tongyun/learn-client'
 import { fetchToday } from '@/tongyun/english/client'
 import type { TodayQueue } from '@/tongyun/english/types'
 import { buildLocalQueue } from '@/tongyun/english/local-queue'
+import { LEVELS, NGSL_ATTRIBUTION, getLevel, getProgress, loadWordlist, setLevel } from '@/tongyun/english/wordlist'
 
 definePageMeta({
   layout: 'yunya',
@@ -20,6 +21,10 @@ const hasToken = ref(false)
 const loading = ref(false)
 const error = ref('')
 const queue = ref<TodayQueue | null>(null)
+// tongyun: 按 L1–L5 分级选词
+const level = ref(1)
+const levelStats = ref<{ level: number; title: string; done: number; total: number }[]>([])
+const localMode = ref(false)
 
 const dateText = computed(() => {
   const now = new Date()
@@ -36,9 +41,10 @@ const progressPct = computed(() => {
 })
 
 const countText = computed(() => {
-  const n = queue.value?.items.length ?? 0
+  const items = queue.value?.items ?? []
+  const n = localMode.value ? items.filter(i => i.stage === 'A').length : items.length
   if (!n) return '今天没有要练的词'
-  return `今天 ${n} 个词`
+  return localMode.value ? `本轮 ${n} 个词，先敲词再敲例句` : `今天 ${n} 项`
 })
 
 async function load() {
@@ -48,15 +54,34 @@ async function load() {
   const res = hasToken.value ? await fetchToday() : null
   if (res && res.ok && res.data && res.data.items.length) {
     queue.value = res.data
+    localMode.value = false
   } else {
-    queue.value = await buildLocalQueue()
+    await refreshLevels()
+    queue.value = await buildLocalQueue(level.value)
+    localMode.value = true
   }
   loading.value = false
+}
+
+async function refreshLevels() {
+  const list = await loadWordlist()
+  const prog = getProgress()
+  levelStats.value = LEVELS.map(l => {
+    const total = list.filter(w => w.level === l.level).length
+    return { ...l, total, done: Math.min(prog[l.level] || 0, total) }
+  })
+}
+
+async function pickLevel(n: number) {
+  level.value = n
+  setLevel(n)
+  queue.value = await buildLocalQueue(n)
 }
 
 onMounted(() => {
   ready.value = true
   hasToken.value = Boolean(getLearnConfig().token)
+  level.value = getLevel()
   load()
 })
 </script>
@@ -78,6 +103,20 @@ onMounted(() => {
         </div>
       </template>
       <template v-else-if="queue">
+        <div v-if="localMode" class="levels" data-testid="level-picker">
+          <button
+            v-for="l in levelStats"
+            :key="l.level"
+            type="button"
+            class="lv"
+            :class="{ on: l.level === level }"
+            :data-testid="`level-${l.level}`"
+            @click="pickLevel(l.level)"
+          >
+            <strong>{{ l.title }}</strong>
+            <span>{{ l.done }}/{{ l.total }}</span>
+          </button>
+        </div>
         <p class="unit">{{ queue.unitTitle || '英语' }}</p>
         <div class="bar" aria-hidden="true">
           <span :style="{ width: progressPct + '%' }" />
@@ -90,10 +129,17 @@ onMounted(() => {
         </button>
       </template>
     </div>
+    <p v-if="localMode" class="credit">{{ NGSL_ATTRIBUTION }}</p>
   </section>
 </template>
 
 <style scoped lang="scss">
+.levels { display: flex; flex-wrap: wrap; gap: 8px; }
+.lv { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 8px 12px; border-radius: 12px; border: 1px solid var(--yy-line, #e5ddd0); background: transparent; cursor: pointer; font-size: 13px; color: inherit; }
+.lv span { color: var(--yy-ink-soft); font-size: 12px; }
+.lv.on { border-color: var(--yy-matcha, #a4c48c); background: rgba(164, 196, 140, 0.15); }
+.credit { margin-top: 18px; font-size: 12px; color: var(--yy-ink-soft); line-height: 1.6; }
+
 .today {
   padding-top: 28px;
 }

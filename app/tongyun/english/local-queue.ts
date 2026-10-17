@@ -1,70 +1,40 @@
-// tongyun: 本地词书练习队列。学习服务没配置、没有 today 接口或报错时用它，
-// 完全不依赖 tongyun-learn：词从站内静态词书（CET-4）随机取，敲击只在本地判分，不上报。
-import { withAppBaseURL } from '@/core/utils/base-url'
+// tongyun: 本地练习队列。用阿学定制词表（L1–L5），先敲词再敲例句；不依赖学习服务，敲击只本地判分。
 import type { PracticeStep, TodayQueue } from './types'
+import { LEVELS, getLevel, loadWordlist, pickRound, type WordEntry } from './wordlist'
 
-export const LOCAL_QUEUE_SIZE = 20
-const LOCAL_DICT = '/dicts/en/word/CET4_T.json'
+export function levelTitle(level: number): string {
+  return LEVELS.find(l => l.level === level)?.title || `L${level}`
+}
 
-export function wordToStep(raw: any, i: number): PracticeStep | null {
-  const word = typeof raw?.word === 'string' ? raw.word.trim() : ''
-  if (!word) return null
-  const trans = Array.isArray(raw.trans) ? raw.trans : []
-  const meaning = trans
-    .filter((t: any) => t?.cn)
-    .slice(0, 2)
-    .map((t: any) => `${t.pos ? t.pos + ' ' : ''}${t.cn}`)
-    .join('；')
-  const sentences = Array.isArray(raw.sentences) ? raw.sentences : []
-  return {
-    id: `local-${i}-${word}`,
-    stage: 'A',
+export function entryToSteps(w: WordEntry, i: number): PracticeStep[] {
+  const base = {
     cardId: null,
-    wordId: String(raw.id ?? word),
+    wordId: w.word,
     sentenceId: '',
-    word,
-    phonetic: raw.phonetic0 ? `/${raw.phonetic0}/` : '',
-    meaning,
+    word: w.word,
+    phonetic: w.phonetic || '',
+    meaning: w.meaning || '',
     audioUrl: '',
-    sentence: '',
-    promptZh: meaning,
-    unitTitle: 'CET-4 本地词书',
-    examples: sentences.slice(0, 2).map((s: any) => ({ en: String(s?.c || ''), zh: String(s?.cn || '') })),
+    unitTitle: levelTitle(w.level),
+    examples: w.example ? [{ en: w.example, zh: w.example_zh || '' }] : [],
+  }
+  const steps: PracticeStep[] = [{ ...base, id: `l${w.level}-${i}-A`, stage: 'A', sentence: '', promptZh: w.meaning || '' }]
+  if (w.example) {
+    steps.push({ ...base, id: `l${w.level}-${i}-B`, stage: 'B', sentence: w.example, promptZh: w.example_zh || w.meaning || '' })
+  }
+  return steps
+}
+
+export function roundToQueue(words: WordEntry[], level: number): TodayQueue {
+  return {
+    unitTitle: levelTitle(level),
+    unitProgress: null,
+    suggestion: '',
+    items: words.flatMap((w, i) => entryToSteps(w, i)),
   }
 }
 
-export function pickLocal(list: any[], size = LOCAL_QUEUE_SIZE, rand: () => number = Math.random): TodayQueue {
-  const pool = list.slice()
-  for (let i = pool.length - 1; i > 0; i--) {
-    const j = Math.floor(rand() * (i + 1))
-    ;[pool[i], pool[j]] = [pool[j], pool[i]]
-  }
-  const items: PracticeStep[] = []
-  for (const raw of pool) {
-    if (items.length >= size) break
-    const step = wordToStep(raw, items.length)
-    if (step && /^[A-Za-z'’ -]+$/.test(step.word)) items.push(step)
-  }
-  return { unitTitle: 'CET-4 本地词书', unitProgress: null, suggestion: '本地词书练习，随机 20 词。', items }
+export async function buildLocalQueue(level = getLevel()): Promise<TodayQueue> {
+  const list = await loadWordlist()
+  return roundToQueue(pickRound(list, level), level)
 }
-
-let cache: any[] | null = null
-
-export async function buildLocalQueue(): Promise<TodayQueue> {
-  try {
-    if (!cache) {
-      const res = await fetch(withAppBaseURL(LOCAL_DICT))
-      cache = res.ok ? await res.json() : []
-    }
-  } catch {
-    cache = null
-  }
-  const list = cache && cache.length ? cache : FALLBACK_WORDS
-  return pickLocal(list)
-}
-
-// 词书都取不到时的兜底 mock
-const FALLBACK_WORDS = [
-  ['cancel', 'v. 取消'], ['oppose', 'v. 反对'], ['ability', 'n. 能力'], ['abandon', 'v. 放弃'], ['balance', 'n. 平衡'],
-  ['benefit', 'n. 好处'], ['capture', 'v. 捕获'], ['decline', 'v. 下降；拒绝'], ['efficient', 'adj. 高效的'], ['focus', 'v. 集中'],
-].map(([word, cn], id) => ({ id, word, trans: [{ pos: '', cn }] }))
