@@ -2,8 +2,9 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { getLearnConfig } from '@/tongyun/learn-client'
-import { failCopy, fetchToday } from '@/tongyun/english/client'
+import { fetchToday } from '@/tongyun/english/client'
 import type { TodayQueue } from '@/tongyun/english/types'
+import { buildLocalQueue } from '@/tongyun/english/local-queue'
 
 definePageMeta({
   layout: 'yunya',
@@ -43,20 +44,20 @@ const countText = computed(() => {
 async function load() {
   loading.value = true
   error.value = ''
-  const res = await fetchToday()
-  loading.value = false
-  if (!res.ok) {
-    error.value = res.message || failCopy(res.kind)
-    queue.value = null
-    return
+  // tongyun: 没令牌就不请求学习服务；today 404/报错时静默回退本地词书，不弹报错
+  const res = hasToken.value ? await fetchToday() : null
+  if (res && res.ok && res.data && res.data.items.length) {
+    queue.value = res.data
+  } else {
+    queue.value = await buildLocalQueue()
   }
-  queue.value = res.data || null
+  loading.value = false
 }
 
 onMounted(() => {
   ready.value = true
   hasToken.value = Boolean(getLearnConfig().token)
-  if (hasToken.value) load()
+  load()
 })
 </script>
 
@@ -67,11 +68,6 @@ onMounted(() => {
     <p class="date">{{ dateText }}</p>
 
     <div v-if="!ready" class="yy-card panel skeleton" />
-
-    <div v-else-if="!hasToken" class="yy-card panel">
-      <p class="lead">先填写学习服务地址和令牌。填好之后，今天敲什么由教练的队列决定。</p>
-      <button type="button" class="yy-btn" @click="router.push('/settings')">去设置</button>
-    </div>
 
     <div v-else class="yy-card panel">
       <p v-if="loading" class="lead">正在取今日队列…</p>

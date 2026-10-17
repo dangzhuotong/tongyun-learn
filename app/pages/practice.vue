@@ -4,10 +4,11 @@ import { useRouter } from 'vue-router'
 import { withAppBaseURL } from '@/core/utils/base-url'
 import { getLearnConfig } from '@/tongyun/learn-client'
 import { freshAttempt, isResolved, submitAttempt, type AttemptState } from '@/tongyun/english/attempt'
-import { buildTypeEvent, expectedOf, failCopy, fetchToday, postTypeEvent } from '@/tongyun/english/client'
+import { buildTypeEvent, expectedOf, fetchToday, postTypeEvent } from '@/tongyun/english/client'
 import { gradePrefsOf, gradeTyped, markLetters } from '@/tongyun/english/grade'
 import { getEnglishPrefs, type EnglishPrefs } from '@/tongyun/english/prefs'
 import type { PracticeStep, TodayQueue, TypeEventBody } from '@/tongyun/english/types'
+import { buildLocalQueue } from '@/tongyun/english/local-queue'
 
 definePageMeta({
   layout: 'yunya',
@@ -24,6 +25,8 @@ const hasToken = ref(false)
 const loading = ref(false)
 const error = ref('')
 const queue = ref<TodayQueue | null>(null)
+// tongyun: 本地词书模式下敲击只本地判分，不上报学习服务
+const localMode = ref(false)
 const index = ref(0)
 const attempt = ref<AttemptState>(freshAttempt())
 const prefs = ref<EnglishPrefs>(getEnglishPrefs())
@@ -97,15 +100,18 @@ function resetCard() {
 async function load() {
   loading.value = true
   error.value = ''
-  const res = await fetchToday()
+  // tongyun: 没令牌不请求；today 404/报错/空时静默回退本地词书
+  const res = hasToken.value ? await fetchToday() : null
   if (!alive) return
-  loading.value = false
-  if (!res.ok || !res.data) {
-    error.value = res.message || failCopy(res.kind)
-    queue.value = null
-    return
+  if (res && res.ok && res.data && res.data.items.length) {
+    queue.value = res.data
+    localMode.value = false
+  } else {
+    queue.value = await buildLocalQueue()
+    if (!alive) return
+    localMode.value = true
   }
-  queue.value = res.data
+  loading.value = false
   index.value = 0
   resetCard()
   sessionStarted = Date.now()
@@ -187,6 +193,14 @@ async function advance() {
   busy.value = true
   saveError.value = ''
   try {
+    if (localMode.value) {
+      index.value += 1
+      if (index.value < (queue.value?.items.length || 0)) {
+        resetCard()
+        openCard()
+      }
+      return
+    }
     if (!pending.value) {
       const built = buildTypeEvent(step.value, attempt.value, Date.now() - cardStarted)
       if (!built) {
@@ -240,7 +254,7 @@ onMounted(() => {
     elapsedMs.value = Date.now() - sessionStarted
   }, 500)
   window.addEventListener('keydown', onWindowKey)
-  if (hasToken.value) load()
+  load()
 })
 
 onUnmounted(() => {
@@ -254,11 +268,6 @@ onUnmounted(() => {
 <template>
   <section class="screen">
     <div v-if="!ready || loading" class="yy-card wait">正在取今日队列…</div>
-
-    <div v-else-if="!hasToken" class="yy-card wait">
-      <p>先在设置里填写学习服务地址和令牌。</p>
-      <button type="button" class="yy-btn" @click="router.push('/settings')">去设置</button>
-    </div>
 
     <div v-else-if="error" class="yy-card wait">
       <p>{{ error }}</p>
@@ -275,7 +284,9 @@ onUnmounted(() => {
 
     <div v-else-if="finished" class="yy-card wait done">
       <p class="done-title">这一轮敲完了</p>
-      <p>敲击已经提交。教练会按这些记录排后面的队列。</p>
+      <p v-if="localMode">本地词书这一轮练完了。</p>
+      <p v-else>敲击已经提交。教练会按这些记录排后面的队列。</p>
+      <button v-if="localMode" type="button" class="yy-btn" @click="load">再来一轮</button>
       <div class="actions">
         <button type="button" class="yy-btn ghost" @click="router.push('/coach')">看教练</button>
         <button type="button" class="yy-btn" @click="router.push('/')">回到今日</button>
