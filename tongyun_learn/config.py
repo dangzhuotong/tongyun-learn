@@ -29,6 +29,15 @@ class Settings(BaseSettings):
         default=SecretStr(""),
         validation_alias=AliasChoices("KIE_API_KEY", "LEARN_KIE_API_KEY"),
     )
+    # 云芽英语教练。只认 DeepSeek，不走 KIE。无 key 时规则降级。
+    deepseek_api_key: SecretStr = Field(
+        default=SecretStr(""),
+        validation_alias=AliasChoices("DEEPSEEK_API_KEY", "LEARN_DEEPSEEK_API_KEY"),
+    )
+    deepseek_base_url: str = "https://api.deepseek.com"
+    deepseek_model: str = "deepseek-chat"
+    # 手敲判分：默认忽略大小写。例句阶段另外忽略标点。
+    type_ignore_case: bool = True
     tz: str = "Asia/Shanghai"
     # 接口文档 /v1/docs、/v1/openapi.json：生产默认关闭，本机调试设 LEARN_DOCS_ENABLED=true
     docs_enabled: bool = False

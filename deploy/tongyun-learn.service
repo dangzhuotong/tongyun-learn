@@ -2,6 +2,9 @@
 # 注意：
 # 1. 必须使用单 worker (--workers 1)，因为服务采用进程内令牌桶限流与状态调度。
 # 2. 环境变量文件 /etc/tongyun-learn.env：root:root + chmod 600（systemd 以 root 读取后注入，服务用户不需要能读）。
+#    82 上至少要有 LEARN_DATABASE_URL、LEARN_TOKEN_WEB_SHA256、LEARN_TOKEN_AXUE_SHA256。
+#    云芽英语教练读 DEEPSEEK_API_KEY（不要写进仓库）；不配则规则降级，敲击和计划仍入库。
+#    反代把 https://主机/learn/api/ 转到 127.0.0.1:8031/ ，见 README。
 # 3. User/Group 按服务器现有约定修改；依赖装在 /opt/tongyun/learn/venv（pip install -r requirements.txt）。
 
 [Unit]

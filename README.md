@@ -1,6 +1,77 @@
 # tongyun-learn
 
-tongyun-learn 是给 tongyun-words（TypeWords 分支）和 阿学 用的学习服务后端，负责知识地图、FSRS 卡片复习调度、证据过关判定与 AI 讲解代理。
+tongyun-learn 是给 tongyun-words（TypeWords 分支）和 阿学 用的学习服务后端，负责知识地图、FSRS 卡片复习调度、证据过关判定与 AI 讲解代理。云芽英语手敲（今日队列、敲词/敲句、DeepSeek 教练）也在这个服务里。
+
+## 云芽英语（手敲）
+
+只做英语。线性单元，本单元毕业才解锁下一单元。每天学几个、要不要敲例句、队列怎么排，由教练决定；没有 `DEEPSEEK_API_KEY` 时用确定性规则（到期复习 + 钉子词 + 当前单元新词），一样能学。每次敲击进 `type_events`，每次计划进 `coach_plans`。
+
+毕业默认（写在单元的 `graduate_rule_json` 里）：本单元至少 80% 的词卡进入 FSRS 复习态，近 3 天本单元正确率至少 85%，并且没有连续错 3 次的钉子词。开发英语第 3 单元毕业后，生活英语最多占当日队列的 20%。
+
+课表种子是单元 1–3 的开发英语词和例句，外加一小批生活词。迁移之后写入：
+
+```bash
+uv run python -m tongyun_learn.cli seed-english
+```
+
+接口也会在第一次打开今日队列时自动种子，重复执行不会重复插卡。
+
+| 接口 | 说明 |
+|---|---|
+| `GET /v1/health` | 健康检查，不用令牌 |
+| `GET /v1/today` | 今日队列。`include_sentences` 表示里面有没有 B 敲句 |
+| `POST /v1/type` | 提交一次敲击（`phase` 为 `A` 词或 `B` 句），更新 FSRS |
+| `GET /v1/coach` | 实时薄弱点 + 最近一份已入库计划 |
+| `POST /v1/coach` | 生成并入库一份计划。有 DeepSeek 密钥走模型，否则 `source=rules` |
+
+鉴权与原来一样：`Authorization: Bearer <token>`，服务端只存 SHA256（`LEARN_TOKEN_WEB_SHA256` / `LEARN_TOKEN_AXUE_SHA256`）。
+
+82 上的环境文件（`/etc/tongyun-learn.env`，不要提交仓库）至少包括：
+
+- `LEARN_DATABASE_URL`：MySQL，例如 `mysql+pymysql://USER:PASS@127.0.0.1:3306/tongyun_learn?charset=utf8mb4`
+- `LEARN_TOKEN_WEB_SHA256`：网页令牌的 SHA256
+- `DEEPSEEK_API_KEY`：教练用。可以先空着
+
+反代建议把 `/learn/api/` 转到本进程，并去掉这个前缀（`proxy_pass` 末尾要有 `/`）：
+
+```nginx
+location /learn/api/ {
+    proxy_pass http://127.0.0.1:8031/;
+    proxy_set_header Host $host;
+    proxy_set_header Authorization $http_authorization;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}
+```
+
+对外就是 `https://主机/learn/api/v1/health`。本机直连则是 `http://127.0.0.1:8031/v1/health`（uvicorn 的 `--root-path /learn/api` 只影响文档链接，不改变路由）。
+
+走一遍（把 `TOKEN` 换成明文令牌，不是哈希）：
+
+```bash
+BASE=http://127.0.0.1:8031
+# 经反代时改成 BASE=https://主机/learn/api
+
+curl -sS "$BASE/v1/health"
+
+curl -sS "$BASE/v1/today" -H "Authorization: Bearer $TOKEN"
+
+# 今日队列里的 lemma / prompt 是给页面用的。单元 1 的第一个词是 read。
+# card_id 用上一步返回的那条。
+curl -sS "$BASE/v1/type" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"card_id":1,"phase":"A","typed":"read","duration_ms":1800}'
+
+curl -sS "$BASE/v1/coach" -H "Authorization: Bearer $TOKEN"
+
+curl -sS "$BASE/v1/coach" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"feedback":"easier"}'
+```
+
+`POST /v1/type` 的 `correct` 由服务端判。词阶段默认忽略大小写；句阶段再忽略标点。敲错时响应里有 `error_shape`（少字母、前后缀、形近等）。`client_event_id` 相同的请求不会第二次改 FSRS。
 
 ## 本地运行
 
@@ -46,7 +117,11 @@ AI 接口目前已实现 `POST /v1/ai/explain`（P2）、`POST /v1/ai/quiz`（P4
 - `LEARN_AI_TIMEOUT_S`: 单次 AI 请求超时秒数（默认 30.0）
 - `LEARN_AI_TOTAL_BUDGET_S`: AI 请求全流程总预算秒数（默认 50.0，包含主模型重试与降级模型全流程）
 - `LEARN_KIE_BASE_URL`: KIE AI API 基础地址（默认 `https://api.kie.ai`）
-- `KIE_API_KEY`: KIE AI API 鉴权密钥（注意不加 LEARN_ 前缀，亦支持 `LEARN_KIE_API_KEY`，日志与 repr 自动脱敏）
+- `KIE_API_KEY`: KIE AI API 鉴权密钥（注意不加 LEARN_ 前缀，亦支持 `LEARN_KIE_API_KEY`，日志与 repr 自动脱敏）。讲解、错词卷、场景词书用它。云芽教练不用 KIE
+- `DEEPSEEK_API_KEY`: 云芽英语教练的密钥（亦支持 `LEARN_DEEPSEEK_API_KEY`）。只放在 82 的环境文件里。为空时教练走规则
+- `LEARN_DEEPSEEK_BASE_URL`: DeepSeek 地址，默认 `https://api.deepseek.com`
+- `LEARN_DEEPSEEK_MODEL`: 默认 `deepseek-chat`
+- `LEARN_TYPE_IGNORE_CASE`: 手敲是否忽略大小写，默认 `true`
 - `LEARN_TZ`: 服务时区（默认 `Asia/Shanghai`）
 
 ## 数据库迁移

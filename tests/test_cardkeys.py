@@ -1,4 +1,5 @@
 import hashlib
+
 import pytest
 
 from tongyun_learn.services.cardkeys import front_key, normalize_front

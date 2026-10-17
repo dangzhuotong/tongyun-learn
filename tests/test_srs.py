@@ -1,6 +1,5 @@
 from datetime import datetime, timedelta, timezone
 
-import pytest
 from fsrs import Card as FsrsCard
 from fsrs import State
 
