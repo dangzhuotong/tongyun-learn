@@ -54,11 +54,11 @@ export default defineNuxtConfig({
     baseURL: appBaseURL,
     // keepalive: true,
     head: {
-      title: '云芽英语', // tongyun: 站点入口是今日手敲
+      title: '橦云学习', // tongyun: 学习中枢门面，站点入口是今日
       htmlAttrs: {
         lang: 'zh-CN',
       },
-      // tongyun: 官方主标「云芽」。奶茶 #FDC89C、云 #FCF4E1、芽 #A4C48C。
+      // tongyun: 官方主标图形。奶茶 #FDC89C、云 #FCF4E1、芽 #A4C48C。
       // SVG 与 PNG 取自 tongyun-scaffold/brand；favicon.ico 由 yunya-512.png 缩小生成。
       // withBaseURL 避免子路径部署时图标 404。
       link: [
@@ -189,7 +189,7 @@ export default defineNuxtConfig({
   nitro: {
     prerender: {
       ignore: appBaseURL === '/' ? [] : [withBaseURL('/manifest.json', appBaseURL)],
-      // tongyun: 云芽四页和旧 /typewords 都要进静态产物
+      // tongyun: 今日/练习/教练/设置和旧 /typewords 都要进静态产物
       routes: ['/practice', '/coach', '/settings', '/typewords'],
     },
     devProxy: {

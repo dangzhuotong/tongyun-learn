@@ -2,7 +2,7 @@
 import { onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 
-// tongyun: 旧的 /typewords 词书入口改去云芽练习。静态页用 meta refresh，进站后再 replace。
+// tongyun: 旧的 /typewords 词书入口改去练习。静态页用 meta refresh，进站后再 replace。
 definePageMeta({
   layout: false,
 })
@@ -12,7 +12,7 @@ const baseURL = useRuntimeConfig().app.baseURL || '/'
 const target = `${baseURL.endsWith('/') ? baseURL : `${baseURL}/`}practice`
 
 useHead({
-  title: '云芽英语',
+  title: '橦云学习',
   meta: [{ 'http-equiv': 'refresh', content: `0; url=${target}` }],
 })
 

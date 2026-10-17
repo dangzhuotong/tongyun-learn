@@ -83,7 +83,8 @@ function onMouseLeave() {
             <IconFluentPin20Regular v-else class="flex-shrink-0 -transform-rotate-45" />
           </BaseIcon>
         </div>
-        <!-- tongyun: 侧栏只留云芽英语的四项 -->
+        <!-- tongyun: 侧栏学科先占位「英语」，模块仍是今日 / 练习 / 教练 / 设置 -->
+        <div v-show="expand" class="subject-slot">英语</div>
         <NuxtLink to="/" class="row">
           <IconFluentBookNumber20Filled />
           <span>今日</span>
@@ -224,6 +225,14 @@ function onMouseLeave() {
     span {
       @apply shrink-0;
     }
+  }
+
+  .subject-slot {
+    margin: 4px 8px 0;
+    font-size: 12px;
+    letter-spacing: 0.06em;
+    color: var(--color-main-text);
+    opacity: 0.65;
   }
 }
 

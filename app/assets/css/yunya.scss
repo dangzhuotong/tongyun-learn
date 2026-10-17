@@ -44,6 +44,13 @@ html.yunya-on body {
   box-sizing: border-box;
 }
 
+.yy-brand-block {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
 .yy-brand {
   display: inline-flex;
   align-items: center;
@@ -51,6 +58,15 @@ html.yunya-on body {
   font-weight: 650;
   letter-spacing: 0.04em;
   color: var(--yy-matcha-deep);
+}
+
+.yy-subject {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--yy-bg-deep);
+  color: var(--yy-ink-soft);
+  font-size: 12px;
+  letter-spacing: 0.04em;
 }
 
 .yy-brand img {

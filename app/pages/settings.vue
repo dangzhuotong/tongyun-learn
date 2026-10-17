@@ -9,7 +9,7 @@ definePageMeta({
 })
 
 useSeoMeta({
-  title: '设置 · 云芽英语',
+  title: '橦云学习',
 })
 
 const url = ref('/learn/api/')
@@ -93,7 +93,7 @@ async function refreshCount() {
 
 <template>
   <section class="settings">
-    <p class="eyebrow">云芽英语</p>
+    <p class="eyebrow">橦云学习</p>
     <h1>设置</h1>
     <p class="sub">学习服务地址和令牌沿用原来的配置。今天学几项由教练队列决定，这里不改课表。</p>
 

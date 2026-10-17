@@ -4,11 +4,11 @@ AI 代理在动任何代码前，必须先完整读一遍本文件。
 
 ## 项目概况
 
-- **用途**：基于上游 [TypeWords](https://github.com/zyronon/TypeWords) 的个人自用 fork（GPL-3.0），在上游的单词/文章练习之外，加了「云芽英语」手敲站、AI 讲解、AI 错词复习卷、学习看板等。
+- **用途**：基于上游 [TypeWords](https://github.com/zyronon/TypeWords) 的个人自用 fork（GPL-3.0）。对外站点名是「橦云学习」（学习中枢，入口部署在 `/words/`）。背单词、练习、教练是站内模块。另有 AI 讲解、AI 错词复习卷、学习看板。
 - **技术栈**：Nuxt 4 + Vue 3 + TypeScript；状态用 Pinia，样式用 UnoCSS + Sass，i18n 用 @nuxtjs/i18n，测试用 Vitest。
 - **包管理**：pnpm（见 `pnpm-lock.yaml`、`pnpm-workspace.yaml`）。
 - **关键目录**：
-  - `app/`：Nuxt 应用主体；云芽业务在 `app/tongyun/`，页面在 `app/pages/`，通用逻辑在 `app/core/`。
+  - `app/`：Nuxt 应用主体；学习中枢在 `app/tongyun/`，页面在 `app/pages/`，通用逻辑在 `app/core/`。
   - `public/`：词库（`dicts/`、`list/`）、图片、音效等静态资源。
   - `docs/`：贡献指南、各语言 README、`tongyun-learn-integration.md` 联调文档。
   - `i18n/`：多语言词条（源文件 `i18n.xlsx`）。

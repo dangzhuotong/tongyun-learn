@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" role="img" aria-labelledby="title desc">
-  <title id="title">云芽</title>
+  <title id="title">橦云</title>
   <desc id="desc">tongyun 官方主标。奶茶底 #FDC89C，白云 #FCF4E1，绿芽 #A4C48C。圆角方形约 25%。中脉用云乳白。</desc>
   <rect id="ground" width="1024" height="1024" rx="256" fill="#FDC89C"/>
   <path id="cloud" fill="#FCF4E1" d="

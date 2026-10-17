@@ -16,11 +16,15 @@ onUnmounted(() => {
 <template>
   <div class="yunya">
     <header class="yy-top">
-      <NuxtLink to="/" class="yy-brand">
-        <img :src="mark" alt="" />
-        <span>云芽英语</span>
-      </NuxtLink>
-      <nav class="yy-nav" aria-label="云芽英语">
+      <div class="yy-brand-block">
+        <NuxtLink to="/" class="yy-brand">
+          <img :src="mark" alt="" />
+          <span>橦云学习</span>
+        </NuxtLink>
+        <!-- tongyun: 学科先占位，只显示英语 -->
+        <span class="yy-subject">英语</span>
+      </div>
+      <nav class="yy-nav" aria-label="橦云学习">
         <NuxtLink to="/">今日</NuxtLink>
         <NuxtLink to="/practice">练习</NuxtLink>
         <NuxtLink to="/coach">教练</NuxtLink>
@@ -30,7 +34,7 @@ onUnmounted(() => {
     <main class="yy-main">
       <slot />
     </main>
-    <nav class="yy-tab" aria-label="云芽英语">
+    <nav class="yy-tab" aria-label="橦云学习">
       <NuxtLink to="/">今日</NuxtLink>
       <NuxtLink to="/practice">练习</NuxtLink>
       <NuxtLink to="/coach">教练</NuxtLink>

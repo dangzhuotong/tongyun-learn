@@ -10,7 +10,7 @@ definePageMeta({
 })
 
 useSeoMeta({
-  title: '教练 · 云芽英语',
+  title: '橦云学习',
 })
 
 const router = useRouter()
@@ -57,7 +57,7 @@ onMounted(() => {
 
 <template>
   <section class="coach">
-    <p class="eyebrow">云芽英语</p>
+    <p class="eyebrow">橦云学习</p>
     <h1>教练</h1>
     <p class="sub">薄弱点和这周怎么排，都是服务端写好的。按这份计划去练习，敲的仍是今日队列。</p>
 

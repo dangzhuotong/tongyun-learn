@@ -1,4 +1,4 @@
-// tongyun: 云芽英语手敲 · 和 tongyun-learn 对齐的前端形状
+// tongyun: 英语手敲 · 和 tongyun-learn 对齐的前端形状
 
 export interface ExampleLine {
   en: string

@@ -10,7 +10,7 @@ definePageMeta({
 })
 
 useSeoMeta({
-  title: '今日 · 云芽英语',
+  title: '今日 · 橦云学习',
 })
 
 const router = useRouter()
@@ -62,7 +62,7 @@ onMounted(() => {
 
 <template>
   <section class="today">
-    <p class="eyebrow">云芽英语</p>
+    <p class="eyebrow">橦云学习</p>
     <h1>今日</h1>
     <p class="date">{{ dateText }}</p>
 

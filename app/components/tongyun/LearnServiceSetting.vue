@@ -70,7 +70,7 @@ function onClear() {
             class="text-sm text-[var(--color-link)] hover:underline cursor-pointer bg-transparent border-none p-0 inline-flex items-center min-h-[44px]"
             @click="router.push('/')"
           >
-            打开云芽英语
+            打开橦云学习
           </button>
         </div>
         <div class="flex gap-3 justify-end">

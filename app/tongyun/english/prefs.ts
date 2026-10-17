@@ -1,4 +1,4 @@
-// tongyun: 云芽英语显示偏好。只影响呈现和判分松紧，不决定今天练什么。
+// tongyun: 英语手敲显示偏好。只影响呈现和判分松紧，不决定今天练什么。
 
 export interface EnglishPrefs {
   showPhonetic: boolean

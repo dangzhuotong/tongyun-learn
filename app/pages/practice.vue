@@ -14,7 +14,7 @@ definePageMeta({
 })
 
 useSeoMeta({
-  title: '练习 · 云芽英语',
+  title: '橦云学习',
 })
 
 const router = useRouter()

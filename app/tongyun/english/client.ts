@@ -1,4 +1,4 @@
-// tongyun: 云芽英语调用 tongyun-learn。地址和令牌沿用学习服务设置。
+// tongyun: 英语手敲调用 tongyun-learn。地址和令牌沿用学习服务设置。
 // 线上 base 是 /learn/api/（反代去掉前缀），本机直连 http://127.0.0.1:8031/。
 // GET  /v1/health
 // GET  /v1/today          Authorization: Bearer

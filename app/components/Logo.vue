@@ -9,7 +9,7 @@ const darkLogoSrc = withAppBaseURL('/imgs/logo/logo-text-black.png')
 const lightLogoSrc = withAppBaseURL('/imgs/logo/logo-text-white.png')
 
 function goHome() {
-  // tongyun: 站点入口是云芽今日
+  // tongyun: 站点入口是今日
   router.push('/')
 }
 </script>
