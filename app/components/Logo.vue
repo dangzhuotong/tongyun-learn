@@ -9,8 +9,8 @@ const darkLogoSrc = withAppBaseURL('/imgs/logo/logo-text-black.png')
 const lightLogoSrc = withAppBaseURL('/imgs/logo/logo-text-white.png')
 
 function goHome() {
-  // tongyun: 站点入口是学习看板，不再跳到 typewords.cc
-  router.push('/learn-board')
+  // tongyun: 站点入口是云芽今日
+  router.push('/')
 }
 </script>
 

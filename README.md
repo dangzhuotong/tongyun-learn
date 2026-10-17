@@ -28,7 +28,8 @@
 
 基于 [TypeWords](https://github.com/zyronon/TypeWords) 的个人自用 fork，同样以 GPL-3.0 开源。在上游功能之外加了这些（改动处代码里都带 `tongyun:` 标记，方便以后合并上游）：
 
-- **子路径部署**：支持挂在 `/words/` 下，构建命令 `NUXT_APP_BASE_URL=/words/ npx nuxt generate`。
+- **云芽英语**（站点入口 `/`，部署后是 `/words/`）：今日、练习、教练、设置。先整词手敲再整句手敲，空格继续。今天学几项、要不要敲句都听 tongyun-learn 的 `GET /v1/today`；敲完 `POST /v1/type`（`card_id`、`phase`、`typed`、`duration_ms`）；教练页 `GET/POST /v1/coach`。令牌仍在设置里，只存本机。旧地址 `/typewords` 会进练习。视觉见 [DESIGN.md](DESIGN.md)。
+- **子路径部署**：`pnpm generate` 使用 `NUXT_APP_BASE_URL=/words/`。
 - **智能混学**：跨词书按记忆曲线复习，再随机补新词，不分章节。
 - **AI 记忆法 / AI 讲解**：单词记忆法和文章句子讲解，调同域的学习服务 `/learn/api/v1/ai/explain`。学习服务地址和令牌在「设置 → 通用设置」顶部填写，只存在本浏览器 localStorage。
 - **AI 错词复习卷**（`/ai-quiz`，部署后是 `/words/ai-quiz`）：从错词本选词，调 `/learn/api/v1/ai/quiz` 生成 cloze / 选择 / 英译中，本地判分。复用同一份学习服务地址和令牌。

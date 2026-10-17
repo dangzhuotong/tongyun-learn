@@ -64,39 +64,14 @@ function onClear() {
         <BaseInput class="flex-1" v-model="token" type="password" placeholder="web 令牌" clearable />
       </div>
       <div class="flex items-center justify-between gap-3 mt-1">
-        <!-- tongyun: 看板在侧栏。TypeWords 背单词/文章/错词只留在设置里，不进主侧栏 -->
         <div class="flex flex-col gap-1">
           <button
             type="button"
             class="text-sm text-[var(--color-link)] hover:underline cursor-pointer bg-transparent border-none p-0 inline-flex items-center min-h-[44px]"
-            @click="router.push('/learn-board')"
+            @click="router.push('/')"
           >
-            打开学习看板
+            打开云芽英语
           </button>
-          <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
-            <span class="opacity-60">TypeWords</span>
-            <button
-              type="button"
-              class="text-[var(--color-link)] hover:underline cursor-pointer bg-transparent border-none p-0 inline-flex items-center min-h-[44px]"
-              @click="router.push('/typewords')"
-            >
-              背单词
-            </button>
-            <button
-              type="button"
-              class="text-[var(--color-link)] hover:underline cursor-pointer bg-transparent border-none p-0 inline-flex items-center min-h-[44px]"
-              @click="router.push('/articles')"
-            >
-              文章
-            </button>
-            <button
-              type="button"
-              class="text-[var(--color-link)] hover:underline cursor-pointer bg-transparent border-none p-0 inline-flex items-center min-h-[44px]"
-              @click="router.push('/ai-quiz')"
-            >
-              错词复习
-            </button>
-          </div>
         </div>
         <div class="flex gap-3 justify-end">
           <BaseButton type="info" @click="onClear">清除</BaseButton>

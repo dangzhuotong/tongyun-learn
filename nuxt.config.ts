@@ -54,7 +54,7 @@ export default defineNuxtConfig({
     baseURL: appBaseURL,
     // keepalive: true,
     head: {
-      title: '学习看板', // tongyun: 站点入口是学习看板
+      title: '云芽英语', // tongyun: 站点入口是今日手敲
       htmlAttrs: {
         lang: 'zh-CN',
       },
@@ -73,9 +73,12 @@ export default defineNuxtConfig({
   },
   // ssr: false,
   routeRules: {
-    '/': { ssr: false }, // tongyun: 根路径就是学习看板
+    '/': { ssr: false }, // tongyun: 今日
+    '/practice': { ssr: false },
+    '/coach': { ssr: false },
+    '/settings': { ssr: false },
     '/words': { ssr: false },
-    '/typewords': { ssr: false }, // tongyun: 背单词次要入口，与 /words 同一页
+    '/typewords': { prerender: true }, // tongyun: 旧入口，生成时写成跳到 /practice
     '/articles': { ssr: false },
     '/setting': { ssr: false },
     '/learn-board': { ssr: false }, // tongyun: 学习看板，纯客户端，静态产物不含数据
@@ -186,8 +189,8 @@ export default defineNuxtConfig({
   nitro: {
     prerender: {
       ignore: appBaseURL === '/' ? [] : [withBaseURL('/manifest.json', appBaseURL)],
-      // tongyun: /typewords 是 /words 的别名，静态产物里也要有这一页
-      routes: ['/typewords'],
+      // tongyun: 云芽四页和旧 /typewords 都要进静态产物
+      routes: ['/practice', '/coach', '/settings', '/typewords'],
     },
     devProxy: {
       '/baidu': {

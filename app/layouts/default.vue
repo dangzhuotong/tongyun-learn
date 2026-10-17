@@ -47,10 +47,8 @@ const { locales, setLocale } = useI18n()
 const route = useRoute()
 
 const showIcon = $computed(() => {
-  return ['/words', '/typewords', '/articles', '/setting', '/help', '/doc', '/feedback'].includes(route.path)
+  return ['/words', '/articles', '/setting', '/help', '/doc', '/feedback'].includes(route.path)
 })
-
-const isBoard = $computed(() => route.path === '/' || route.path === '/learn-board')
 
 onMounted(() => {
   init()
@@ -85,14 +83,22 @@ function onMouseLeave() {
             <IconFluentPin20Regular v-else class="flex-shrink-0 -transform-rotate-45" />
           </BaseIcon>
         </div>
-        <!-- tongyun: 侧栏只留学习看板和设置。背单词在 /typewords -->
-        <NuxtLink to="/learn-board" class="row" :class="{ 'router-link-active': isBoard }">
-          <IconFluentDataHistogram20Regular />
-          <span>学习看板</span>
+        <!-- tongyun: 侧栏只留云芽英语的四项 -->
+        <NuxtLink to="/" class="row">
+          <IconFluentBookNumber20Filled />
+          <span>今日</span>
+        </NuxtLink>
+        <NuxtLink to="/practice" class="row">
+          <IconFluentPlay20Regular />
+          <span>练习</span>
+        </NuxtLink>
+        <NuxtLink to="/coach" class="row">
+          <IconFluentCheckmarkCircle20Filled />
+          <span>教练</span>
         </NuxtLink>
       </div>
       <div class="px-4 pb-2 border-0 border-t-1 border-solid border-[var(--color-line)]">
-        <NuxtLink to="/setting?index=0" class="row" title="填写学习服务令牌">
+        <NuxtLink to="/settings" class="row" title="填写学习服务令牌">
           <IconFluentSettings20Regular />
           <span>设置</span>
           <div class="red-point" :class="!settingStore.sideExpand && 'top-1 right-0'" v-if="runtimeStore.isError"></div>
@@ -103,11 +109,19 @@ function onMouseLeave() {
     <!-- 移动端顶部菜单栏 -->
     <div class="mobile-top-nav" :class="{ collapsed: settingStore.mobileNavCollapsed }">
       <div class="nav-items">
-        <div class="nav-item" @click="router.push('/learn-board')" :class="{ active: isBoard }">
-          <IconFluentDataHistogram20Regular />
-          <span>学习看板</span>
+        <div class="nav-item" @click="router.push('/')" :class="{ active: route.path === '/' }">
+          <IconFluentBookNumber20Filled />
+          <span>今日</span>
         </div>
-        <div class="nav-item" @click="router.push('/setting?index=0')" :class="{ active: route.path === '/setting' }">
+        <div class="nav-item" @click="router.push('/practice')" :class="{ active: route.path === '/practice' }">
+          <IconFluentPlay20Regular />
+          <span>练习</span>
+        </div>
+        <div class="nav-item" @click="router.push('/coach')" :class="{ active: route.path === '/coach' }">
+          <IconFluentCheckmarkCircle20Filled />
+          <span>教练</span>
+        </div>
+        <div class="nav-item" @click="router.push('/settings')" :class="{ active: route.path === '/settings' }">
           <IconFluentSettings20Regular />
           <span>设置</span>
           <div class="red-point" v-if="runtimeStore.isError"></div>
@@ -200,7 +214,7 @@ function onMouseLeave() {
     transition: all 0.5s;
     color: var(--color-main-text);
 
-    &.router-link-active {
+    &.router-link-exact-active {
       background: var(--color-fourth);
     }
 

@@ -19,7 +19,7 @@ tongyun-words 的 AI 讲解、AI 错词复习卷、学习看板都调学习服�
    想真调 AI 还要配 `KIE_API_KEY`；不配也能测鉴权和参数校验。
 
 2. 起 words：`pnpm dev`（默认 `http://localhost:3000`）。
-3. 打开「设置 → 通用设置」顶部的学习服务：地址填 `http://127.0.0.1:8031/`（本机没有 `/learn/api` 前缀），令牌填 `$LEARN_TOKEN` 的原文。地址和令牌只存在本浏览器 localStorage。
+3. 打开云芽英语的「设置」（`/settings`）：地址填 `http://127.0.0.1:8031/`（本机没有 `/learn/api` 前缀），令牌填 `$LEARN_TOKEN` 的原文。地址和令牌只存在本浏览器 localStorage。线上反代则地址保持默认 `/learn/api/`。
 
 ## 用到的接口
 
@@ -29,6 +29,22 @@ tongyun-words 的 AI 讲解、AI 错词复习卷、学习看板都调学习服�
 | AI 记忆法 / 讲解 | `POST /v1/ai/explain` |
 | AI 错词复习卷 `/ai-quiz` | `POST /v1/ai/quiz`（1–20 个错词） |
 | 学习看板 `/learn-board` | `GET /v1/subjects`、`/v1/subjects/{id}/map`、`/v1/next`、`/v1/review/due`、`/v1/progress`、`/v1/blockers` |
+| 云芽英语今日 `/`、练习 `/practice` | `GET /v1/today` |
+| 云芽英语练习提交 | `POST /v1/type`，正文只有 `card_id`、`phase`（`A` 或 `B`）、`typed`、`duration_ms`。`card_id` 用今日队列里的那一个 |
+| 云芽英语教练 `/coach` | `GET /v1/coach` 读报告，`POST /v1/coach` 请服务端重算（没有 DeepSeek 时后端按规则排，前端不自己排） |
+
+云芽英语的地址和令牌仍是上面这一份。线上 base 写 `/learn/api/`（反代会去掉这段前缀，请求落到服务根上的 `/v1/...`）；本机直连写 `http://127.0.0.1:8031/`。今天练几项、某一项是敲词还是敲句，只看今日队列。队列字段名有几套常见写法时做薄适配，例如 `items` / `queue` / `cards`、`phase` / `stage`、`cn` / `meaning`、`sentence_zh` / `prompt`。例句在 `payload.sentences` 里时，只有该项明确要敲句才会变成敲句步骤。
+
+```bash
+curl -s $BASE/v1/today -H "Authorization: Bearer $LEARN_TOKEN"
+curl -s -X POST $BASE/v1/type \
+  -H "Authorization: Bearer $LEARN_TOKEN" -H 'Content-Type: application/json' \
+  -d '{"card_id":1,"phase":"A","typed":"oppose","duration_ms":1200}'
+curl -s $BASE/v1/coach -H "Authorization: Bearer $LEARN_TOKEN"
+curl -s -X POST $BASE/v1/coach -H "Authorization: Bearer $LEARN_TOKEN" -H 'Content-Type: application/json' -d '{}'
+```
+
+视觉记号见仓库根目录 `DESIGN.md`。
 
 ## 探活
 
