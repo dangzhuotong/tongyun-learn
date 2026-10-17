@@ -1,9 +1,24 @@
-// tongyun: 本地练习队列。用阿学定制词表（L1–L5），先敲词再敲例句；不依赖学习服务，敲击只本地判分。
+// tongyun: 本地练习队列（阿学词表 v0.2）。主动回忆：先看中文+场景拼英文 → 揭示音标/例句 → 整句敲例句。
+// 不依赖学习服务，敲击只本地判分。
 import type { PracticeStep, TodayQueue } from './types'
-import { LEVELS, getLevel, loadWordlist, pickRound, type WordEntry } from './wordlist'
+import { LEVELS, TAG_LABEL, getLevel, loadWordlist, pickRound, toneOf, type WordEntry } from './wordlist'
 
 export function levelTitle(level: number): string {
   return LEVELS.find(l => l.level === level)?.title || `L${level}`
+}
+
+/** 例句转成可手敲的一句：去掉引用行（> 开头）、emoji，破折号换成 -，合并空白 */
+export function typeableSentence(example: string): string {
+  return (example || '')
+    .split('\n')
+    .filter(line => !line.trim().startsWith('>'))
+    .join(' ')
+    .replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}]/gu, '')
+    .replace(/[—–]/g, '-')
+    .replace(/[“”]/g, '"')
+    .replace(/[’‘]/g, "'")
+    .replace(/\s+/g, ' ')
+    .trim()
 }
 
 export function entryToSteps(w: WordEntry, i: number): PracticeStep[] {
@@ -17,10 +32,15 @@ export function entryToSteps(w: WordEntry, i: number): PracticeStep[] {
     audioUrl: '',
     unitTitle: levelTitle(w.level),
     examples: w.example ? [{ en: w.example, zh: w.example_zh || '' }] : [],
+    recall: true,
+    tag: TAG_LABEL[w.tag] || w.tag || '',
+    tone: toneOf(w),
+    phoneticNote: w.phonetic_note || '',
   }
   const steps: PracticeStep[] = [{ ...base, id: `l${w.level}-${i}-A`, stage: 'A', sentence: '', promptZh: w.meaning || '' }]
-  if (w.example) {
-    steps.push({ ...base, id: `l${w.level}-${i}-B`, stage: 'B', sentence: w.example, promptZh: w.example_zh || w.meaning || '' })
+  const sentence = typeableSentence(w.example)
+  if (sentence) {
+    steps.push({ ...base, id: `l${w.level}-${i}-B`, stage: 'B', sentence, promptZh: w.example_zh || w.meaning || '' })
   }
   return steps
 }

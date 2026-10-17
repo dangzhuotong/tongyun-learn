@@ -9,7 +9,7 @@ import { gradePrefsOf, gradeTyped, markLetters } from '@/tongyun/english/grade'
 import { getEnglishPrefs, type EnglishPrefs } from '@/tongyun/english/prefs'
 import type { PracticeStep, TodayQueue, TypeEventBody } from '@/tongyun/english/types'
 import { buildLocalQueue } from '@/tongyun/english/local-queue'
-import { advanceProgress, getLevel, loadWordlist, recordResult } from '@/tongyun/english/wordlist'
+import { splitPhonetics, advanceProgress, getLevel, loadWordlist, recordResult } from '@/tongyun/english/wordlist'
 
 definePageMeta({
   layout: 'yunya',
@@ -128,7 +128,8 @@ function focusField() {
 
 function openCard() {
   focusField()
-  if (step.value?.stage === 'A' && step.value.word) speak(step.value)
+  // tongyun: 主动回忆卡先不读音，免得泄露答案
+  if (step.value?.stage === 'A' && step.value.word && !step.value.recall) speak(step.value)
 }
 
 function onWordInput(event: Event) {
@@ -157,6 +158,11 @@ async function confirm() {
     const next = submitAttempt(attempt.value, expected.value, step.value.stage, gradePrefs.value)
     if (next === attempt.value) return
     attempt.value = next
+    // tongyun: 主动回忆卡交卡后停在揭示页（音标/例句），再按空格进入敲句
+    if (step.value.stage === 'A' && step.value.recall) {
+      if (isResolved(next)) speak(step.value)
+      return
+    }
     if (next.phase === 'done' && step.value.stage === 'A') await advance()
   } finally {
     confirming = false
@@ -329,7 +335,46 @@ onUnmounted(() => {
         </div>
       </header>
 
-      <div v-if="step.stage === 'A'" class="word-stage">
+      <div v-if="step.stage === 'A' && step.recall" class="word-stage recall" data-testid="recall-card">
+        <div class="chips">
+          <span v-if="step.tag" class="chip" data-testid="recall-tag">{{ step.tag }}</span>
+          <span v-if="step.tone" class="chip tone" data-testid="recall-tone">{{ step.tone }}</span>
+        </div>
+        <h1 class="recall-meaning" data-testid="recall-meaning" @click="focusField">{{ step.meaning }}</h1>
+        <p class="recall-ask">用英文怎么说？</p>
+        <label class="typebox" :class="{ bad: attempt.failures > 0 && !matched, ok: resolved && matched }">
+          <input
+            ref="wordInput"
+            data-testid="word-input"
+            :value="attempt.typed"
+            :readonly="locked"
+            autocomplete="off"
+            autocapitalize="off"
+            spellcheck="false"
+            :placeholder="attempt.typed ? '' : '拼出英文，按回车交卡'"
+            aria-label="拼出这个英文"
+            @input="onWordInput"
+            @keydown="onWordKey"
+          />
+        </label>
+        <p class="hint" data-testid="practice-hint">{{ resolved ? (attempt.correct ? '答对了。按空格继续敲例句' : '记下了，答案在下面。按空格继续敲例句') : attempt.hint || '拼完按回车交卡' }}</p>
+        <div v-if="resolved" class="reveal" data-testid="recall-reveal">
+          <p class="reveal-word">{{ step.word }}</p>
+          <p v-if="step.phonetic" class="phonetic" data-testid="recall-phonetic">
+            <span v-for="(ph, i) in splitPhonetics(step.phonetic)" :key="i" class="ph">{{ ph }}</span>
+            <button type="button" class="speaker" aria-label="播放发音" @click="speak(step)">🔊</button>
+          </p>
+          <p v-if="step.phoneticNote" class="ph-note" data-testid="recall-phonetic-note">{{ step.phoneticNote }}</p>
+          <ul v-if="step.examples.length" class="examples">
+            <li v-for="(example, i) in step.examples" :key="i">
+              <p class="en" style="white-space: pre-line">{{ example.en }}</p>
+              <p v-if="example.zh" class="zh">{{ example.zh }}</p>
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <div v-else-if="step.stage === 'A'" class="word-stage">
         <h1 class="word" @click="focusField">
           <span v-for="(mark, i) in letters" :key="i" :class="mark">{{ [...step.word][i] }}</span>
         </h1>
@@ -437,6 +482,16 @@ onUnmounted(() => {
 </template>
 
 <style scoped lang="scss">
+.recall .chips { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-bottom: 10px; }
+.recall .chip { font-size: 12px; padding: 3px 10px; border-radius: 999px; background: rgba(164, 196, 140, 0.2); color: var(--yy-matcha-deep, #5d7a48); }
+.recall .chip.tone { background: rgba(253, 200, 156, 0.35); color: #9a5b2a; }
+.recall-meaning { font-size: 30px; font-weight: 650; text-align: center; margin: 6px 0; line-height: 1.4; }
+.recall-ask { text-align: center; color: var(--yy-ink-soft); margin: 0 0 12px; }
+.reveal { margin-top: 14px; text-align: center; }
+.reveal .ph { margin: 0 6px; }
+.ph-note { font-size: 12px; color: var(--yy-ink-soft); margin: 2px 0 8px; }
+.reveal-word { font-size: 34px; font-weight: 700; margin: 0; letter-spacing: 0.02em; }
+
 .screen {
   position: relative;
   min-height: calc(100vh - 64px);

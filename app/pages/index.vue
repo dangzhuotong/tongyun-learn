@@ -5,7 +5,7 @@ import { getLearnConfig } from '@/tongyun/learn-client'
 import { fetchToday } from '@/tongyun/english/client'
 import type { TodayQueue } from '@/tongyun/english/types'
 import { buildLocalQueue } from '@/tongyun/english/local-queue'
-import { LEVELS, NGSL_ATTRIBUTION, getLevel, getProgress, loadWordlist, setLevel } from '@/tongyun/english/wordlist'
+import { LEVELS, NGSL_ATTRIBUTION, dueCount, getLevel, getProgress, loadWordlist, setLevel } from '@/tongyun/english/wordlist'
 
 definePageMeta({
   layout: 'yunya',
@@ -23,7 +23,7 @@ const error = ref('')
 const queue = ref<TodayQueue | null>(null)
 // tongyun: 按 L1–L5 分级选词
 const level = ref(1)
-const levelStats = ref<{ level: number; title: string; done: number; total: number }[]>([])
+const levelStats = ref<{ level: number; title: string; optional?: boolean; done: number; total: number; due: number }[]>([])
 const localMode = ref(false)
 
 const dateText = computed(() => {
@@ -44,7 +44,7 @@ const countText = computed(() => {
   const items = queue.value?.items ?? []
   const n = localMode.value ? items.filter(i => i.stage === 'A').length : items.length
   if (!n) return '今天没有要练的词'
-  return localMode.value ? `本轮 ${n} 个词，先敲词再敲例句` : `今天 ${n} 项`
+  return localMode.value ? `本轮 ${n} 个词：看中文拼英文，再敲例句` : `今天 ${n} 项`
 })
 
 async function load() {
@@ -68,7 +68,7 @@ async function refreshLevels() {
   const prog = getProgress()
   levelStats.value = LEVELS.map(l => {
     const total = list.filter(w => w.level === l.level).length
-    return { ...l, total, done: Math.min(prog[l.level] || 0, total) }
+    return { ...l, total, done: Math.min(prog[l.level] || 0, total), due: dueCount(list, l.level) }
   })
 }
 
@@ -114,7 +114,7 @@ onMounted(() => {
             @click="pickLevel(l.level)"
           >
             <strong>{{ l.title }}</strong>
-            <span>{{ l.done }}/{{ l.total }}</span>
+            <span>{{ l.done }}/{{ l.total }}<template v-if="l.due"> · 待复习 {{ l.due }}</template><template v-if="l.optional"> · 可选</template></span>
           </button>
         </div>
         <p class="unit">{{ queue.unitTitle || '英语' }}</p>

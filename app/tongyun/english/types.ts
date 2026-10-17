@@ -22,6 +22,14 @@ export interface PracticeStep {
   promptZh: string
   unitTitle: string
   examples: ExampleLine[]
+  /** tongyun: 本地词表的主动回忆卡：先看中文+场景拼英文，交卡后才揭示 */
+  recall?: boolean
+  /** 场景标签（词表 tag） */
+  tag?: string
+  /** 语气标注（俚语/缩写等） */
+  tone?: string
+  /** 音标备注（词表 phonetic_note），揭示页显示 */
+  phoneticNote?: string
 }
 
 export interface TodayQueue {
