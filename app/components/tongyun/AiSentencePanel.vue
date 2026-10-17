@@ -44,7 +44,7 @@ watch(
     if (open) {
       if (!isLearnConfigured()) {
         notConfigured.value = true
-        errorMsg.value = '还没配置学习服务：到「设置 → 通用设置」填写学习服务地址和令牌'
+        errorMsg.value = 'AI 功能暂不可用'
         return
       }
       if (!data.value || sentence !== oldSentence) {
@@ -72,7 +72,7 @@ async function fetchGrammar() {
 
   if (!isLearnConfigured()) {
     notConfigured.value = true
-    errorMsg.value = '还没配置学习服务：到「设置 → 通用设置」填写学习服务地址和令牌'
+    errorMsg.value = 'AI 功能暂不可用'
     return
   }
 
@@ -169,8 +169,7 @@ function getDifficultyBadge(diff?: string) {
 
         <!-- 还没配置提示 -->
         <div v-if="notConfigured" class="py-6 text-center text-xs text-gray-500 flex flex-col items-center gap-3">
-          <span>还没配置学习服务：到「设置 → 通用设置」填写学习服务地址和令牌</span>
-          <BaseButton size="small" type="primary" @click="goToSetting">去设置</BaseButton>
+          <span>AI 功能暂不可用</span>
         </div>
 
         <!-- 加载中 -->

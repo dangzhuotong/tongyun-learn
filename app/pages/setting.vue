@@ -623,8 +623,7 @@ function disable360() {
         </div>
         <div class="col-line"></div>
         <div class="flex-1 overflow-y-auto overflow-x-hidden pr-4 content">
-          <!-- tongyun: 学习服务设置 -->
-          <LearnServiceSetting v-if="tabIndex === 0" />
+          <!-- tongyun: 已移除学习服务（地址/令牌）设置，站点不依赖后端 -->
           <CommonSetting v-if="tabIndex === 0" />
           <FsrsSetting v-if="tabIndex === 1" />
           <WordSetting v-if="tabIndex === 2" />

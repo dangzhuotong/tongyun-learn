@@ -1,7 +1,6 @@
 <script setup lang="ts">
+// tongyun: 设置页只留学习偏好；不再有学习服务地址/令牌（站点不依赖后端）
 import { onMounted, ref } from 'vue'
-import { clearLearnConfig, getLearnConfig, learnCheckAuth, saveLearnConfig } from '@/tongyun/learn-client'
-import { fetchToday } from '@/tongyun/english/client'
 import { getEnglishPrefs, saveEnglishPrefs, type EnglishPrefs } from '@/tongyun/english/prefs'
 
 definePageMeta({
@@ -12,82 +11,16 @@ useSeoMeta({
   title: '橦云学习',
 })
 
-const url = ref('/learn/api/')
-const token = ref('')
 const prefs = ref<EnglishPrefs>(getEnglishPrefs())
 const ready = ref(false)
-const testing = ref(false)
-const notice = ref('')
-const noticeOk = ref(false)
-const todayCount = ref<number | null>(null)
-
-function flash(text: string, ok: boolean) {
-  notice.value = text
-  noticeOk.value = ok
-}
 
 onMounted(() => {
-  const cfg = getLearnConfig()
-  url.value = cfg.url || '/learn/api/'
-  token.value = cfg.token || ''
   prefs.value = getEnglishPrefs()
   ready.value = true
-  if (cfg.token) refreshCount()
 })
-
-function onSave() {
-  saveLearnConfig({ url: url.value, token: token.value })
-  flash('已保存，只存在这台浏览器', true)
-  if (token.value.trim()) refreshCount()
-  else todayCount.value = null
-}
-
-async function onTest() {
-  testing.value = true
-  notice.value = ''
-  try {
-    const today = await fetchToday({ url: url.value, token: token.value })
-    if (today.ok) {
-      todayCount.value = today.data?.items.length ?? 0
-      flash(todayCount.value ? `连接正常，今日队列 ${todayCount.value} 项` : '连接正常，今日队列是空的', true)
-      return
-    }
-    if (today.kind === 'bad_token' || today.kind === 'no_token') {
-      flash('令牌不对', false)
-      return
-    }
-    const auth = await learnCheckAuth({ url: url.value, token: token.value })
-    if (auth.result === 'ok') {
-      flash('令牌有效。今日队列接口还没有。', true)
-      return
-    }
-    if (auth.result === 'bad_token') {
-      flash('令牌不对', false)
-      return
-    }
-    flash(today.kind === 'not_found' ? '连上了服务，还没有今日队列接口' : '连不上服务', false)
-  } catch {
-    flash('连不上服务', false)
-  } finally {
-    testing.value = false
-  }
-}
-
-function onClear() {
-  clearLearnConfig()
-  url.value = '/learn/api/'
-  token.value = ''
-  todayCount.value = null
-  flash('已清除', true)
-}
 
 function toggle(key: keyof EnglishPrefs, value: boolean) {
   prefs.value = saveEnglishPrefs({ [key]: value })
-}
-
-async function refreshCount() {
-  const res = await fetchToday()
-  todayCount.value = res.ok ? (res.data?.items.length ?? 0) : null
 }
 </script>
 
@@ -95,28 +28,9 @@ async function refreshCount() {
   <section class="settings">
     <p class="eyebrow">橦云学习</p>
     <h1>设置</h1>
-    <p class="sub">学习服务地址和令牌沿用原来的配置。今天学几项由教练队列决定，这里不改课表。</p>
+    <p class="sub">学习偏好只存在这台浏览器。</p>
 
-    <form v-if="ready" class="yy-card panel" @submit.prevent="onSave">
-      <label class="yy-field">
-        服务地址
-        <input v-model="url" type="text" data-testid="service-url" placeholder="/learn/api/" autocomplete="off" spellcheck="false" />
-      </label>
-      <label class="yy-field">
-        令牌
-        <input v-model="token" type="password" data-testid="token-input" placeholder="Bearer 令牌" autocomplete="off" />
-      </label>
-      <p class="hint">线上默认同域 <code>/learn/api/</code>。本机联调填 <code>http://127.0.0.1:8031/</code>。</p>
-      <p v-if="todayCount !== null" class="hint">教练今天排了 {{ todayCount }} 项。</p>
-      <p v-if="notice" class="notice" :class="{ bad: !noticeOk }" data-testid="settings-notice">{{ notice }}</p>
-      <div class="actions">
-        <button type="button" class="yy-btn ghost" @click="onClear">清除</button>
-        <button type="button" class="yy-btn ghost" :disabled="testing" data-testid="test-connection" @click="onTest">
-          {{ testing ? '测试中…' : '测试连接' }}
-        </button>
-        <button type="submit" class="yy-btn" data-testid="save-settings">保存</button>
-      </div>
-
+    <div v-if="ready" class="yy-card panel">
       <div class="prefs">
         <label class="yy-check">
           <span>显示音标</span>
@@ -140,7 +54,7 @@ async function refreshCount() {
         </label>
       </div>
       <p class="hint">敲句那一屏的中文提示会留着，不然整句没有可看的题目。上面的中文开关管词义和例句译文。</p>
-    </form>
+    </div>
   </section>
 </template>
 

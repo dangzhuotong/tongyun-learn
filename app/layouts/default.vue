@@ -99,7 +99,7 @@ function onMouseLeave() {
         </NuxtLink>
       </div>
       <div class="px-4 pb-2 border-0 border-t-1 border-solid border-[var(--color-line)]">
-        <NuxtLink to="/settings" class="row" title="填写学习服务令牌">
+        <NuxtLink to="/settings" class="row">
           <IconFluentSettings20Regular />
           <span>设置</span>
           <div class="red-point" :class="!settingStore.sideExpand && 'top-1 right-0'" v-if="runtimeStore.isError"></div>

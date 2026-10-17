@@ -267,13 +267,12 @@ onUnmounted(() => {
 
 <template>
   <section class="screen">
-    <div v-if="!ready || loading" class="yy-card wait">正在取今日队列…</div>
+    <div v-if="!ready || loading" class="yy-card wait">正在准备今天的词…</div>
 
     <div v-else-if="error" class="yy-card wait">
       <p>{{ error }}</p>
       <div class="actions">
         <button type="button" class="yy-btn ghost" @click="load">重试</button>
-        <button type="button" class="yy-btn" @click="router.push('/settings')">去设置</button>
       </div>
     </div>
 
@@ -285,7 +284,7 @@ onUnmounted(() => {
     <div v-else-if="finished" class="yy-card wait done">
       <p class="done-title">这一轮敲完了</p>
       <p v-if="localMode">本地词书这一轮练完了。</p>
-      <p v-else>敲击已经提交。教练会按这些记录排后面的队列。</p>
+      <p v-else>这一轮敲完了，记录已保存。</p>
       <button v-if="localMode" type="button" class="yy-btn" @click="load">再来一轮</button>
       <div class="actions">
         <button type="button" class="yy-btn ghost" @click="router.push('/coach')">看教练</button>

@@ -332,8 +332,7 @@ onMounted(() => {
 
       <!-- 未配置 token 时的提示卡片 -->
       <div v-else-if="!hasToken" class="lb-no-token-card">
-        <p class="lb-no-token-text">先去设置填写令牌。填好后这里会显示今天学什么，以及 Java 和英语。</p>
-        <button type="button" class="lb-go-setting-btn" @click="goToSetting">去设置</button>
+        <p class="lb-no-token-text">学习看板暂不可用，先去「练习」背词。</p>
       </div>
 
       <!-- 正常数据区块。首屏：今天学什么 + Java 地图状态 + 英语 -->

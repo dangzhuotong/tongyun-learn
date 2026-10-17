@@ -120,7 +120,7 @@ async function generate() {
 
   if (!isLearnConfigured()) {
     notConfigured.value = true
-    errorMsg.value = '还没配置学习服务：到「设置 → 通用设置」填写学习服务地址和令牌'
+    errorMsg.value = 'AI 功能暂不可用'
     return
   }
 
@@ -258,7 +258,7 @@ function again() {
           </ul>
           <p v-if="errorMsg" class="aq-error">{{ errorMsg }}</p>
           <p v-if="notConfigured" class="aq-muted">
-            <button type="button" class="aq-text-btn" @click="goSetting">去设置填写令牌</button>
+            AI 功能暂不可用
           </p>
           <BaseButton
             type="primary"

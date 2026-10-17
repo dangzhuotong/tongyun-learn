@@ -174,12 +174,11 @@ onMounted(() => {
       </div>
 
       <div v-else-if="mapState === 'bad_token'" class="lb-state-box">
-        <p class="lb-state-text">令牌不对，去设置改</p>
-        <button type="button" class="lb-action-btn" @click="goToSetting">去设置</button>
+        <p class="lb-state-text">暂不可用</p>
       </div>
 
       <div v-else-if="mapState === 'unreachable'" class="lb-state-box">
-        <p class="lb-state-text">连不上学习服务</p>
+        <p class="lb-state-text">暂不可用</p>
       </div>
 
       <div v-else-if="mapState === 'ok' && sortedStages.length === 0" class="lb-map-empty">暂无阶段数据</div>

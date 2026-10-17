@@ -37,8 +37,8 @@ const progressPct = computed(() => {
 
 const countText = computed(() => {
   const n = queue.value?.items.length ?? 0
-  if (!n) return '教练今天没有排练习'
-  return `${n} 项，按今日队列`
+  if (!n) return '今天没有要练的词'
+  return `今天 ${n} 个词`
 })
 
 async function load() {
@@ -70,12 +70,11 @@ onMounted(() => {
     <div v-if="!ready" class="yy-card panel skeleton" />
 
     <div v-else class="yy-card panel">
-      <p v-if="loading" class="lead">正在取今日队列…</p>
+      <p v-if="loading" class="lead">正在准备今天的词…</p>
       <template v-else-if="error">
         <p class="lead">{{ error }}</p>
         <div class="actions">
           <button type="button" class="yy-btn ghost" @click="load">重试</button>
-          <button type="button" class="yy-btn" @click="router.push('/settings')">去设置</button>
         </div>
       </template>
       <template v-else-if="queue">

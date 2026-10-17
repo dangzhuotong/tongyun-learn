@@ -64,7 +64,7 @@ function toggle() {
   isOpen.value = true
   if (!isLearnConfigured()) {
     notConfigured.value = true
-    errorMsg.value = '还没配置学习服务：到「设置 → 通用设置」填写学习服务地址和令牌'
+    errorMsg.value = 'AI 功能暂不可用'
     return
   }
 
@@ -76,7 +76,7 @@ function toggle() {
 async function fetchMnemonic() {
   if (!isLearnConfigured()) {
     notConfigured.value = true
-    errorMsg.value = '还没配置学习服务：到「设置 → 通用设置」填写学习服务地址和令牌'
+    errorMsg.value = 'AI 功能暂不可用'
     return
   }
 
@@ -148,8 +148,7 @@ function getRootTypeClass(type?: string) {
     <div v-if="isOpen" class="mt-2.5">
       <!-- 还没配置提示 -->
       <div v-if="notConfigured" class="text-xs text-gray-500 flex items-center gap-2 py-1">
-        <span>还没配置学习服务：到「设置 → 通用设置」填写学习服务地址和令牌</span>
-        <BaseButton size="small" type="info" @click="goToSetting">去设置</BaseButton>
+        <span>AI 功能暂不可用</span>
       </div>
 
       <!-- 错误提示 -->
