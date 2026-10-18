@@ -22,8 +22,13 @@ function getMasteredPoints(sub: Subject): number {
 
 function getSegments(sub: Subject) {
   const total = getTotalPoints(sub)
+  const byState = { ...(sub.points_by_state || {}) }
+  if (byState['locked']) {
+    byState['available'] = (byState['available'] || 0) + byState['locked']
+    delete byState['locked']
+  }
   return POINT_STATES.map(s => {
-    const count = sub.points_by_state?.[s.key] || 0
+    const count = byState[s.key] || 0
     const pct = total > 0 ? (count / total) * 100 : 0
     return {
       key: s.key,

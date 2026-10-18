@@ -8,6 +8,8 @@ import {
   resolveBoardSubjects,
   subjectSlot,
   summarizeMap,
+  isPrereqsMet,
+  getSuggestedNextPoints,
 } from './learn-board-glance'
 
 describe('learn-board subject slots', () => {
@@ -105,5 +107,111 @@ describe('map status summary', () => {
     const empty = summarizeMap({ subject: { id: 'english', title: '英语' }, stages: [] })
     expect(mapStatusLine(empty)).toBe('这科还没有阶段')
     expect(mapProgressLine(empty)).toBe('还没有知识点')
+  })
+
+  it('maps unstarted points and legacy locked points to available without locked in summary', () => {
+    const mapWithLocked: SubjectMap = {
+      subject: { id: 'english', title: '英语' },
+      stages: [
+        {
+          id: 's1',
+          title: '基础',
+          ord: 1,
+          passed: false,
+          points: [
+            { id: 'p1', title: '词汇 1', prereqs: [], stats: { state: 'locked' } },
+            { id: 'p2', title: '词汇 2', prereqs: [], stats: { state: null } },
+            { id: 'p3', title: '词汇 3', prereqs: [], stats: { state: 'available' } },
+          ],
+        },
+      ],
+    }
+    const summary = summarizeMap(mapWithLocked)
+    expect(summary.totalPoints).toBe(3)
+    expect(summary.counts.find(c => c.key === 'locked')).toBeUndefined()
+    const availableCount = summary.counts.find(c => c.key === 'available')
+    expect(availableCount?.count).toBe(3)
+  })
+})
+
+describe('knowledge map suggested next calculation from prerequisites', () => {
+  const map: SubjectMap = {
+    subject: { id: 'tech-english', title: '技术英语' },
+    stages: [
+      {
+        id: 's1',
+        title: '阶段一',
+        ord: 1,
+        passed: false,
+        points: [
+          { id: 'p1', title: '基础词汇', prereqs: [], stats: { state: 'mastered' } },
+          { id: 'p2', title: '进阶词汇', prereqs: [{ id: 'p1', kind: 'hard' }], stats: { state: 'available' } },
+          { id: 'p3', title: '长难句', prereqs: [{ id: 'p2', kind: 'hard' }], stats: { state: 'available' } },
+        ],
+      },
+      {
+        id: 's2',
+        title: '阶段二',
+        ord: 2,
+        passed: false,
+        points: [
+          { id: 'p4', title: '技术文档', prereqs: [{ id: 'p3', kind: 'soft' }], stats: { state: 'available' } },
+          { id: 'p5', title: '独立模块', prereqs: [], stats: { state: 'available' } },
+        ],
+      },
+    ],
+  }
+
+  it('evaluates whether prerequisites are met', () => {
+    const lookup = new Map<string, any>()
+    for (const st of map.stages) {
+      for (const pt of st.points) {
+        lookup.set(pt.id, pt)
+      }
+    }
+
+    // p1 has no prereqs -> met
+    expect(isPrereqsMet(lookup.get('p1'), lookup)).toBe(true)
+    // p2 requires p1 which is mastered -> met
+    expect(isPrereqsMet(lookup.get('p2'), lookup)).toBe(true)
+    // p3 requires p2 which is only available -> not met
+    expect(isPrereqsMet(lookup.get('p3'), lookup)).toBe(true === false)
+    expect(isPrereqsMet(lookup.get('p3'), lookup)).toBe(false)
+    // p5 has no prereqs -> met
+    expect(isPrereqsMet(lookup.get('p5'), lookup)).toBe(true)
+  })
+
+  it('calculates suggested next points in order where prereqs are met and not yet mastered', () => {
+    const nextPoints = getSuggestedNextPoints(map)
+    const nextIds = nextPoints.map(p => p.id)
+
+    // p1 is mastered so it is excluded
+    expect(nextIds).not.toContain('p1')
+    // p2 prereq (p1) is mastered, so p2 is suggested
+    expect(nextIds).toContain('p2')
+    // p3 prereq (p2) is not mastered/learned, so p3 is not suggested yet
+    expect(nextIds).not.toContain('p3')
+    // p5 has no prereqs, so p5 is suggested
+    expect(nextIds).toContain('p5')
+    // All points are openable (none locked), but suggested next follows prerequisite order
+    expect(nextIds).toEqual(['p2', 'p5'])
+  })
+
+  it('suggests downstream points once upstream prerequisites are learned', () => {
+    const updatedMap: SubjectMap = {
+      ...map,
+      stages: map.stages.map(st => ({
+        ...st,
+        points: st.points.map(pt => (pt.id === 'p2' ? { ...pt, stats: { state: 'learned' } } : pt)),
+      })),
+    }
+
+    const nextPoints = getSuggestedNextPoints(updatedMap)
+    const nextIds = nextPoints.map(p => p.id)
+
+    // With p2 learned, p3 becomes suggested next
+    expect(nextIds).toContain('p3')
+    expect(nextIds).toContain('p5')
+    expect(nextIds).not.toContain('p2')
   })
 })

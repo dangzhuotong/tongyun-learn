@@ -4,7 +4,7 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import type { Subject, SubjectMap, MapStage, MapPoint } from '@/tongyun/learn-board-api'
 import { fetchMap, POINT_STATES, stateLabel, stateColor } from '@/tongyun/learn-board-api'
-import { resolveBoardSubjects } from '@/tongyun/learn-board-glance'
+import { resolveBoardSubjects, getSuggestedNextPoints } from '@/tongyun/learn-board-glance'
 
 interface Props {
   subjects: Subject[]
@@ -22,6 +22,10 @@ const expandedPointId = ref<string | null>(null)
 const currentMap = computed<SubjectMap | null>(() => {
   if (!selectedSubjectId.value) return null
   return mapCache.value[selectedSubjectId.value] || null
+})
+
+const suggestedNextIds = computed(() => {
+  return new Set(getSuggestedNextPoints(currentMap.value).map(p => p.id))
 })
 
 const sortedStages = computed<MapStage[]>(() => {
@@ -103,7 +107,8 @@ function togglePoint(pointId: string) {
 function getStageStateCounts(stage: MapStage) {
   const counts: Record<string, number> = {}
   for (const p of stage.points || []) {
-    const st = p.stats?.state || 'locked'
+    const raw = p.stats?.state
+    const st = !raw || raw === 'locked' ? 'available' : raw
     counts[st] = (counts[st] || 0) + 1
   }
   return POINT_STATES.map(s => ({ key: s.key, color: s.color, count: counts[s.key] || 0 })).filter(s => s.count > 0)
@@ -217,6 +222,12 @@ onMounted(() => {
                 <div class="lb-point-left">
                   <span class="lb-point-dot" :style="{ backgroundColor: stateColor(point.stats?.state) }" />
                   <span class="lb-point-title">{{ point.title }}</span>
+                  <span
+                    v-if="suggestedNextIds.has(point.id) && point.stats?.state !== 'mastered' && point.stats?.state !== 'learned'"
+                    class="lb-suggested-tag"
+                  >
+                    建议下一个
+                  </span>
                 </div>
                 <div class="lb-point-right">
                   <span class="lb-point-state-text" :style="{ color: stateColor(point.stats?.state) }">
@@ -514,6 +525,19 @@ onMounted(() => {
 .lb-point-title {
   font-size: 15px;
   color: var(--color-main-text);
+}
+
+.lb-suggested-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  background: rgba(59, 130, 246, 0.15);
+  color: #2563eb;
+  border: 1px solid rgba(59, 130, 246, 0.4);
+  line-height: 1.3;
 }
 
 .lb-point-right {

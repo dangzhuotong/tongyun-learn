@@ -1,5 +1,5 @@
 // tongyun: 学习看板首屏怎么认出 Java / 英语，以及地图状态怎么一句话讲清
-import { POINT_STATES, type SubjectMap } from './learn-board-api'
+import { POINT_STATES, type SubjectMap, type MapPoint } from './learn-board-api'
 
 export const JAVA_SUBJECT_ID = 'java-fde'
 
@@ -84,7 +84,8 @@ export function summarizeMap(map: SubjectMap | null | undefined): MapStatusSumma
   for (const st of stages) {
     for (const p of st.points || []) {
       totalPoints += 1
-      const key = p.stats?.state || 'locked'
+      const raw = p.stats?.state
+      const key = !raw || raw === 'locked' ? 'available' : raw
       countsMap[key] = (countsMap[key] || 0) + 1
     }
   }
@@ -118,4 +119,48 @@ export function mapProgressLine(summary: MapStatusSummary): string {
   if (summary.totalStages === 0) return '还没有知识点'
   const pass = summary.allPassed ? '全部阶段已通过' : `已通过 ${summary.passedStages} / ${summary.totalStages} 阶段`
   return `${pass} · 掌握 ${summary.masteredPoints} / 共 ${summary.totalPoints}`
+}
+
+/**
+ * 判断某个知识点的前置是否都已达成（学过/掌握/生疏），作为「建议下一个」的依据。
+ * 知识地图已去掉 locked，所有点均可开，前置关系仅用于算「建议下一个」。
+ */
+export function isPrereqsMet(
+  point: MapPoint,
+  lookup: Map<string, MapPoint>
+): boolean {
+  if (!point.prereqs || point.prereqs.length === 0) return true
+  const doneStates = new Set(['learned', 'mastered', 'rusty'])
+  return point.prereqs.every(pr => {
+    const parent = lookup.get(pr.id)
+    if (!parent) return true
+    const st = parent.stats?.state
+    return st ? doneStates.has(st) : false
+  })
+}
+
+/**
+ * 知识地图计算「建议下一个」知识点：
+ * 前置关系保留，只用于算「建议下一个」。
+ * 从各阶段中按顺序找出尚未完全掌握且前置已满足的知识点。
+ */
+export function getSuggestedNextPoints(map: SubjectMap | null | undefined): MapPoint[] {
+  if (!map?.stages) return []
+  const lookup = new Map<string, MapPoint>()
+  for (const st of map.stages) {
+    for (const pt of st.points || []) {
+      lookup.set(pt.id, pt)
+    }
+  }
+  const doneStates = new Set(['learned', 'mastered'])
+  const candidates: MapPoint[] = []
+  for (const st of map.stages.slice().sort((a, b) => (a.ord ?? 0) - (b.ord ?? 0))) {
+    for (const pt of st.points || []) {
+      const stKey = pt.stats?.state || 'available'
+      if (!doneStates.has(stKey) && isPrereqsMet(pt, lookup)) {
+        candidates.push(pt)
+      }
+    }
+  }
+  return candidates
 }
