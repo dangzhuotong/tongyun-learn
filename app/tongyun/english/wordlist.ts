@@ -1,31 +1,36 @@
-// tongyun: 阿学定制英语词表 v0.2（L1–L6）+ 本地间隔复习。完全不依赖学习服务。
-// 许可：en-ngsl.json 为 NGSL/NAWL 派生（CC BY-SA 4.0），en-tongyun.json 为自编，分文件存放。
+// tongyun: 阿学定制英语词表 v1.0（L1–L6，L6 可选）+ 本地间隔复习。完全不依赖学习服务。
+// 许可：en-ngsl.json 为 NGSL 1.2 派生（CC BY-SA 4.0，文件头保留出处），en-tongyun.json 为自编，分文件存放。
 import { withAppBaseURL } from '@/core/utils/base-url'
+
+/** 语体。与词表顶层 register_values 一致，只有这五种。 */
+export const REGISTER_VALUES = ['technical', 'neutral', 'informal', 'slang', 'formal'] as const
+export type WordRegister = (typeof REGISTER_VALUES)[number]
 
 export interface WordEntry {
   word: string
   phonetic: string
+  /** 可选：音标备注 */
+  phonetic_note?: string
   meaning: string
+  /** 语体，取值为 REGISTER_VALUES */
+  register?: WordRegister
   example: string
   example_zh?: string
   tag: string
   level: number
   point_id?: string
   source: string
-  /** 词表若提供语气/语域字段则优先使用 */
+  /** 展示用语气；有则优先于 register */
   tone?: string
-  register?: string
-  /** 可选：音标备注 */
-  phonetic_note?: string
 }
 
 export const LEVELS: { level: number; title: string; optional?: boolean }[] = [
-  { level: 1, title: 'L1 AI 术语' },
-  { level: 2, title: 'L2 X 社区说法' },
-  { level: 3, title: 'L3 技术文档' },
-  { level: 4, title: 'L4 NGSL 基础词' },
-  { level: 5, title: 'L5 发推与 README' },
-  { level: 6, title: 'L6 面试口语', optional: true },
+  { level: 1, title: 'L1 AI 核心术语' },
+  { level: 2, title: 'L2 X/社区用语' },
+  { level: 3, title: 'L3 技术文档词汇' },
+  { level: 4, title: 'L4 通用基础词（NGSL 1.2 筛选）' },
+  { level: 5, title: 'L5 推文/README/PR 写作' },
+  { level: 6, title: 'L6 面试表达', optional: true },
 ]
 
 export const TAG_LABEL: Record<string, string> = {
@@ -40,7 +45,23 @@ export function splitPhonetics(p: string): string[] {
 
 export const WORDLIST_FILES = ['/wordlists/en-ngsl.json', '/wordlists/en-tongyun.json']
 export const NGSL_ATTRIBUTION =
-  'L4 词条取自 NGSL / NAWL 1.2（Browne, Culligan & Phillips），CC BY-SA 4.0，已筛选修改；其余词表与例句为橦云自编。'
+  'L4 词条派生自 New General Service List (NGSL) 1.2，Browne, C., Culligan, B. & Phillips, J.，CC BY-SA 4.0（https://www.newgeneralservicelist.com/ ，https://creativecommons.org/licenses/by-sa/4.0/）。已筛选并加注，本词表按 CC BY-SA 4.0 共享。其余词表与例句为橦云自编。'
+
+const PENDING_POINT_ID = '待定'
+const COMMUNITY_POINT_ID = 'en.x-community'
+
+/** L2/L5 里 point_id 仍为「待定」的条目挂到社区知识点。 */
+export function normalizeEntry(raw: WordEntry): WordEntry {
+  if ((raw.level === 2 || raw.level === 5) && raw.point_id === PENDING_POINT_ID) {
+    return { ...raw, point_id: COMMUNITY_POINT_ID }
+  }
+  return raw
+}
+
+export function entriesFromWordlist(data: { words?: WordEntry[] } | null | undefined): WordEntry[] {
+  if (!data || !Array.isArray(data.words)) return []
+  return data.words.map(normalizeEntry)
+}
 
 /** 语气标注：词表字段优先；没有就按释义/标签推断（俚语、缩写、回复用语） */
 export function toneOf(w: Pick<WordEntry, 'meaning' | 'tag' | 'tone' | 'register'>): string {
@@ -64,7 +85,7 @@ export async function loadWordlist(): Promise<WordEntry[]> {
       const res = await fetch(withAppBaseURL(file))
       if (!res.ok) continue
       const data = await res.json()
-      if (Array.isArray(data?.words)) all.push(...data.words)
+      all.push(...entriesFromWordlist(data))
     } catch {}
   }
   all.sort((a, b) => a.level - b.level)
