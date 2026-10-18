@@ -1,6 +1,10 @@
 -- 001_words_sync.sql
 -- 橦云学习练习记录同步入库 DDL
 -- 目标库：82 MySQL tongyun_learn
+-- Rollback: server/db/migrations/001_words_sync.down.sql
+--   drops words_card_state first, then words_attempts.
+-- Up creates words_attempts, then words_card_state. There is no foreign key;
+-- the order is recorded so a later FK from card state to attempts still rolls back.
 
 CREATE TABLE IF NOT EXISTS words_attempts (
   id               BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,

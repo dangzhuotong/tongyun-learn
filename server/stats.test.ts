@@ -1,3 +1,4 @@
+import { createHmac } from 'node:crypto'
 import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest'
 import {
   signSession,
@@ -64,6 +65,28 @@ describe('Stats API Auth & Read-only Token', () => {
     const wrongSecret = 'different-secret-key-which-should-fail'
     const cookie = signSession({ user_id: 'boss' }, wrongSecret)
     expect(verifySessionCookie(cookie, TEST_SECRET)).toBeNull()
+  })
+
+  it('rejects a signed payload that is not a JSON session object', () => {
+    const payloadB64 = Buffer.from('boss', 'utf8').toString('base64url')
+    const sig = createHmac('sha256', TEST_SECRET).update(payloadB64).digest('hex')
+    expect(verifySessionCookie(`${payloadB64}.${sig}`, TEST_SECRET)).toBeNull()
+  })
+
+  it('rejects a signed session that has no expiry', () => {
+    const payloadB64 = Buffer.from(JSON.stringify({ user_id: 'boss' }), 'utf8').toString('base64url')
+    const sig = createHmac('sha256', TEST_SECRET).update(payloadB64).digest('hex')
+    expect(verifySessionCookie(`${payloadB64}.${sig}`, TEST_SECRET)).toBeNull()
+  })
+
+  it('signSession stamps an expiry, and a negative max-age is already expired', () => {
+    const fresh = verifySessionCookie(createSessionCookie({ user_id: 'boss' }, TEST_SECRET), TEST_SECRET)
+    expect(fresh?.user_id).toBe('boss')
+    expect(typeof fresh?.exp).toBe('number')
+    expect(fresh!.exp).toBeGreaterThan(Math.floor(Date.now() / 1000))
+
+    const expired = createSessionCookie({ user_id: 'boss' }, TEST_SECRET, { maxAge: -10 })
+    expect(verifySessionCookie(expired, TEST_SECRET)).toBeNull()
   })
 
   it('rejects malformed or unsigned session cookie', () => {
@@ -156,14 +179,12 @@ describe('Stats Service: getStatsSummary', () => {
   it('returns today summary and last7d breakdown with correct accuracy', async () => {
     const fixedNow = new Date('2026-10-17T14:00:00+08:00')
     const todayDate = getShanghaiDate(fixedNow)
+    const calls: { sql: string; params: unknown[] }[] = []
 
     const mockPool = {
-      query: vi.fn().mockImplementation((sql: string, params: any[]) => {
-        if (sql.includes('COUNT(*) AS total') && sql.includes('AND DATE(CONVERT_TZ(answered_at')) {
-          // Today's attempts query
-          return [[{ total: 46, correct: 39 }]]
-        }
-        if (sql.includes('BETWEEN ? AND ?')) {
+      query: vi.fn().mockImplementation((sql: string, params: unknown[] = []) => {
+        calls.push({ sql, params })
+        if (/GROUP BY/i.test(sql)) {
           // Last 7 days breakdown query
           return [[
             { date: '2026-10-11', total: 30, correct: 24 },
@@ -174,6 +195,9 @@ describe('Stats Service: getStatsSummary', () => {
             { date: '2026-10-16', total: 45, correct: 35 },
             { date: '2026-10-17', total: 46, correct: 39 },
           ]]
+        }
+        if (sql.includes('COUNT(*) AS total') && sql.includes('answered_at >=')) {
+          return [[{ total: 46, correct: 39 }]]
         }
         if (sql.includes('words_card_state')) {
           // due_today query
@@ -188,11 +212,22 @@ describe('Stats Service: getStatsSummary', () => {
     const summary = await getStatsSummary('boss', fixedNow)
     expect(summary.tz).toBe('Asia/Shanghai')
     expect(summary.today).toEqual({
-      date: '2026-10-17',
+      date: todayDate,
       total: 46,
       correct: 39,
       accuracy: 0.848,
     })
+    const attemptCalls = calls.filter(call => call.sql.includes('words_attempts'))
+    expect(attemptCalls).toHaveLength(2)
+    for (const call of attemptCalls) {
+      const where = call.sql.split(/WHERE/i)[1]?.split(/GROUP BY/i)[0] ?? ''
+      expect(where).toContain('answered_at >=')
+      expect(where).toContain('answered_at <')
+      expect(where).not.toMatch(/CONVERT_TZ|DATE_FORMAT|DATE\s*\(/)
+    }
+    // Shanghai 2026-10-17 00:00 is UTC 2026-10-16 16:00. Last-7 starts on 2026-10-11.
+    expect(attemptCalls[0].params).toEqual(['boss', '2026-10-16 16:00:00.000', '2026-10-17 16:00:00.000'])
+    expect(attemptCalls[1].params).toEqual(['boss', '2026-10-10 16:00:00.000', '2026-10-17 16:00:00.000'])
     expect(summary.last7d.total).toBe(281)
     expect(summary.last7d.correct).toBe(231)
     expect(summary.last7d.accuracy).toBe(0.822)

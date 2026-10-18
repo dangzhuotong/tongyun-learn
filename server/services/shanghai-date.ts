@@ -16,6 +16,15 @@ export function getShanghaiDate(date: Date = new Date()): string {
   return `${year}-${month}-${day}`
 }
 
+/**
+ * UTC DATETIME(3) for Shanghai midnight of `dateStr`.
+ * 2026-10-18 00:00 +08 is 2026-10-17 16:00:00.000 UTC. Stored answered_at is that UTC wall clock.
+ */
+export function shanghaiMidnightUtc(dateStr: string): string {
+  const instant = new Date(`${dateStr}T00:00:00.000+08:00`)
+  return instant.toISOString().replace('T', ' ').replace('Z', '')
+}
+
 export function shiftShanghaiDate(dateStr: string, days: number): string {
   const base = new Date(`${dateStr}T12:00:00+08:00`)
   return getShanghaiDate(new Date(base.getTime() + days * 24 * 60 * 60 * 1000))

@@ -5,6 +5,8 @@ import {
   getLast7Dates,
   getShanghaiDate,
   ratio,
+  shanghaiMidnightUtc,
+  shiftShanghaiDate,
   sqlDayKey,
 } from './shanghai-date'
 
@@ -68,23 +70,26 @@ export async function getStatsSummary(
   const todayDate = getShanghaiDate(now)
   const last7Dates = getLast7Dates(todayDate)
   const startDate = last7Dates[0]
+  const todayStartUtc = shanghaiMidnightUtc(todayDate)
+  const todayEndUtc = shanghaiMidnightUtc(shiftShanghaiDate(todayDate, 1))
+  const windowStartUtc = shanghaiMidnightUtc(startDate)
 
-  // 1. Query today's attempts
+  // 1. Query today's attempts. Bounds are UTC so answered_at stays sargable.
   const todayRows = await query<any>(
-    `SELECT 
+    `SELECT
        COUNT(*) AS total,
        SUM(CASE WHEN correct = 1 THEN 1 ELSE 0 END) AS correct
      FROM words_attempts
      WHERE user_id = ?
-       AND DATE(CONVERT_TZ(answered_at, '+00:00', '+08:00')) = ?`,
-    [userId, todayDate]
+       AND answered_at >= ?
+       AND answered_at < ?`,
+    [userId, todayStartUtc, todayEndUtc]
   )
   const todayTotal = Number(todayRows[0]?.total || 0)
   const todayCorrect = Number(todayRows[0]?.correct || 0)
   const todayAccuracy = ratio(todayCorrect, todayTotal)
 
-  // 7-day rows are keyed by the Shanghai day string. Do not reuse the today
-  // predicate DATE(CONVERT_TZ(...)) = ?, or this query is counted as today only.
+  // Group label is still the Shanghai day. The filter is a UTC range on answered_at.
   const dailyRows = await query<any>(
     `SELECT
        DATE_FORMAT(CONVERT_TZ(answered_at, '+00:00', '+08:00'), '%Y-%m-%d') AS date,
@@ -92,10 +97,11 @@ export async function getStatsSummary(
        SUM(CASE WHEN correct = 1 THEN 1 ELSE 0 END) AS correct
      FROM words_attempts
      WHERE user_id = ?
-       AND DATE_FORMAT(CONVERT_TZ(answered_at, '+00:00', '+08:00'), '%Y-%m-%d') BETWEEN ? AND ?
+       AND answered_at >= ?
+       AND answered_at < ?
      GROUP BY DATE_FORMAT(CONVERT_TZ(answered_at, '+00:00', '+08:00'), '%Y-%m-%d')
      ORDER BY date ASC`,
-    [userId, startDate, todayDate]
+    [userId, windowStartUtc, todayEndUtc]
   )
 
   const dailyMap = new Map<string, { total: number; correct: number }>()

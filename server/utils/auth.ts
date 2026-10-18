@@ -212,7 +212,10 @@ export function signSession(
   if (!secret) {
     throw new Error('WORDS_SESSION_SECRET is required to sign session')
   }
-  const data = typeof payload === 'string' ? { user_id: payload } : payload
+  const data = typeof payload === 'string' ? { user_id: payload } : { ...payload }
+  if (typeof data.exp !== 'number') {
+    data.exp = Math.floor(Date.now() / 1000) + DEFAULT_SESSION_MAX_AGE
+  }
   const jsonStr = JSON.stringify(data)
   const payloadB64 = Buffer.from(jsonStr, 'utf8').toString('base64url')
   const hmac = crypto.createHmac('sha256', secret).update(payloadB64).digest('hex')
@@ -227,8 +230,11 @@ export function createSessionCookie(
   secret: string = process.env.WORDS_SESSION_SECRET || '',
   options: { maxAge?: number } = {}
 ): string {
-  const token = signSession(payload, secret)
   const maxAge = options.maxAge ?? DEFAULT_SESSION_MAX_AGE
+  const token = signSession(
+    typeof payload === 'string' ? { user_id: payload, exp: Math.floor(Date.now() / 1000) + maxAge } : { ...payload, exp: payload.exp ?? Math.floor(Date.now() / 1000) + maxAge },
+    secret
+  )
   return `tw_sess=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}`
 }
 
@@ -312,41 +318,23 @@ export function verifySessionCookie(
     }
   }
 
-  if (!parsed) {
-    try {
-      parsed = JSON.parse(payloadPart)
-    } catch {
-      parsed = null
-    }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    return null
   }
 
-  if (!parsed && payloadPart) {
-    parsed = { user_id: payloadPart }
+  const userId = parsed.user_id || parsed.userId || parsed.u || parsed.sub || parsed.username
+  if (!userId || typeof parsed.exp !== 'number') {
+    return null
+  }
+  parsed.user_id = String(userId)
+
+  const nowSec = Math.floor(Date.now() / 1000)
+  const expSec = parsed.exp > 1e11 ? Math.floor(parsed.exp / 1000) : parsed.exp
+  if (expSec < nowSec) {
+    return null
   }
 
-  if (typeof parsed === 'string') {
-    parsed = { user_id: parsed }
-  }
-
-  if (parsed && typeof parsed === 'object') {
-    const userId = parsed.user_id || parsed.userId || parsed.u || parsed.sub || parsed.username
-    if (!userId) {
-      return null
-    }
-    parsed.user_id = String(userId)
-
-    if (parsed.exp && typeof parsed.exp === 'number') {
-      const nowSec = Math.floor(Date.now() / 1000)
-      const expSec = parsed.exp > 1e11 ? Math.floor(parsed.exp / 1000) : parsed.exp
-      if (expSec < nowSec) {
-        return null
-      }
-    }
-
-    return parsed
-  }
-
-  return null
+  return parsed
 }
 
 export const verifySession = verifySessionCookie

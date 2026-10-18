@@ -1,5 +1,5 @@
 import type { Pool } from 'mysql2/promise'
-import { getLast7Dates, getShanghaiDate, ratio, sqlDayKey } from '../services/shanghai-date'
+import { getLast7Dates, getShanghaiDate, ratio, shanghaiMidnightUtc, shiftShanghaiDate, sqlDayKey } from '../services/shanghai-date'
 
 export { getShanghaiDate } from '../services/shanghai-date'
 
@@ -44,17 +44,20 @@ export async function fetchStatsSummary(
 ): Promise<StatsSummaryResult> {
   const todayDate = getShanghaiDate(now)
   const startDate = getLast7Dates(todayDate, now)[0]
+  const todayStartUtc = shanghaiMidnightUtc(todayDate)
+  const todayEndUtc = shanghaiMidnightUtc(shiftShanghaiDate(todayDate, 1))
+  const windowStartUtc = shanghaiMidnightUtc(startDate)
 
-  // Today is a single Shanghai day. The 7-day query must not reuse this
-  // DATE(CONVERT_TZ(...)) = predicate, or the daily rows collapse into today's total.
+  // Range on answered_at (UTC) so ix_user_time can be used. Shanghai midnight is UTC 16:00 the previous day.
   const [todayRows] = await pool.query<any[]>(
     `SELECT
        COUNT(*) AS total,
        COALESCE(SUM(correct), 0) AS correct
      FROM words_attempts
      WHERE user_id = ?
-       AND DATE(CONVERT_TZ(answered_at, '+00:00', '+08:00')) = ?`,
-    [userId, todayDate]
+       AND answered_at >= ?
+       AND answered_at < ?`,
+    [userId, todayStartUtc, todayEndUtc]
   )
   const todayTotal = Number(todayRows[0]?.total || 0)
   const todayCorrect = Number(todayRows[0]?.correct || 0)
@@ -68,11 +71,11 @@ export async function fetchStatsSummary(
        COALESCE(SUM(correct), 0) AS correct
      FROM words_attempts
      WHERE user_id = ?
-       AND DATE_FORMAT(CONVERT_TZ(answered_at, '+00:00', '+08:00'), '%Y-%m-%d') >= ?
-       AND DATE_FORMAT(CONVERT_TZ(answered_at, '+00:00', '+08:00'), '%Y-%m-%d') <= ?
+       AND answered_at >= ?
+       AND answered_at < ?
      GROUP BY day
      ORDER BY day ASC`,
-    [userId, startDate, todayDate]
+    [userId, windowStartUtc, todayEndUtc]
   )
 
   let last7dTotal = 0

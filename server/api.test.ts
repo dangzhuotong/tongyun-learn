@@ -1,4 +1,10 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { createEvent } from 'h3'
+import { IncomingMessage, ServerResponse } from 'node:http'
+import { Socket } from 'node:net'
+import attemptsHandler from './routes/words/api/v1/attempts.post'
+import stateHandler from './routes/words/api/v1/state.get'
+import { resetDbPool, setDbPool } from './utils/db'
 import bcrypt from 'bcryptjs'
 import {
   signSessionToken,
@@ -15,7 +21,6 @@ import {
 import { fetchCardStates } from './utils/state'
 import { fetchStatsSummary, fetchStatsMistakes, getShanghaiDate } from './utils/stats'
 import { getHealthStatus } from './utils/health'
-import { setDbPool } from './utils/db'
 
 describe('server/utils/auth', () => {
   beforeEach(() => {
@@ -255,6 +260,50 @@ describe('server/utils/attempts processing (idempotency & DB logic)', () => {
     expect(result.duplicate).toBe(1)
     expect(result.rejected.length).toBe(0)
   })
+
+  it('pre-check empty but INSERT IGNORE hits the unique key: duplicate, no card-state write', async () => {
+    const cardStateSql: string[] = []
+    const mockConn = {
+      beginTransaction: vi.fn().mockResolvedValue(undefined),
+      commit: vi.fn().mockResolvedValue(undefined),
+      rollback: vi.fn().mockResolvedValue(undefined),
+      release: vi.fn(),
+      query: vi.fn().mockImplementation((sql: string) => {
+        if (sql.includes('SELECT client_event_id FROM words_attempts')) {
+          return [[]]
+        }
+        if (sql.includes('INSERT IGNORE INTO words_attempts')) {
+          return [{ affectedRows: 0 }]
+        }
+        if (sql.includes('words_card_state')) {
+          cardStateSql.push(sql)
+          return [{ affectedRows: 1 }]
+        }
+        return [{ affectedRows: 1 }]
+      }),
+    }
+    const mockPool: any = {
+      getConnection: vi.fn().mockResolvedValue(mockConn),
+    }
+    const event = {
+      client_event_id: 'race-uuid',
+      word: 'apple',
+      correct: false,
+      duration_ms: 1200,
+      answered_at: '2026-10-17T10:00:00.000Z',
+      interval_days: 1,
+      next_review_on: '2026-10-18',
+    }
+
+    const result = await processAttemptsBatch(mockPool, 'boss', [event])
+
+    expect(result.accepted).toBe(0)
+    expect(result.duplicate).toBe(1)
+    expect(result.rejected).toEqual([])
+    expect(cardStateSql).toEqual([])
+    expect(mockConn.commit).toHaveBeenCalled()
+    expect(mockConn.rollback).not.toHaveBeenCalled()
+  })
 })
 
 describe('server/utils/state', () => {
@@ -299,9 +348,6 @@ describe('server/utils/stats', () => {
   it('calculates summary metrics and daily breakdown', async () => {
     const mockPool: any = {
       query: vi.fn().mockImplementation((sql: string) => {
-        if (sql.includes('DATE(CONVERT_TZ(answered_at')) {
-          return [[{ total: 46, correct: 39 }]]
-        }
         if (sql.includes('GROUP BY day')) {
           return [
             [
@@ -309,6 +355,9 @@ describe('server/utils/stats', () => {
               { day: '2026-10-17', total: 46, correct: 39 },
             ],
           ]
+        }
+        if (sql.includes('COUNT(*) AS total') && sql.includes('answered_at >=')) {
+          return [[{ total: 46, correct: 39 }]]
         }
         if (sql.includes('COUNT(*) AS count FROM words_card_state')) {
           return [[{ count: 18 }]]
@@ -349,6 +398,44 @@ describe('server/utils/stats', () => {
     expect(mistakes.items.length).toBe(1)
     expect(mistakes.items[0].word).toBe('idempotent')
     expect(mistakes.items[0].error_rate).toBe(0.714)
+  })
+})
+
+describe('read-only stats token cannot call write routes', () => {
+  const STATS_TOKEN = 'stats-read-only-secret-token-xyz'
+
+  afterEach(() => {
+    delete process.env.WORDS_STATS_TOKEN
+    resetDbPool()
+  })
+
+  function bearerEvent(method: string, url: string) {
+    const req = new IncomingMessage(new Socket())
+    req.method = method
+    req.url = url
+    req.headers = {
+      authorization: `Bearer ${STATS_TOKEN}`,
+      'content-type': 'application/json',
+    }
+    return createEvent(req, new ServerResponse(req))
+  }
+
+  it('POST /attempts and GET /state return 401 and do not touch the database', async () => {
+    process.env.WORDS_STATS_TOKEN = STATS_TOKEN
+    const pool = {
+      query: vi.fn(),
+      getConnection: vi.fn(),
+    }
+    setDbPool(pool as any)
+
+    await expect(attemptsHandler(bearerEvent('POST', '/words/api/v1/attempts'))).rejects.toMatchObject({
+      statusCode: 401,
+    })
+    await expect(stateHandler(bearerEvent('GET', '/words/api/v1/state'))).rejects.toMatchObject({
+      statusCode: 401,
+    })
+    expect(pool.query).not.toHaveBeenCalled()
+    expect(pool.getConnection).not.toHaveBeenCalled()
   })
 })
 

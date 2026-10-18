@@ -51,7 +51,7 @@ importers:
         specifier: ^2.0.5
         version: 2.0.5
       h3:
-        specifier: ^1.15.11
+        specifier: 1.15.11
         version: 1.15.11
       idb-keyval:
         specifier: ^6.2.2

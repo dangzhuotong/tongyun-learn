@@ -55,11 +55,21 @@ export function formatDateTime(isoStr: string): string {
   return d.toISOString().replace('T', ' ').replace('Z', '')
 }
 
+export interface ProcessAttemptsOptions {
+  /**
+   * Test seam. Runs after the pre-check and before INSERT IGNORE, so a
+   * concurrent commit can land the same client_event_id. Card state is updated
+   * only when that insert reports affectedRows === 1.
+   */
+  afterPrecheck?: () => Promise<void>
+}
+
 export async function processAttemptsBatch(
   pool: Pool,
   userId: string,
   rawEvents: unknown[],
-  clientUaFallback?: string
+  clientUaFallback?: string,
+  options?: ProcessAttemptsOptions
 ): Promise<ProcessAttemptsResult> {
   const rejected: Array<{ client_event_id?: string; error: string }> = []
   const validEvents: AttemptEvent[] = []
@@ -107,79 +117,85 @@ export async function processAttemptsBatch(
       eventIds
     )
 
-    const existingIdSet = new Set(existingRows.map(r => r.client_event_id))
-    const toInsert = validEvents.filter(e => !existingIdSet.has(e.client_event_id))
-    const duplicateCount = batchDuplicateCount + existingIdSet.size
+    const existingList = Array.isArray(existingRows) ? existingRows : []
+    const existingIdSet = new Set(existingList.map(r => r.client_event_id))
+    let duplicateCount = batchDuplicateCount + existingIdSet.size
+    let accepted = 0
 
-    if (toInsert.length > 0) {
-      // 2. 批量插入 words_attempts
-      const attemptsValues = toInsert.map(e => [
-        e.client_event_id,
-        userId,
-        e.word,
-        e.point_id || null,
-        e.level || null,
-        e.mode || 'recall',
-        e.correct ? 1 : 0,
-        e.duration_ms,
-        e.answer_text || null,
-        formatDateTime(e.answered_at),
-        e.interval_days,
-        e.next_review_on,
-        e.wordlist_ver || null,
-        e.client_ua || clientUaFallback || null,
-      ])
+    // A concurrent request can commit the same client_event_id after this read.
+    if (options?.afterPrecheck) {
+      await options.afterPrecheck()
+    }
 
-      await conn.query(
-        `INSERT INTO words_attempts
+    // answered_at order so a later event in this batch cannot be overwritten by an earlier one.
+    const toTry = validEvents
+      .filter(e => !existingIdSet.has(e.client_event_id))
+      .sort((a, b) => new Date(a.answered_at).getTime() - new Date(b.answered_at).getTime())
+
+    for (const e of toTry) {
+      const answeredAtStr = formatDateTime(e.answered_at)
+      // Per-row INSERT IGNORE: affectedRows === 1 only when this transaction inserted the row.
+      // A duplicate unique key is a no-op (affectedRows === 0) and must not touch card state.
+      const [header] = await conn.query<any>(
+        `INSERT IGNORE INTO words_attempts
           (client_event_id, user_id, word, point_id, level, mode, correct, duration_ms, answer_text, answered_at, interval_days, next_review_on, wordlist_ver, client_ua)
-         VALUES ?
-         ON DUPLICATE KEY UPDATE id=id`,
-        [attemptsValues]
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          e.client_event_id,
+          userId,
+          e.word,
+          e.point_id || null,
+          e.level || null,
+          e.mode || 'recall',
+          e.correct ? 1 : 0,
+          e.duration_ms,
+          e.answer_text || null,
+          answeredAtStr,
+          e.interval_days,
+          e.next_review_on,
+          e.wordlist_ver || null,
+          e.client_ua || clientUaFallback || null,
+        ]
       )
-
-      // 3. upsert words_card_state
-      // 规则：upsert card_state 时只在 answered_at >= last_answered_at 才覆盖（补传的旧事件不回滚新状态）
-      // 先按 answered_at 升序处理
-      toInsert.sort((a, b) => new Date(a.answered_at).getTime() - new Date(b.answered_at).getTime())
-
-      for (const e of toInsert) {
-        const answeredAtStr = formatDateTime(e.answered_at)
-        const lapse = e.correct ? 0 : 1
-
-        await conn.query(
-          `INSERT INTO words_card_state
-            (user_id, word, point_id, interval_days, next_review_on, reps, lapses, last_answered_at)
-           VALUES (?, ?, ?, ?, ?, 1, ?, ?)
-           ON DUPLICATE KEY UPDATE
-             reps = reps + 1,
-             lapses = lapses + ?,
-             point_id = IF(? >= last_answered_at, VALUES(point_id), point_id),
-             interval_days = IF(? >= last_answered_at, VALUES(interval_days), interval_days),
-             next_review_on = IF(? >= last_answered_at, VALUES(next_review_on), next_review_on),
-             last_answered_at = IF(? >= last_answered_at, VALUES(last_answered_at), last_answered_at)`,
-          [
-            userId,
-            e.word,
-            e.point_id || null,
-            e.interval_days,
-            e.next_review_on,
-            lapse,
-            answeredAtStr,
-            lapse,
-            answeredAtStr,
-            answeredAtStr,
-            answeredAtStr,
-            answeredAtStr,
-          ]
-        )
+      if (Number(header?.affectedRows ?? 0) !== 1) {
+        duplicateCount += 1
+        continue
       }
+      accepted += 1
+
+      const lapse = e.correct ? 0 : 1
+      await conn.query(
+        `INSERT INTO words_card_state
+          (user_id, word, point_id, interval_days, next_review_on, reps, lapses, last_answered_at)
+         VALUES (?, ?, ?, ?, ?, 1, ?, ?)
+         ON DUPLICATE KEY UPDATE
+           reps = reps + 1,
+           lapses = lapses + ?,
+           point_id = IF(? >= last_answered_at, VALUES(point_id), point_id),
+           interval_days = IF(? >= last_answered_at, VALUES(interval_days), interval_days),
+           next_review_on = IF(? >= last_answered_at, VALUES(next_review_on), next_review_on),
+           last_answered_at = IF(? >= last_answered_at, VALUES(last_answered_at), last_answered_at)`,
+        [
+          userId,
+          e.word,
+          e.point_id || null,
+          e.interval_days,
+          e.next_review_on,
+          lapse,
+          answeredAtStr,
+          lapse,
+          answeredAtStr,
+          answeredAtStr,
+          answeredAtStr,
+          answeredAtStr,
+        ]
+      )
     }
 
     await conn.commit()
 
     return {
-      accepted: toInsert.length,
+      accepted,
       duplicate: duplicateCount,
       rejected,
     }
