@@ -3,14 +3,9 @@ import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { buildSession, type SessionPlan } from '@/tongyun/english/study'
 import {
-  LEVELS,
-  NGSL_ATTRIBUTION,
   getOptionalLevels,
   getStats,
   loadWordlist,
-  orderedLevels,
-  setOptionalLevel,
-  type WordEntry,
   type WordStat,
 } from '@/tongyun/english/wordlist'
 
@@ -26,8 +21,6 @@ const router = useRouter()
 const ready = ref(false)
 const loading = ref(true)
 const plan = ref<SessionPlan | null>(null)
-const levels = ref<{ level: number; title: string; optional?: boolean; done: number; total: number }[]>([])
-const optional = ref<number[]>([])
 
 const dateText = computed(() => {
   const now = new Date()
@@ -50,21 +43,9 @@ async function load() {
   loading.value = true
   const list = await loadWordlist()
   const stats: Record<string, WordStat> = getStats()
-  optional.value = getOptionalLevels()
-  plan.value = buildSession(list, stats, optional.value)
-  levels.value = orderedLevels(optional.value).map(n => {
-    const meta = LEVELS.find(l => l.level === n)
-    const words: WordEntry[] = list.filter(w => w.level === n)
-    const done = words.filter(w => stats[w.word]?.taught).length
-    return { level: n, title: meta?.title || `L${n}`, optional: meta?.optional, done, total: words.length }
-  })
+  const optional = getOptionalLevels()
+  plan.value = buildSession(list, stats, optional)
   loading.value = false
-}
-
-function toggleOptional(n: number) {
-  const on = !optional.value.includes(n)
-  setOptionalLevel(n, on)
-  load()
 }
 
 onMounted(() => {
@@ -99,27 +80,6 @@ onMounted(() => {
         开始学
       </button>
     </div>
-
-    <details class="levels" data-testid="level-progress">
-      <summary>级别进度</summary>
-      <ul>
-        <li v-for="l in levels" :key="l.level" :data-testid="`level-${l.level}`">
-          <span class="lv-title">{{ l.title }}</span>
-          <span class="lv-count">{{ l.done }}/{{ l.total }}</span>
-          <label v-if="l.optional" class="lv-opt">
-            <input
-              type="checkbox"
-              :checked="optional.includes(l.level)"
-              :data-testid="`level-optional-${l.level}`"
-              @change="toggleOptional(l.level)"
-            />
-            可选
-          </label>
-        </li>
-      </ul>
-    </details>
-
-    <p class="credit">{{ NGSL_ATTRIBUTION }}</p>
   </section>
 </template>
 
@@ -174,52 +134,5 @@ h1 {
   margin: 0;
   font-size: 22px;
   font-weight: 650;
-}
-
-.levels {
-  margin-top: 20px;
-  font-size: 13px;
-  color: var(--yy-ink-soft);
-}
-
-.levels summary {
-  cursor: pointer;
-  min-height: 32px;
-}
-
-.levels ul {
-  list-style: none;
-  margin: 8px 0 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.levels li {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.lv-title {
-  flex: 1;
-}
-
-.lv-count {
-  color: var(--yy-matcha-deep);
-}
-
-.lv-opt {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.credit {
-  margin-top: 18px;
-  font-size: 12px;
-  color: var(--yy-ink-soft);
-  line-height: 1.6;
 }
 </style>

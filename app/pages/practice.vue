@@ -7,7 +7,7 @@ import { getEnglishPrefs } from '@/tongyun/english/prefs'
 import { recordAnswer, type AnswerMode } from '@/tongyun/english/records'
 import { hintText, randomHint, type HintMask } from '@/tongyun/english/hint'
 import { typeableSentence } from '@/tongyun/english/local-queue'
-import { buildMeaningChoices, buildSession, buildWordChoices, resolveSpell, type StudyItem } from '@/tongyun/english/study'
+import { buildMeaningChoices, buildSession, buildWordChoices, handleChoiceTransition, resolveChoice, resolveSpell, type StudyItem } from '@/tongyun/english/study'
 import {
   getOptionalLevels,
   getStats,
@@ -181,11 +181,21 @@ function choose(option: string) {
   chosen.value = option
   const correct = option === correctOption
   choiceResult.value = correct ? 'correct' : 'wrong'
-  recordAnswer(w.word, 'choice', correct)
+  const now = Date.now()
+  recordAnswer(w.word, 'choice', correct, now)
+  if (!correct) {
+    const prev = getStats()[w.word] || teachStat(w.word, now)
+    const { stat } = resolveChoice(prev, false, now)
+    saveStat(w.word, stat)
+  }
 }
 
 function continueChoice() {
   if (choiceResult.value === 'idle') return
+  const w = entry.value
+  if (w && choiceResult.value === 'wrong') {
+    handleChoiceTransition(items.value, index.value, w, false)
+  }
   next()
 }
 
