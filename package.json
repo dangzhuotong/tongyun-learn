@@ -5,7 +5,7 @@
     "dev": "nuxt dev",
     "start": "nuxt dev",
     "build": "nuxt build",
-    "generate": "NUXT_APP_BASE_URL=/words/ nuxt generate",
+    "generate": "nuxt generate",
     "preview": "nuxt preview",
     "i18n:write": "gulp i18nWrite",
     "test": "vitest run"

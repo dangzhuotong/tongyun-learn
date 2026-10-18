@@ -23,22 +23,63 @@
   <b>Learn English, one keystroke at a time; smarter memorization, more efficient learning - an open-source word and article practice tool</b>
 </p>
 
-<!-- tongyun: fork 说明 -->
-## 关于这个 fork（tongyun-words）
+<!-- tongyun: 单一仓库 -->
+## 橦云学习
 
-基于 [TypeWords](https://github.com/zyronon/TypeWords) 的个人自用 fork，同样以 GPL-3.0 开源。在上游功能之外加了这些（改动处代码里都带 `tongyun:` 标记，方便以后合并上游）：
+本仓库是「橦云学习」的单一代码库。[tongyun-words](https://github.com/dangzhuotong/tongyun-words) 已归档，它的前端代码和提交历史都在这里。旧的 Python 学习服务在 [`legacy/`](legacy/README.md)，在被替换之前仍在 82 上提供 `/learn/api`（本机 `127.0.0.1:8031`）。
 
-- **橦云学习**（学习中枢门面。站点入口 `/`，部署后仍是 `/words/`）：今日、练习、教练、设置是站内模块，背单词在练习里。先整词手敲再整句手敲，空格继续。今天学几项、要不要敲句都听 tongyun-learn 的 `GET /v1/today`；敲完 `POST /v1/type`（`card_id`、`phase`、`typed`、`duration_ms`）；教练页 `GET/POST /v1/coach`。令牌仍在设置里，只存本机。旧地址 `/typewords` 会进练习。视觉见 [DESIGN.md](DESIGN.md)。
-- **子路径部署**：`pnpm generate` 使用 `NUXT_APP_BASE_URL=/words/`。
+前端基于 [TypeWords](https://github.com/zyronon/TypeWords)（GPL-3.0）。对上游的改动在代码里带 `tongyun:` 标记。
+
+### 目录
+
+| 路径 | 内容 |
+| --- | --- |
+| 仓库根（`app/`、`public/`、`package.json`） | Nuxt 前端，主应用。`npm run generate` 产出静态站 |
+| `public/dicts/`、`public/list/`、`public/wordlists/` | 词表。不要改这些内容 |
+| `legacy/` | 旧 FastAPI 学习服务。命令在该目录执行，说明见 [`legacy/README.md`](legacy/README.md) |
+| `docs/` | 前端贡献说明、各语言 README、联调说明 |
+| `legacy/docs/` | 旧服务的测试体系与看板契约 |
+
+### 静态站 base
+
+默认子路径是 `/learn/`（以前是 `/words/`）。`nuxt.config.ts` 读 `NUXT_APP_BASE_URL`，没设时用 `/learn/`。要换路径就在命令前加上这个变量，例如 `NUXT_APP_BASE_URL=/preview/ npm run generate`。本地开发同样受这个变量控制，默认打开 `http://localhost:5567/learn/`。
+
+站内「背单词」页面仍是 `/words`（部署后是 `/learn/words`）。这是页面路由，不是站点 base。
+
+### 前端
+
+```bash
+pnpm install
+pnpm dev          # http://localhost:5567/learn/
+pnpm test         # vitest
+npm run generate  # 静态站，默认 base /learn/，产物在 .output/public
+```
+
+`npm run generate` 和 `pnpm generate` 走同一条脚本。
+
+今日、练习、教练、设置是站内模块，背单词在练习里。先整词手敲再整句手敲，空格继续。今天学几项、要不要敲句都听学习服务的 `GET /v1/today`；敲完 `POST /v1/type`（`card_id`、`phase`、`typed`、`duration_ms`）；教练页 `GET/POST /v1/coach`。令牌只存本机。旧地址 `/typewords` 会进练习。视觉见 [DESIGN.md](DESIGN.md)。
+
 - **智能混学**：跨词书按记忆曲线复习，再随机补新词，不分章节。
 - **AI 记忆法 / AI 讲解**：单词记忆法和文章句子讲解，调同域的学习服务 `/learn/api/v1/ai/explain`。学习服务地址和令牌在「设置 → 通用设置」顶部填写，只存在本浏览器 localStorage。
-- **AI 错词复习卷**（`/ai-quiz`，部署后是 `/words/ai-quiz`）：从错词本选词，调 `/learn/api/v1/ai/quiz` 生成 cloze / 选择 / 英译中，本地判分。复用同一份学习服务地址和令牌。
-- **学习看板**（`/learn-board`，部署后是 `/words/learn-board`）：手机优先的只读页面，按顺序显示今天学什么（待复查在前，新点标出会不会占今天的新开名额）、待复习数和前几张卡的正面、卡点、各科统计（掌握数、各状态数、30 天保持率）、按阶段折叠的知识地图（点开一个点能看到硬前置和软前置）。
+- **AI 错词复习卷**（`/ai-quiz`，部署后是 `/learn/ai-quiz`）：从错词本选词，调 `/learn/api/v1/ai/quiz` 生成 cloze / 选择 / 英译中，本地判分。复用同一份学习服务地址和令牌。
+- **学习看板**（`/learn-board`，部署后是 `/learn/learn-board`）：手机优先的只读页面，按顺序显示今天学什么（待复查在前，新点标出会不会占今天的新开名额）、待复习数和前几张卡的正面、卡点、各科统计（掌握数、各状态数、30 天保持率）、按阶段折叠的知识地图（点开一个点能看到硬前置和软前置）。
   - 复用设置里的同一份学习服务地址和令牌。没填令牌时只提示去设置，不发任何请求。
   - 只调学习服务的 GET 接口：`/subjects`、`/subjects/{id}/map`、`/next`、`/review/due`、`/progress`、`/blockers`。每块单独加载、单独报错：令牌不对提示去设置改，连不上提示「连不上学习服务」；连到没有 `/blockers` 的旧版服务（404）时显示「卡点记录即将接入」。
   - 页面是 `ssr:false` 的纯客户端页面，静态产物里没有任何学习数据。
 - 本机联调、探活命令和常见错误见 [docs/tongyun-learn-integration.md](docs/tongyun-learn-integration.md)。
 - 默认关闭了原作者的第三方统计脚本（开关在 `app/tongyun/config.ts`）。
+
+### 旧后端
+
+在 `legacy/` 里。82 上的反代仍把 `/learn/api/` 转到 `127.0.0.1:8031/`。对外静态站是 `https://主机/learn/`，接口是 `https://主机/learn/api/v1/health`。
+
+```bash
+cd legacy
+uv sync
+cp .env.example .env
+uv run alembic upgrade head
+uv run uvicorn tongyun_learn.main:app --host 127.0.0.1 --port 8031 --reload
+```
 
 ## Project Introduction
 

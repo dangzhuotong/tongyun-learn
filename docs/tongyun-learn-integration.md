@@ -1,25 +1,26 @@
 # 与 tongyun-learn 联调
 
-tongyun-words 的 AI 讲解、AI 错词复习卷、学习看板都调学习服务 tongyun-learn。线上两者同域（`/words/` 和 `/learn/api/`），本机联调按下面来。
+前端的 AI 讲解、AI 错词复习卷、学习看板都调 `legacy/` 里的学习服务。线上两者同域（静态站 `/learn/`，接口 `/learn/api/`），本机联调按下面来。
 
 ## 本机起服务
 
-1. 起 tongyun-learn（在它的仓库里，详见其 README）：
+1. 起学习服务（在本仓库的 `legacy/`，详见 [`legacy/README.md`](../legacy/README.md)）：
 
    ```bash
+   cd legacy
    cp .env.example .env
    # 自己定一个 web 令牌，把它的 sha256 写进 .env：
    #   LEARN_TOKEN_WEB_SHA256=$(printf '%s' "$LEARN_TOKEN" | sha256sum | cut -d' ' -f1)
-   # words 和 learn 不同源，本机要放开 CORS：
-   #   LEARN_CORS_ORIGINS=http://localhost:3000
+   # 前端和接口不同源，本机要放开 CORS：
+   #   LEARN_CORS_ORIGINS=http://localhost:5567
    uv run alembic upgrade head
    uv run uvicorn tongyun_learn.main:app --host 127.0.0.1 --port 8031
    ```
 
    想真调 AI 还要配 `KIE_API_KEY`；不配也能测鉴权和参数校验。
 
-2. 起 words：`pnpm dev`（默认 `http://localhost:3000`）。
-3. 打开橦云学习的「设置」（`/settings`）：地址填 `http://127.0.0.1:8031/`（本机没有 `/learn/api` 前缀），令牌填 `$LEARN_TOKEN` 的原文。地址和令牌只存在本浏览器 localStorage。线上反代则地址保持默认 `/learn/api/`。
+2. 起前端：在仓库根目录 `pnpm dev`（默认 `http://localhost:5567/learn/`）。
+3. 打开橦云学习的「设置」（`/settings`，开发地址是 `http://localhost:5567/learn/settings`）：地址填 `http://127.0.0.1:8031/`（本机没有 `/learn/api` 前缀），令牌填 `$LEARN_TOKEN` 的原文。地址和令牌只存在本浏览器 localStorage。线上反代则地址保持默认 `/learn/api/`。
 
 ## 用到的接口
 

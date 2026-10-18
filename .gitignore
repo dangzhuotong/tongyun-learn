@@ -40,3 +40,11 @@ report.html
 public/vscode
 apps/TypeWordsMiniApp
 *.tsbuildinfo
+
+# legacy Python service
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+*.db

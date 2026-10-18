@@ -45,7 +45,8 @@ function toSiteURL(path: string, baseURL: string) {
   return new URL(withBaseURL(path, baseURL), siteOrigin).toString()
 }
 
-const appBaseURL = normalizeBaseURL(process.env.NUXT_APP_BASE_URL || '/')
+// 静态站默认挂在 /learn/。NUXT_APP_BASE_URL 可覆盖（例如 NUXT_APP_BASE_URL=/ npm run generate）。
+const appBaseURL = normalizeBaseURL(process.env.NUXT_APP_BASE_URL || '/learn/')
 
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
