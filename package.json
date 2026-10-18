@@ -40,7 +40,9 @@
     "vue-router": "^4.6.3",
     "vue-virtual-scroller": "2.0.0-beta.8",
     "vxe-table": "4.18.10",
-    "node-forge": "^1.3.1"
+    "node-forge": "^1.3.1",
+    "mysql2": "^3.24.6",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@alicloud/pop-core": "^1.8.0",
