@@ -1,429 +1,168 @@
-# tongyun-learn
+<h1 align=center>
+  <img src="https://github.com/user-attachments/assets/9d626e0f-0601-4640-8981-ad66d8ac4853" alt="TypeWords" style="width: 500px;"/>
+</h1>
 
-tongyun-learn 是给 tongyun-words（TypeWords 分支）和 阿学 用的学习服务后端，负责知识地图、FSRS 卡片复习调度、证据过关判定与 AI 讲解代理。云芽英语手敲（今日队列、敲词/敲句、DeepSeek 教练）也在这个服务里。
+<p align="center">
+  <a href="/README.md">English</a> |
+  <a href="/docs/README.es.md">Español</a> |
+  <a href="/docs/README.de.md">Deutsch</a> |
+  <a href="/docs/README.fr.md">Français</a> |
+  <a href="/docs/README.pt.md">Português</a> |
+  <a href="/docs/README.ru.md">Русский</a> |
+  <a href="/docs/README.uk.md">Українська</a> |
+  <a href="/docs/README.ja.md">日本語</a> |
+  <a href="/docs/README.ko.md">한국인</a> |
+  <a href="/docs/README.th.md">ไทย</a> |
+  <a href="/docs/README.vi.md">Tiếng Việt</a> |
+  <a href="/docs/README.id.md">Bahasa Indonesia</a> |
+  <a href="/docs/README.zh-TW.md">繁體中文</a> |
+  <a href="/docs/README.zh-CN.md">简体中文</a> 
+</p>
 
-## 云芽英语（手敲）
+<p align="center">
+  <b>Learn English, one keystroke at a time; smarter memorization, more efficient learning - an open-source word and article practice tool</b>
+</p>
 
-只做英语。线性单元，本单元毕业才解锁下一单元。每天学几个、要不要敲例句、队列怎么排，由教练决定；没有 `DEEPSEEK_API_KEY` 时用确定性规则（到期复习 + 钉子词 + 当前单元新词），一样能学。每次敲击进 `type_events`，每次计划进 `coach_plans`。
+<!-- tongyun: 单一仓库 -->
+## 橦云学习
 
-毕业默认（写在单元的 `graduate_rule_json` 里）：本单元至少 80% 的词卡进入 FSRS 复习态，近 3 天本单元正确率至少 85%，并且没有连续错 3 次的钉子词。开发英语第 3 单元毕业后，生活英语最多占当日队列的 20%。
+本仓库是「橦云学习」的单一代码库。[tongyun-words](https://github.com/dangzhuotong/tongyun-words) 已归档，它的前端代码和提交历史都在这里。旧的 Python 学习服务在 [`legacy/`](legacy/README.md)，在被替换之前仍在 82 上提供 `/learn/api`（本机 `127.0.0.1:8031`）。
 
-课表种子是单元 1–3 的开发英语词和例句，外加一小批生活词。迁移之后写入：
+前端基于 [TypeWords](https://github.com/zyronon/TypeWords)（GPL-3.0）。对上游的改动在代码里带 `tongyun:` 标记。
 
-```bash
-uv run python -m tongyun_learn.cli seed-english
-```
+### 目录
 
-接口也会在第一次打开今日队列时自动种子，重复执行不会重复插卡。
+| 路径 | 内容 |
+| --- | --- |
+| 仓库根（`app/`、`public/`、`package.json`） | Nuxt 前端，主应用。`npm run generate` 产出静态站 |
+| `public/dicts/`、`public/list/`、`public/wordlists/` | 词表。不要改这些内容 |
+| `legacy/` | 旧 FastAPI 学习服务。命令在该目录执行，说明见 [`legacy/README.md`](legacy/README.md) |
+| `docs/` | 前端贡献说明、各语言 README、联调说明 |
+| `legacy/docs/` | 旧服务的测试体系与看板契约 |
 
-| 接口 | 说明 |
-|---|---|
-| `GET /v1/health` | 健康检查，不用令牌 |
-| `GET /v1/today` | 今日队列。`include_sentences` 表示里面有没有 B 敲句 |
-| `POST /v1/type` | 提交一次敲击（`phase` 为 `A` 词或 `B` 句），更新 FSRS |
-| `GET /v1/coach` | 实时薄弱点 + 最近一份已入库计划 |
-| `POST /v1/coach` | 生成并入库一份计划。有 DeepSeek 密钥走模型，否则 `source=rules` |
+### 静态站 base
 
-鉴权与原来一样：`Authorization: Bearer <token>`，服务端只存 SHA256（`LEARN_TOKEN_WEB_SHA256` / `LEARN_TOKEN_AXUE_SHA256`）。
+默认子路径是 `/learn/`（以前是 `/words/`）。`nuxt.config.ts` 读 `NUXT_APP_BASE_URL`，没设时用 `/learn/`。要换路径就在命令前加上这个变量，例如 `NUXT_APP_BASE_URL=/preview/ npm run generate`。本地开发同样受这个变量控制，默认打开 `http://localhost:5567/learn/`。
 
-82 上的环境文件（`/etc/tongyun-learn.env`，不要提交仓库）至少包括：
+站内「背单词」页面仍是 `/words`（部署后是 `/learn/words`）。这是页面路由，不是站点 base。
 
-- `LEARN_DATABASE_URL`：MySQL，例如 `mysql+pymysql://USER:PASS@127.0.0.1:3306/tongyun_learn?charset=utf8mb4`
-- `LEARN_TOKEN_WEB_SHA256`：网页令牌的 SHA256
-- `DEEPSEEK_API_KEY`：教练用。可以先空着
-
-反代建议把 `/learn/api/` 转到本进程，并去掉这个前缀（`proxy_pass` 末尾要有 `/`）：
-
-```nginx
-location /learn/api/ {
-    proxy_pass http://127.0.0.1:8031/;
-    proxy_set_header Host $host;
-    proxy_set_header Authorization $http_authorization;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
-}
-```
-
-对外就是 `https://主机/learn/api/v1/health`。本机直连则是 `http://127.0.0.1:8031/v1/health`（uvicorn 的 `--root-path /learn/api` 只影响文档链接，不改变路由）。
-
-走一遍（把 `TOKEN` 换成明文令牌，不是哈希）：
-
-```bash
-BASE=http://127.0.0.1:8031
-# 经反代时改成 BASE=https://主机/learn/api
-
-curl -sS "$BASE/v1/health"
-
-curl -sS "$BASE/v1/today" -H "Authorization: Bearer $TOKEN"
-
-# 今日队列里的 lemma / prompt 是给页面用的。单元 1 的第一个词是 read。
-# card_id 用上一步返回的那条。
-curl -sS "$BASE/v1/type" \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"card_id":1,"phase":"A","typed":"read","duration_ms":1800}'
-
-curl -sS "$BASE/v1/coach" -H "Authorization: Bearer $TOKEN"
-
-curl -sS "$BASE/v1/coach" \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"feedback":"easier"}'
-```
-
-`POST /v1/type` 的 `correct` 由服务端判。词阶段默认忽略大小写；句阶段再忽略标点。敲错时响应里有 `error_shape`（少字母、前后缀、形近等）。`client_event_id` 相同的请求不会第二次改 FSRS。
-
-## 本地运行
-
-依赖 Python 3.10+。推荐使用虚拟环境：
+### 前端
 
 ```bash
-# 安装依赖（uv）
+pnpm install
+pnpm dev          # http://localhost:5567/learn/
+pnpm test         # vitest
+npm run generate  # 静态站，默认 base /learn/，产物在 .output/public
+```
+
+`npm run generate` 和 `pnpm generate` 走同一条脚本。
+
+今日、练习、教练、设置是站内模块，背单词在练习里。先整词手敲再整句手敲，空格继续。今天学几项、要不要敲句都听学习服务的 `GET /v1/today`；敲完 `POST /v1/type`（`card_id`、`phase`、`typed`、`duration_ms`）；教练页 `GET/POST /v1/coach`。令牌只存本机。旧地址 `/typewords` 会进练习。视觉见 [DESIGN.md](DESIGN.md)。
+
+- **智能混学**：跨词书按记忆曲线复习，再随机补新词，不分章节。
+- **AI 记忆法 / AI 讲解**：单词记忆法和文章句子讲解，调同域的学习服务 `/learn/api/v1/ai/explain`。学习服务地址和令牌在「设置 → 通用设置」顶部填写，只存在本浏览器 localStorage。
+- **AI 错词复习卷**（`/ai-quiz`，部署后是 `/learn/ai-quiz`）：从错词本选词，调 `/learn/api/v1/ai/quiz` 生成 cloze / 选择 / 英译中，本地判分。复用同一份学习服务地址和令牌。
+- **学习看板**（`/learn-board`，部署后是 `/learn/learn-board`）：手机优先的只读页面，按顺序显示今天学什么（待复查在前，新点标出会不会占今天的新开名额）、待复习数和前几张卡的正面、卡点、各科统计（掌握数、各状态数、30 天保持率）、按阶段折叠的知识地图（点开一个点能看到硬前置和软前置）。
+  - 复用设置里的同一份学习服务地址和令牌。没填令牌时只提示去设置，不发任何请求。
+  - 只调学习服务的 GET 接口：`/subjects`、`/subjects/{id}/map`、`/next`、`/review/due`、`/progress`、`/blockers`。每块单独加载、单独报错：令牌不对提示去设置改，连不上提示「连不上学习服务」；连到没有 `/blockers` 的旧版服务（404）时显示「卡点记录即将接入」。
+  - 页面是 `ssr:false` 的纯客户端页面，静态产物里没有任何学习数据。
+- 本机联调、探活命令和常见错误见 [docs/tongyun-learn-integration.md](docs/tongyun-learn-integration.md)。
+- 默认关闭了原作者的第三方统计脚本（开关在 `app/tongyun/config.ts`）。
+
+### 旧后端
+
+在 `legacy/` 里。82 上的反代仍把 `/learn/api/` 转到 `127.0.0.1:8031/`。对外静态站是 `https://主机/learn/`，接口是 `https://主机/learn/api/v1/health`。
+
+```bash
+cd legacy
 uv sync
-
-# 拷贝环境配置
 cp .env.example .env
-
-# 启动开发服务器
 uv run alembic upgrade head
 uv run uvicorn tongyun_learn.main:app --host 127.0.0.1 --port 8031 --reload
 ```
 
-访问健康检查接口：
-- `http://127.0.0.1:8031/v1/health`
-- `http://127.0.0.1:8031/healthz`
+## Project Introduction
 
-接口文档（默认关闭，生产不开；本机调试设 `LEARN_DOCS_ENABLED=true` 后可看）：
-- `http://127.0.0.1:8031/v1/docs`、`/v1/openapi.json`
+<https://www.bilibili.com/video/BV1QwYv6eEAS>
 
-AI 接口目前已实现 `POST /v1/ai/explain`（P2）、`POST /v1/ai/quiz`（P4 错词复习卷）与 `POST /v1/ai/generate-deck`（P4 场景生成词书）。
+## Online Access
 
-## 环境变量说明
+<https://typewords.cc>
 
-环境变量前缀为 `LEARN_`（KIE API Key 为 `KIE_API_KEY`），完整配置项见 `.env.example`：
+<img width="1920" height="1440" alt="practice words" src="/public/imgs/words.png" />
+<img width="1920" height="1440" alt="practice articles" src="/public/imgs/articles.png" />
 
-- `LEARN_DATABASE_URL`: 数据库连接串（支持 SQLite / MySQL 8.0）
-- `LEARN_ROOT_PATH`: FastAPI 反向代理根路径，默认为 `/learn/api`
-- `LEARN_CORS_ORIGINS`: 允许跨域来源列表（逗号分隔）；TypeWords 和看板与服务同域（82 上 `/learn/api` 反代），留空即可
-- `LEARN_DOCS_ENABLED`: 是否开放 `/v1/docs` 和 `/v1/openapi.json`，默认 `false`
-- `LEARN_TOKEN_WEB_SHA256`: Web 客户端 Bearer Token 的 SHA256 哈希值
-- `LEARN_TOKEN_AXUE_SHA256`: 阿学 Bearer Token 的 SHA256 哈希值
-- `LEARN_RATE_WEB_PER_MIN`: Web 客户端每分钟限流阈值（默认 60）
-- `LEARN_RATE_AXUE_PER_MIN`: 阿学每分钟限流阈值（默认 120）
-- `LEARN_AI_DAILY_WEB`: Web 端每日 AI 调用上限（默认 200）
-- `LEARN_AI_DAILY_AXUE`: 阿学每日 AI 调用上限（默认 500）
-- `LEARN_AI_MODEL`: 主 AI 模型（默认 `gemini-3-8-flash-openai`）
-- `LEARN_AI_FALLBACK_MODEL`: 降级 AI 模型（默认 `deepseek-v4-1-flash`）
-- `LEARN_AI_TIMEOUT_S`: 单次 AI 请求超时秒数（默认 30.0）
-- `LEARN_AI_TOTAL_BUDGET_S`: AI 请求全流程总预算秒数（默认 50.0，包含主模型重试与降级模型全流程）
-- `LEARN_KIE_BASE_URL`: KIE AI API 基础地址（默认 `https://api.kie.ai`）
-- `KIE_API_KEY`: KIE AI API 鉴权密钥（注意不加 LEARN_ 前缀，亦支持 `LEARN_KIE_API_KEY`，日志与 repr 自动脱敏）。讲解、错词卷、场景词书用它。云芽教练不用 KIE
-- `DEEPSEEK_API_KEY`: 云芽英语教练的密钥（亦支持 `LEARN_DEEPSEEK_API_KEY`）。只放在 82 的环境文件里。为空时教练走规则
-- `LEARN_DEEPSEEK_BASE_URL`: DeepSeek 地址，默认 `https://api.deepseek.com`
-- `LEARN_DEEPSEEK_MODEL`: 默认 `deepseek-chat`
-- `LEARN_TYPE_IGNORE_CASE`: 手敲是否忽略大小写，默认 `true`
-- `LEARN_TZ`: 服务时区（默认 `Asia/Shanghai`）
+## Features
 
-## 数据库迁移
+### Word Practice
 
-使用 Alembic 进行数据库版本管理：
+- Practice modes: Follow-along / Dictation / Self-test / Spelling from memory
+- Smart mode: Automatically calculates learning words based on memory curves, deepening memory through dictation
+- Free mode: No restrictions, plan your own learning
+- Provides phonetics, pronunciation (American/British), example sentences, phrases, synonyms, root words, etymology, error statistics, and more
 
-```bash
-# 执行迁移升级至最新版本
-alembic upgrade head
+### Article Memorization
 
-# 回滚至初始版本
-alembic downgrade base
-```
+- Built-in classic textbooks; you can also add or import articles with one-click translation and bilingual comparison
+- Follow-along + dictation dual modes, sentence-by-sentence input with automatic pronunciation for more efficient memorization
+- Supports listening while writing from memory to reinforce learning
 
-## 测试与代码检查
+### Favorites, Wrong Words, Mastered
 
-```bash
-# 代码规范与静态检查
-ruff check .
+- Words typed incorrectly while learning are automatically added to your wrong word book for later review
+- Actively add words to mastered to automatically skip them in future sessions
+- Add words to favorites for consolidation and review
 
-# 运行纯逻辑单元测试（零外部依赖、内存毫秒级执行）
-pytest -q tests/test_cardkeys.py tests/test_timeutil.py tests/test_srs.py tests/test_tutor_logic.py tests/test_insights_logic.py tests/test_ai_logic.py tests/test_errors.py tests/test_helpers_logic.py
+### Highly Customizable
 
-# 运行全量单元测试与集成测试
-pytest -q
-```
+- Rich keyboard sound effects
+- Customizable shortcuts
+- Highly configurable settings
 
-详细测试体系设计原则与覆盖矩阵见 [docs/test-coverage.md](docs/test-coverage.md)。
+### Clean and Efficient
 
-## 生产部署
+- Clean design, modern UI, ad-free
+- Refreshing interface, simple operation
+- No forced subscription to any platform
 
-生产部署使用 systemd 单进程管理，详细 systemd unit 文件与安全注意事项请参考 [deploy/tongyun-learn.service](deploy/tongyun-learn.service)。
-注意：由于服务内置进程内令牌桶限流，请务必保持 `--workers 1` 单 worker 模式。
+### Vocabulary Library
 
-## 学习接口（P3a）
+Built-in commonly used vocabulary including CET-4, CET-6, GMAT, GRE, IELTS, SAT, TOEFL, Graduate English, TEM-4, TEM-8, and more (official website only).
+Designed to meet most users' vocabulary learning needs. Community contributions of additional vocabulary are welcome.
 
-规格见定稿 `2026-10-07-tongyun-learn-schema.md` §2/§4。全部在 `/v1` 下，web 令牌只读 + `POST /review(/batch)`（看不到动手卡），其余写接口仅 axue。
+## Running the Project
 
-| 接口 | 说明 |
-|---|---|
-| `POST /maps/import?dry_run=true\|false` | 导入知识地图 YAML（`{files:[...]}`），校验 → 增量 upsert → diff；有 error 不写库；幂等 |
-| `GET /subjects`、`GET /subjects/{id}/map`、`GET /points/{id}` | 学科 / 整棵地图（带 PointStats、阶段 passed）/ 单点详情 |
-| `POST /points/{id}/cards`、`PATCH /cards/{id}` | 批量建卡（按 front 去重）/ 改卡停卡（示例卡改后 created_by→axue） |
-| `GET /decks`、`POST /decks`、`POST /decks/{id}/cards` | 卡组 |
-| `GET /review/due` | 每日队列：到期复习 + 新卡（配额、积压阻断、新开点每学科 2 / 全局 3） |
-| `POST /review`、`POST /review/batch` | 复习（py-fsrs，`client_review_id` 幂等，乱序只记日志；支持 en_word 形态） |
-| `GET /progress` | 各状态点数、今日到期、30 天保持率、近 7 天、阶段过关 |
-| `POST /sessions`、`POST /evidence` | 记课、记证据（服务端判 passed；带 card_id 同时写一次 FSRS） |
-| `GET /next` | 待复查点（全部）+ 推荐学习的点 |
-| `POST /ai/explain` | AI 讲解助记与语法拆解：单词记忆法（`word_mnemonic`）与长难句语法拆解（`sentence_grammar`），带缓存与限流配额校验 |
-| `POST /ai/quiz` | 错词 AI 复习卷：输入 1–20 个错词生成复习测试卷（完形填空/单选/英译中），去重与规范排序后支持缓存与重试 |
-| `POST /ai/generate-deck` | 场景 AI 词书卡组生成：按场景让 AI 生成英语单词卡并入库到 source='ai' 的卡组，支持缓存与重试 |
+#### Note: This project can run standalone with data saved locally. Manual backup is required when switching devices; this does not affect normal usage.
 
-### P3b：卡点、薄弱点、回顾与软作废
+This project is built with `Nuxt` and requires a Node.js environment.
 
-都在 `/v1` 下。「任一令牌」指 web 和 axue 都能调；写接口只认 axue。
+1. Install NodeJS, refer to the [official documentation](https://nodejs.org/en/download)
+2. The project is large. It's recommended to use `git clone --depth 1 https://github.com/zyronon/TypeWords.git` to clone only the latest commit. GitHub's Download ZIP feature will not work properly.
+3. In the project root directory, open a terminal and run `pnpm install` to download dependencies.
+4. Run `pnpm run dev` to start the project. The default address is [`http://localhost:5567`](http://localhost:5567)
+5. Open [`http://localhost:5567`](http://localhost:5567) in your browser to access the project.
+6. Run `pnpm run generate` to build the project files.
 
-| 接口 | 谁能调 | 说明 |
-|---|---|---|
-| `GET /blockers?status=&point=&limit=` | 任一令牌 | 卡点列表（默认 200 条，最多 500） |
-| `POST /blockers`、`PATCH /blockers/{id}` | axue | 记卡点 / 改状态（解决、搁置等） |
-| `GET /weak?subject=` | 任一令牌 | 薄弱点排行 |
-| `GET /recall?days=1,3,7` | 任一令牌 | 按间隔天数回顾当天学过的内容 |
-| `GET /summary/week?ago=0` | 任一令牌 | 周小结，`ago` 表示往前第几周 |
-| `PATCH /points/{id}/state` | axue | 手动改知识点状态 |
-| `GET /sessions?date_from=&date_to=&point=&subject=&include_voided=&limit=` | 任一令牌 | 课时记录，默认不含已作废 |
-| `GET /reviews?card=&point=&include_voided=&limit=` | 任一令牌 | 复习记录，默认不含已作废 |
-| `POST /sessions\|evidence\|reviews/{id}/void` | axue | 软作废一条课时 / 证据 / 复习，带原因；作废后按剩余记录重算状态 |
-| `POST /sessions\|evidence\|reviews/{id}/restore` | axue | 撤销作废 |
+## Features and Suggestions
 
-AI 接口（`/v1/ai/*`）见下文「AI 接口说明」。
+The project is currently in early development, with new features being added continuously. If you have any suggestions or feature requests, feel free to open an `Issue`.
+If you like the design philosophy of this software, please submit a `PR`. Thank you for your support!
 
-状态重算（`tongyun_learn/services/state.py`）在每次写入的同一事务里跑，沿硬前置下游连锁，不需要定时任务。
+## Contributing Guide
 
-### 种子数据（知识地图）
+[Contributing Guidelines](/docs/CONTRIBUTING.md)
 
-`maps/` 下是阿学的知识地图副本（源文件在 box 的 `/workspace/learning/knowledge-maps/`）。导入是幂等的，可重复执行：
+If you're interested in this project, we welcome your contributions and will provide as much help as possible.
 
-```bash
-uv run python -m tongyun_learn.cli import-maps maps/english.yaml maps/java-fde.yaml            # 预演，打印 diff
-uv run python -m tongyun_learn.cli import-maps --commit maps/english.yaml maps/java-fde.yaml   # 真导入
-```
+Before contributing, please communicate with the developers to avoid code conflicts.
 
-### 学习看板联调
+Thank you again for your contributions!
 
-看板依赖的 6 个接口契约字段、curl 自查与排查说明见 [docs/learn-board-integration.md](docs/learn-board-integration.md)。
 
-## AI 讲解接口
+## ❤️ Support TypeWords
+If TypeWords has been helpful to you, feel free to sponsor the project to support server operation and future development.  
+Of course, sponsorship is not required for use—sharing the project, submitting feedback, or contributing code are also highly valuable forms of support.
 
-`POST /v1/ai/explain` 为学习者提供单词记忆法（`word_mnemonic`）与长难句语法拆解（`sentence_grammar`）的 AI 助学接口。
-
-### 鉴权与调用方
-- 请求头需携带 `Authorization: Bearer <token>`，通过 SHA256 与服务配置匹配，支持 `web`（TypeWords 客户端）和 `axue`（阿学）。
-- 接口经进程内令牌桶限流（`LEARN_RATE_WEB_PER_MIN` / `LEARN_RATE_AXUE_PER_MIN`）。
-- 每日调用受限于 AI 日额度（`LEARN_AI_DAILY_WEB` / `LEARN_AI_DAILY_AXUE`，在 `api_usage` 记录），未命中缓存的实际 AI 调用扣除 1 次配额；超限返回 429。
-
-### 缓存机制
-- 缓存键为 `sha256(kind|model|prompt_ver|input_canonical)`。
-- 命中缓存时直接返回结果（`cached: true`），**不触发实际 KIE AI 调用**，且**不计入当日 AI 调用额度**。
-
-### 请求与响应示例
-
-#### 1. 单词记忆助记 (`word_mnemonic`)
-
-**请求示例**：
-```json
-POST /learn/api/v1/ai/explain
-Content-Type: application/json
-Authorization: Bearer <token>
-
-{
-  "kind": "word_mnemonic",
-  "input": {
-    "word": "abandon",
-    "context": "放弃，抛弃"
-  }
-}
-```
-
-**响应示例 (200 OK)**：
-```json
-{
-  "kind": "word_mnemonic",
-  "model": "gemini-3-8-flash-openai",
-  "prompt_ver": "w1",
-  "cached": false,
-  "content": {
-    "word": "abandon",
-    "phonetic": "/əˈbændən/",
-    "meanings": [
-      {"pos": "v.", "cn": "放弃；抛弃"},
-      {"pos": "n.", "cn": "放任；放纵"}
-    ],
-    "examples": [
-      {"en": "They had to abandon the burning car.", "zh": "他们不得不弃车离开。"},
-      {"en": "He abandoned the software project due to lack of funding.", "zh": "因资金不足，他放弃了该软件项目。"}
-    ],
-    "roots": [
-      {"part": "a-", "type": "prefix", "meaning": "加强语气"},
-      {"part": "bandon", "type": "root", "meaning": "控制；命令"}
-    ],
-    "etymology": "源自古法语 abandoner，原意指脱离控制或任凭摆布。",
-    "mnemonic": "一个(a)胖墩(bandon)把作业给“放弃”了",
-    "related": [
-      {"word": "ban", "cn": "禁止"},
-      {"word": "abandoned", "cn": "被遗弃的"}
-    ]
-  }
-}
-```
-
-#### 2. 语法句子拆解 (`sentence_grammar`)
-
-**请求示例**：
-```json
-POST /learn/api/v1/ai/explain
-Content-Type: application/json
-Authorization: Bearer <token>
-
-{
-  "kind": "sentence_grammar",
-  "input": {
-    "sentence": "The database optimizes queries that execute frequently.",
-    "context": "技术英语数据库调优"
-  }
-}
-```
-
-**响应示例 (200 OK)**：
-```json
-{
-  "kind": "sentence_grammar",
-  "model": "gemini-3-8-flash-openai",
-  "prompt_ver": "s1",
-  "cached": false,
-  "content": {
-    "sentence": "The database optimizes queries that execute frequently.",
-    "translation": "数据库会对频繁执行的查询进行优化。",
-    "structure": [
-      {"text": "The database", "role": "主语", "explain": "句子的核心执行者"},
-      {"text": "optimizes", "role": "谓语", "explain": "第三人称单数及物动词"},
-      {"text": "queries", "role": "宾语", "explain": "谓语动词的作用对象"},
-      {"text": "that execute frequently", "role": "定语从句", "explain": "修饰先行词 queries 的关系从句"}
-    ],
-    "grammar_points": [
-      {"name": "that引导的定语从句", "explain": "that在从句中充当主语，修饰queries"}
-    ],
-    "key_words": [
-      {"word": "optimize", "pos": "v.", "cn": "优化", "note": "常用于性能调优场景"}
-    ],
-    "difficulty": "medium"
-  }
-}
-```
-
-#### 3. 错词 AI 复习卷 (`POST /v1/ai/quiz`)
-
-**请求示例**：
-```json
-POST /learn/api/v1/ai/quiz
-Content-Type: application/json
-Authorization: Bearer <token>
-
-{
-  "words": [
-    {"word": "abandon", "cn": "放弃"},
-    {"word": "ability", "cn": "能力"}
-  ]
-}
-```
-
-**响应示例 (200 OK)**：
-```json
-{
-  "kind": "word_quiz",
-  "model": "gemini-3-8-flash-openai",
-  "prompt_ver": "q1",
-  "cached": false,
-  "content": {
-    "questions": [
-      {
-        "type": "cloze",
-        "word": "abandon",
-        "stem": "The crew had to ___ the sinking ship.",
-        "options": [],
-        "answer": "abandon",
-        "explain": "根据语境，船员不得不弃船，填 abandon。"
-      },
-      {
-        "type": "choice",
-        "word": "ability",
-        "stem": "He has demonstrated a great ___ to lead the team.",
-        "options": ["ability", "abandon", "absence", "abroad"],
-        "answer": "ability",
-        "explain": "ability 表示能力，符合语境。"
-      }
-    ]
-  }
-}
-```
-
-#### 4. 场景 AI 词书卡组生成 (`POST /v1/ai/generate-deck`)
-
-按场景让 AI 生成英语单词卡，并自动创建或获取一个 `source='ai'` 的卡组入库（按小写 front 自动去重）。
-
-**请求示例**：
-```json
-POST /learn/api/v1/ai/generate-deck
-Content-Type: application/json
-Authorization: Bearer <token>
-
-{
-  "scenario": "外企技术面试",
-  "n": 20,
-  "deck_name": "AI·外企技术面试"
-}
-```
-
-**响应示例 (200 OK)**：
-```json
-{
-  "deck": {
-    "id": 1,
-    "subject_id": null,
-    "kind": "en_word",
-    "name": "AI·外企技术面试",
-    "source": "ai",
-    "review_cap": 60,
-    "new_cap": 8,
-    "new_cap_deep": null,
-    "meta": {
-      "scenario": "外企技术面试"
-    }
-  },
-  "added": 20,
-  "skipped": 0,
-  "cached": false,
-  "model": "gemini-3-8-flash-openai",
-  "words": [
-    {
-      "word": "concurrency",
-      "phonetic": "/kənˈkɜːrənsi/",
-      "cn": "并发",
-      "example": "Concurrency is hard to master.",
-      "example_cn": "并发很难精通。"
-    }
-  ]
-}
-```
-
-### 错误码说明
-
-所有错误均遵循统一错误格式 `{"error": {"code": str, "message": str, "details": any}}`：
-
-| HTTP 状态码 | Error Code | 触发原因 |
-|---|---|---|
-| 401 | `unauthorized` | 缺少或无效的 Bearer 令牌 |
-| 403 | `forbidden` | 令牌权限不足 |
-| 422 | `validation_error` | 请求入参不合法（如 word 未包含英文字母或超出长度） |
-| 429 | `rate_limited` | 请求过于频繁（超过每分钟令牌桶阈值，携带 `Retry-After`） |
-| 429 | `ai_daily_cap` | 今日 AI 次数已用完（携带 `Retry-After` 至次日零点秒数） |
-| 502 | `ai_bad_output` | AI 模型输出格式校验失败（经重试仍无法解析） |
-| 502 | `ai_unavailable` | AI 服务超时或网络异常，降级均失败 |
-| 503 | `ai_not_configured` | 服务端未配置 `KIE_API_KEY` |
+<img width="300" height="390" alt="practice words" src="/public/imgs/zhifubao.png" />
+<img width="300" height="390" alt="practice words" src="/public/imgs/weixin.png" />
 
