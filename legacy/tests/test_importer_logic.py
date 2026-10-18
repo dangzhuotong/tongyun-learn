@@ -14,6 +14,7 @@ from types import SimpleNamespace
 import jsonschema
 import pytest  # noqa: F401
 import yaml
+from sqlalchemy import delete, or_
 
 from tests.learn_helpers import MAPS, learn_env  # noqa: F401
 from tongyun_learn.db import SessionLocal
@@ -86,41 +87,61 @@ def test_set_updates_none_valued_field():
     assert obj.deactivated_at == "2026-10-07"
 
 
+_TOPO_SUBJECT = "zz-topo"
+_TOPO_STAGE = "zzt.s1"
+_TOPO_POINTS = ("A", "B", "C")
+
+
 def _seed_topo_graph(db, edges: list[tuple[str, str, str]]) -> None:
-    db.add(Subject(id="zz-topo", prefix="zzt", title="topo"))
-    db.add(Stage(id="zzt.s1", subject_id="zz-topo", ord=1, title="s1"))
-    for pid in ("A", "B", "C"):
-        db.add(Point(id=pid, subject_id="zz-topo", stage_id="zzt.s1", title=pid))
+    # 模型没有 relationship()，一次 flush 按类名排序，Point 会排在 Stage/Subject 前面。
+    # SQLite 默认不查外键；MySQL 的 fk_points_stage_id_stages 会拒绝尚未存在的阶段。
+    # 所以先把学科、阶段落库，再插知识点。
+    db.add(Subject(id=_TOPO_SUBJECT, prefix="zzt", title="topo"))
+    db.flush()
+    db.add(Stage(id=_TOPO_STAGE, subject_id=_TOPO_SUBJECT, ord=1, title="s1"))
+    db.flush()
+    for pid in _TOPO_POINTS:
+        db.add(Point(id=pid, subject_id=_TOPO_SUBJECT, stage_id=_TOPO_STAGE, title=pid))
     db.flush()
     for point_id, prereq_id, kind in edges:
         db.add(PointPrereq(point_id=point_id, prereq_id=prereq_id, kind=kind))
     db.commit()
 
 
-def test_topo_respects_hard_prerequisites(learn_env):  # noqa: F811
+def _cleanup_topo_graph(db) -> None:
+    db.rollback()
+    db.expunge_all()
+    db.execute(
+        delete(PointPrereq).where(or_(PointPrereq.point_id.in_(_TOPO_POINTS), PointPrereq.prereq_id.in_(_TOPO_POINTS)))
+    )
+    db.execute(delete(Point).where(Point.id.in_(_TOPO_POINTS)))
+    db.execute(delete(Stage).where(Stage.id == _TOPO_STAGE))
+    db.execute(delete(Subject).where(Subject.id == _TOPO_SUBJECT))
+    db.commit()
+
+
+@pytest.fixture
+def topo_db(learn_env):  # noqa: F811
     db = SessionLocal()
     try:
-        # 列表顺序故意把依赖方 B 放在前面；拓扑序必须把 A 排到 B 之前
-        _seed_topo_graph(db, [("B", "A", "hard")])
-        assert _topo(db, ["B", "A"]) == ["A", "B"]
+        yield db
     finally:
+        _cleanup_topo_graph(db)
         db.close()
 
 
-def test_topo_ignores_soft_prerequisites(learn_env):  # noqa: F811
-    db = SessionLocal()
-    try:
-        # 若把软前置误当硬依赖，A 会被排到 B 之后
-        _seed_topo_graph(db, [("A", "B", "soft")])
-        assert _topo(db, ["A", "B"]) == ["A", "B"]
-    finally:
-        db.close()
+def test_topo_respects_hard_prerequisites(topo_db):
+    # 列表顺序故意把依赖方 B 放在前面；拓扑序必须把 A 排到 B 之前
+    _seed_topo_graph(topo_db, [("B", "A", "hard")])
+    assert _topo(topo_db, ["B", "A"]) == ["A", "B"]
 
 
-def test_topo_cycle_fallback_keeps_every_point(learn_env):  # noqa: F811
-    db = SessionLocal()
-    try:
-        _seed_topo_graph(db, [("A", "B", "hard"), ("B", "A", "hard")])
-        assert sorted(_topo(db, ["A", "B", "C"])) == ["A", "B", "C"]
-    finally:
-        db.close()
+def test_topo_ignores_soft_prerequisites(topo_db):
+    # 若把软前置误当硬依赖，A 会被排到 B 之后
+    _seed_topo_graph(topo_db, [("A", "B", "soft")])
+    assert _topo(topo_db, ["A", "B"]) == ["A", "B"]
+
+
+def test_topo_cycle_fallback_keeps_every_point(topo_db):
+    _seed_topo_graph(topo_db, [("A", "B", "hard"), ("B", "A", "hard")])
+    assert sorted(_topo(topo_db, ["A", "B", "C"])) == ["A", "B", "C"]
