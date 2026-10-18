@@ -2,6 +2,7 @@
 import { APP_NAME, GITHUB } from '@/core/config/env.ts'
 import ChannelIcons from '@/components/channel-icons/ChannelIcons.vue'
 import WeChat from '@/components/channel-icons/WeChat.vue'
+import { ECDICT_ATTRIBUTION, NGSL_ATTRIBUTION } from '@/tongyun/english/wordlist'
 </script>
 
 <template>
@@ -13,6 +14,7 @@ import WeChat from '@/components/channel-icons/WeChat.vue'
     <p>
       {{ $t('github_address') }}<a :href="GITHUB" target="_blank">{{ GITHUB }}</a>
     </p>
+    <p>词表：{{ NGSL_ATTRIBUTION }} {{ ECDICT_ATTRIBUTION }}</p>
     <div class="flex flex-col gap-2 mt-20">
       <div class="">常见问题： <RouterLink to="/help">常见问题解答</RouterLink></div>
       <div class="flex items-center">{{ $t('about_wechat_feedback') }}<WeChat /></div>
