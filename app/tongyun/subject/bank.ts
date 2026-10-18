@@ -1,6 +1,6 @@
-// tongyun: 题库加载（Java / AI 学科题库，来源 docs/tasks/）
-import javaBankRaw from '../../../docs/tasks/java-v0.1.json'
-import aiBankRaw from '../../../docs/tasks/ai-v0.1.json'
+// tongyun: 题库加载（Java / AI 学科题库 v0.1，随包放在 content/）
+import javaBankRaw from './content/java-v0.1.json'
+import aiBankRaw from './content/ai-v0.1.json'
 import type { KnowledgePoint, QuestionBank, QuestionItem } from './types'
 
 export function parseQuestionBank(raw: any): QuestionBank {
