@@ -1,0 +1,652 @@
+{
+  "subject": "fde",
+  "version": "0.1",
+  "title": "FDE 客户沟通",
+  "note": "前两级（C1 听懂需求、C2 讲方案与演示）。C3 现场场景待写。",
+  "points": [
+    {
+      "id": "fde.requirements.interview",
+      "title": "需求访谈与追问",
+      "prereq": [],
+      "level": 1,
+      "unit": "C1",
+      "map_point": "jf.biz-requirements"
+    },
+    {
+      "id": "fde.requirements.doc",
+      "title": "一页需求与验收标准",
+      "prereq": [
+        "fde.requirements.interview"
+      ],
+      "level": 1,
+      "unit": "C1",
+      "map_point": "jf.biz-requirements"
+    },
+    {
+      "id": "fde.solution.explain",
+      "title": "给非技术的人讲方案",
+      "prereq": [
+        "fde.requirements.doc"
+      ],
+      "level": 2,
+      "unit": "C2",
+      "map_point": "jf.customer-communication"
+    },
+    {
+      "id": "fde.solution.demo",
+      "title": "演示与答疑",
+      "prereq": [
+        "fde.solution.explain"
+      ],
+      "level": 2,
+      "unit": "C2",
+      "map_point": "jf.customer-communication"
+    }
+  ],
+  "items": [
+    {
+      "id": "fde-0001",
+      "point_id": "fde.requirements.interview",
+      "level": 1,
+      "type": "choice",
+      "prompt": "业务方说「我们要一个智能客服」。第一步最该做什么？",
+      "answer": "先问清要解决的具体问题和现在怎么处理",
+      "explain": "FDE 先弄清痛点和现状，再谈方案。需求没问清就动手，后面最容易返工。",
+      "tags": [
+        "FDE 客户沟通"
+      ],
+      "options": [
+        "先问清要解决的具体问题和现在怎么处理",
+        "马上选模型和向量库",
+        "直接给报价和工期",
+        "先做个页面给他看"
+      ],
+      "accept": [],
+      "grading": "auto"
+    },
+    {
+      "id": "fde-0002",
+      "point_id": "fde.requirements.interview",
+      "level": 1,
+      "type": "concept",
+      "prompt": "访谈时用开放式问题让对方多讲。「你们现在是怎么处理工单的？」属于开放式还是封闭式问题？",
+      "answer": "开放式",
+      "explain": "开放式问题让对方描述过程，适合访谈前半段；封闭式（是/否）适合最后确认。",
+      "tags": [
+        "FDE 客户沟通"
+      ],
+      "accept": [
+        "开放式",
+        "开放式问题",
+        "开放"
+      ],
+      "grading": "auto"
+    },
+    {
+      "id": "fde-0003",
+      "point_id": "fde.requirements.interview",
+      "level": 1,
+      "type": "choice",
+      "prompt": "以下哪句是好的澄清追问？",
+      "answer": "你说的「很慢」，大概是多久？现在希望多久？",
+      "explain": "把模糊词换成可量化的数字，才能写进验收标准。",
+      "tags": [
+        "FDE 客户沟通"
+      ],
+      "options": [
+        "你说的「很慢」，大概是多久？现在希望多久？",
+        "你们的需求我懂了",
+        "这个很简单",
+        "你们为什么不早点做"
+      ],
+      "accept": [],
+      "grading": "auto"
+    },
+    {
+      "id": "fde-0004",
+      "point_id": "fde.requirements.interview",
+      "level": 1,
+      "type": "choice",
+      "prompt": "业务方提了 10 个功能。比较稳的做法是？",
+      "answer": "请他排优先级，先做最痛的一两个",
+      "explain": "范围控制是交付关键：先交付最有价值的一小块，再迭代。",
+      "tags": [
+        "FDE 客户沟通"
+      ],
+      "options": [
+        "请他排优先级，先做最痛的一两个",
+        "全部答应下来",
+        "全部拒绝",
+        "自己决定做哪些不告诉他"
+      ],
+      "accept": [],
+      "grading": "auto"
+    },
+    {
+      "id": "fde-0005",
+      "point_id": "fde.requirements.interview",
+      "level": 1,
+      "type": "choice",
+      "prompt": "访谈结束前最该做的一件事？",
+      "answer": "用自己的话复述需求，请对方确认",
+      "explain": "复述确认能尽早发现理解偏差，成本最低。",
+      "tags": [
+        "FDE 客户沟通"
+      ],
+      "options": [
+        "用自己的话复述需求，请对方确认",
+        "马上承诺上线日期",
+        "讲一遍大模型原理",
+        "直接结束"
+      ],
+      "accept": [],
+      "grading": "auto"
+    },
+    {
+      "id": "fde-0006",
+      "point_id": "fde.requirements.interview",
+      "level": 1,
+      "type": "concept",
+      "prompt": "需求里要分清「谁用、什么场景、要什么结果」。这三项中，描述「谁用」的那一项叫什么？（两个字）",
+      "answer": "用户",
+      "explain": "先确定用户是谁，场景和期望结果才有着落。",
+      "tags": [
+        "FDE 客户沟通"
+      ],
+      "accept": [
+        "用户",
+        "使用者",
+        "角色"
+      ],
+      "grading": "auto"
+    },
+    {
+      "id": "fde-0007",
+      "point_id": "fde.requirements.interview",
+      "level": 1,
+      "type": "oral",
+      "prompt": "口述练习：AI 扮业务方，说「我们想把内部制度文档做成问答」。你用 5 个问题完成一次需求访谈。",
+      "answer": "自评完成",
+      "explain": "重点是追问，不是讲技术。",
+      "tags": [
+        "FDE 客户沟通"
+      ],
+      "rubric": [
+        "问了现状（现在怎么查制度）",
+        "问了用户是谁、多少人用",
+        "问了成功标准（多准算好、多快算好）",
+        "问了数据（文档在哪、格式、多久更新、能否外传）",
+        "最后复述并请对方确认"
+      ],
+      "accept": [],
+      "grading": "self"
+    },
+    {
+      "id": "fde-0008",
+      "point_id": "fde.requirements.interview",
+      "level": 1,
+      "type": "oral",
+      "prompt": "口述练习：业务方说「越快越好、越准越好、越便宜越好」。你怎么回应，引导他取舍？",
+      "answer": "自评完成",
+      "explain": "把选择权交给业务方，同时讲清代价。",
+      "tags": [
+        "FDE 客户沟通"
+      ],
+      "rubric": [
+        "没有直接说做不到",
+        "解释了三者之间的取舍",
+        "请对方排出优先级",
+        "给了一个分阶段的建议",
+        "语气平和、不说教"
+      ],
+      "accept": [],
+      "grading": "self"
+    },
+    {
+      "id": "fde-0009",
+      "point_id": "fde.requirements.doc",
+      "level": 1,
+      "type": "choice",
+      "prompt": "一页需求文档里，下面哪条最适合作为验收标准？",
+      "answer": "在 50 条测试问题上，答对率不低于 80%",
+      "explain": "验收标准要可测：有测试集、有指标、有阈值。阈值本身由双方商定。",
+      "tags": [
+        "FDE 客户沟通"
+      ],
+      "options": [
+        "在 50 条测试问题上，答对率不低于 80%",
+        "系统要智能",
+        "用户满意",
+        "效果要好"
+      ],
+      "accept": [],
+      "grading": "auto"
+    },
+    {
+      "id": "fde-0010",
+      "point_id": "fde.requirements.doc",
+      "level": 1,
+      "type": "choice",
+      "prompt": "一页需求最少应包含哪组内容？",
+      "answer": "背景痛点、用户与场景、范围（做/不做）、验收标准",
+      "explain": "技术细节放设计文档；需求文档讲清为什么做、给谁、做到什么程度。",
+      "tags": [
+        "FDE 客户沟通"
+      ],
+      "options": [
+        "背景痛点、用户与场景、范围（做/不做）、验收标准",
+        "技术栈、数据库表结构",
+        "报价和合同条款",
+        "团队成员介绍"
+      ],
+      "accept": [],
+      "grading": "auto"
+    },
+    {
+      "id": "fde-0011",
+      "point_id": "fde.requirements.doc",
+      "level": 1,
+      "type": "concept",
+      "prompt": "需求文档里专门写清「这次不做什么」的部分，常叫什么？（英文两个词，或中文）",
+      "answer": "Out of scope",
+      "explain": "写明不做的事，能防止范围蔓延。",
+      "tags": [
+        "FDE 客户沟通"
+      ],
+      "accept": [
+        "out of scope",
+        "Out of Scope",
+        "不做范围",
+        "非目标",
+        "Non-goals",
+        "non-goals"
+      ],
+      "grading": "auto"
+    },
+    {
+      "id": "fde-0012",
+      "point_id": "fde.requirements.doc",
+      "level": 1,
+      "type": "choice",
+      "prompt": "写需求时「用户上传合同后 10 秒内返回关键条款摘要」，这条属于？",
+      "answer": "可测的功能+性能要求",
+      "explain": "有动作、有对象、有数字，就能验收。",
+      "tags": [
+        "FDE 客户沟通"
+      ],
+      "options": [
+        "可测的功能+性能要求",
+        "模糊需求",
+        "技术方案",
+        "商业条款"
+      ],
+      "accept": [],
+      "grading": "auto"
+    },
+    {
+      "id": "fde-0013",
+      "point_id": "fde.requirements.doc",
+      "level": 1,
+      "type": "choice",
+      "prompt": "上线后业务方说「不对，我要的不是这个」。最能预防这件事的环节是？",
+      "answer": "开发前把需求和验收标准写成文档，请对方确认",
+      "explain": "书面确认是双方的共同依据。",
+      "tags": [
+        "FDE 客户沟通"
+      ],
+      "options": [
+        "开发前把需求和验收标准写成文档，请对方确认",
+        "多加班",
+        "换更强的模型",
+        "上线后再改"
+      ],
+      "accept": [],
+      "grading": "auto"
+    },
+    {
+      "id": "fde-0014",
+      "point_id": "fde.requirements.doc",
+      "level": 1,
+      "type": "project",
+      "prompt": "小项目：为 tongyun-learn 的「开始学」自动排课写一页需求（背景、用户、范围做/不做、验收标准）。",
+      "answer": "自评完成",
+      "explain": "用自己的项目练写需求，内容可直接参考课程表 4.6 节。",
+      "tags": [
+        "FDE 客户沟通"
+      ],
+      "rubric": [
+        "背景一两句说清痛点",
+        "写明用户是谁（阿橦自己）",
+        "列出做与不做",
+        "至少 3 条可测的验收标准",
+        "一页以内"
+      ],
+      "accept": [],
+      "grading": "self"
+    },
+    {
+      "id": "fde-0015",
+      "point_id": "fde.requirements.doc",
+      "level": 1,
+      "type": "project",
+      "prompt": "小项目：给阶段三的 Java×大模型业务项目写一页需求（题目可选客服工单分类或制度文档问答）。",
+      "answer": "自评完成",
+      "explain": "这份需求就是阶段三交付物的起点。",
+      "tags": [
+        "FDE 客户沟通"
+      ],
+      "rubric": [
+        "痛点具体、有现状描述",
+        "用户与场景清楚",
+        "范围有「不做」",
+        "验收标准含测试集和阈值",
+        "写了主要风险（如数据、幻觉）"
+      ],
+      "accept": [],
+      "grading": "self"
+    },
+    {
+      "id": "fde-0016",
+      "point_id": "fde.solution.explain",
+      "level": 2,
+      "type": "choice",
+      "prompt": "向非技术的业务方解释 RAG，哪种说法最合适？",
+      "answer": "先在你们的文档里找到相关段落，再让模型照着这些段落回答",
+      "explain": "对非技术听众讲做什么、带来什么，少讲术语。",
+      "tags": [
+        "FDE 客户沟通"
+      ],
+      "options": [
+        "先在你们的文档里找到相关段落，再让模型照着这些段落回答",
+        "基于向量检索的增强生成架构",
+        "把 embedding 存进向量库做 ANN 召回",
+        "一种 Transformer 变体"
+      ],
+      "accept": [],
+      "grading": "auto"
+    },
+    {
+      "id": "fde-0017",
+      "point_id": "fde.solution.explain",
+      "level": 2,
+      "type": "choice",
+      "prompt": "讲方案时，好的顺序是？",
+      "answer": "先讲结论和对业务的好处，再讲怎么做，最后讲风险",
+      "explain": "结论先行，让对方先知道值不值得听下去。",
+      "tags": [
+        "FDE 客户沟通"
+      ],
+      "options": [
+        "先讲结论和对业务的好处，再讲怎么做，最后讲风险",
+        "先讲技术栈细节",
+        "先讲自己多辛苦",
+        "先讲失败案例"
+      ],
+      "accept": [],
+      "grading": "auto"
+    },
+    {
+      "id": "fde-0018",
+      "point_id": "fde.solution.explain",
+      "level": 2,
+      "type": "choice",
+      "prompt": "业务方问「会不会答错？」最合适的回答？",
+      "answer": "会有错的可能；我们用测试集量化准确率，并在答不上时让它说不知道、给出原文出处",
+      "explain": "诚实说明局限，并给出可控的应对措施，信任来自透明。",
+      "tags": [
+        "FDE 客户沟通"
+      ],
+      "options": [
+        "会有错的可能；我们用测试集量化准确率，并在答不上时让它说不知道、给出原文出处",
+        "不会，AI 很准",
+        "这个没法回答",
+        "你们自己检查"
+      ],
+      "accept": [],
+      "grading": "auto"
+    },
+    {
+      "id": "fde-0019",
+      "point_id": "fde.solution.explain",
+      "level": 2,
+      "type": "concept",
+      "prompt": "讲方案时用对方熟悉的事物打比方，这种技巧叫什么？（两个字）",
+      "answer": "类比",
+      "explain": "例如把向量检索类比为「按意思找资料，而不只是按关键字」。",
+      "tags": [
+        "FDE 客户沟通"
+      ],
+      "accept": [
+        "类比",
+        "打比方",
+        "比喻"
+      ],
+      "grading": "auto"
+    },
+    {
+      "id": "fde-0020",
+      "point_id": "fde.solution.explain",
+      "level": 2,
+      "type": "choice",
+      "prompt": "业务方听不懂一个技术词，你该？",
+      "answer": "换成日常说法，或用他们业务里的例子解释",
+      "explain": "沟通责任在讲的人。",
+      "tags": [
+        "FDE 客户沟通"
+      ],
+      "options": [
+        "换成日常说法，或用他们业务里的例子解释",
+        "重复一遍原词",
+        "说这个不重要",
+        "让他自己去查"
+      ],
+      "accept": [],
+      "grading": "auto"
+    },
+    {
+      "id": "fde-0021",
+      "point_id": "fde.solution.explain",
+      "level": 2,
+      "type": "oral",
+      "prompt": "口述练习：用 1 分钟给一位不懂技术的行政同事讲清「橦云宇宙」是做什么的、对谁有用。",
+      "answer": "自评完成",
+      "explain": "FDE 每天都在做这种翻译。",
+      "tags": [
+        "FDE 客户沟通"
+      ],
+      "rubric": [
+        "第一句说清它解决什么问题",
+        "没有出现未解释的术语",
+        "举了一个使用场景",
+        "1 分钟内讲完",
+        "对方能复述出来（可让 AI 扮演并复述）"
+      ],
+      "accept": [],
+      "grading": "self"
+    },
+    {
+      "id": "fde-0022",
+      "point_id": "fde.solution.explain",
+      "level": 2,
+      "type": "oral",
+      "prompt": "口述练习：给业务负责人讲你的业务项目架构图，只用 3 个框：数据从哪来、系统做什么、结果给谁。",
+      "answer": "自评完成",
+      "explain": "架构讲给非技术的人，要按业务流程讲。",
+      "tags": [
+        "FDE 客户沟通"
+      ],
+      "rubric": [
+        "3 个框讲清，没有陷入细节",
+        "说清对业务的好处",
+        "主动提到一个风险和应对",
+        "回答了 AI 追问的一个问题",
+        "2 分钟内"
+      ],
+      "accept": [],
+      "grading": "self"
+    },
+    {
+      "id": "fde-0023",
+      "point_id": "fde.solution.demo",
+      "level": 2,
+      "type": "choice",
+      "prompt": "演示前最重要的准备是？",
+      "answer": "按业务场景准备一条完整的演示路径，并提前完整跑一遍",
+      "explain": "演示讲的是一个故事：用户遇到问题→用系统解决。",
+      "tags": [
+        "FDE 客户沟通"
+      ],
+      "options": [
+        "按业务场景准备一条完整的演示路径，并提前完整跑一遍",
+        "临场随便点",
+        "只放 PPT",
+        "展示全部功能"
+      ],
+      "accept": [],
+      "grading": "auto"
+    },
+    {
+      "id": "fde-0024",
+      "point_id": "fde.solution.demo",
+      "level": 2,
+      "type": "choice",
+      "prompt": "演示中模型突然答错了。较好的处理？",
+      "answer": "坦然承认，说明这类情况的原因和改进计划，记下作为 Badcase",
+      "explain": "现场答错时处理得当，反而能建立信任。",
+      "tags": [
+        "FDE 客户沟通"
+      ],
+      "options": [
+        "坦然承认，说明这类情况的原因和改进计划，记下作为 Badcase",
+        "假装没看见",
+        "怪网络",
+        "马上结束演示"
+      ],
+      "accept": [],
+      "grading": "auto"
+    },
+    {
+      "id": "fde-0025",
+      "point_id": "fde.solution.demo",
+      "level": 2,
+      "type": "choice",
+      "prompt": "演示中被问到你不知道答案的问题？",
+      "answer": "说明现在不确定，记下来，约定时间回复",
+      "explain": "不懂装懂一旦被发现，信任就没了。",
+      "tags": [
+        "FDE 客户沟通"
+      ],
+      "options": [
+        "说明现在不确定，记下来，约定时间回复",
+        "编一个答案",
+        "转移话题",
+        "说这不重要"
+      ],
+      "accept": [],
+      "grading": "auto"
+    },
+    {
+      "id": "fde-0026",
+      "point_id": "fde.solution.demo",
+      "level": 2,
+      "type": "concept",
+      "prompt": "把模型答错或体验不好的真实案例收集起来，用于改进，这类案例常叫什么？（英文）",
+      "answer": "Badcase",
+      "explain": "aliyun/ai-agent-handbook 第 22 章专门讲 Badcase 优化。",
+      "tags": [
+        "FDE 客户沟通"
+      ],
+      "accept": [
+        "badcase",
+        "Badcase",
+        "bad case",
+        "Bad case",
+        "坏例"
+      ],
+      "grading": "auto"
+    },
+    {
+      "id": "fde-0027",
+      "point_id": "fde.solution.demo",
+      "level": 2,
+      "type": "choice",
+      "prompt": "演示结束后，最该做的事是？",
+      "answer": "收集反馈，整理成下一步清单并发给对方确认",
+      "explain": "把反馈变成书面的下一步，项目才能继续往前走。",
+      "tags": [
+        "FDE 客户沟通"
+      ],
+      "options": [
+        "收集反馈，整理成下一步清单并发给对方确认",
+        "等对方主动联系",
+        "马上开发所有新提的需求",
+        "什么都不做"
+      ],
+      "accept": [],
+      "grading": "auto"
+    },
+    {
+      "id": "fde-0028",
+      "point_id": "fde.solution.demo",
+      "level": 2,
+      "type": "oral",
+      "prompt": "口述练习：用 3 分钟演示 tongyun-learn 的「开始学」（可对着页面或截图），讲给 AI 扮演的「第一次用的人」。",
+      "answer": "自评完成",
+      "explain": "按场景讲，不按菜单讲。",
+      "tags": [
+        "FDE 客户沟通"
+      ],
+      "rubric": [
+        "先说它解决什么问题",
+        "按一条完整路径演示",
+        "没有逐个罗列功能",
+        "留了提问时间并答了一个问题",
+        "3 分钟内"
+      ],
+      "accept": [],
+      "grading": "self"
+    },
+    {
+      "id": "fde-0029",
+      "point_id": "fde.solution.demo",
+      "level": 2,
+      "type": "oral",
+      "prompt": "口述练习：AI 扮业务方质疑「这东西和直接用网页版 ChatGPT 有什么区别？」你来回答。",
+      "answer": "自评完成",
+      "explain": "处理质疑时，先认可对方的问题，再讲差异。",
+      "tags": [
+        "FDE 客户沟通"
+      ],
+      "rubric": [
+        "没有贬低对方",
+        "讲清差异（接自己的数据、可控、可集成）",
+        "用了一个对方业务里的例子",
+        "承认适用边界",
+        "语气平和"
+      ],
+      "accept": [],
+      "grading": "self"
+    },
+    {
+      "id": "fde-0030",
+      "point_id": "fde.solution.demo",
+      "level": 2,
+      "type": "project",
+      "prompt": "小项目：给阶段三业务项目写一份 5 分钟演示脚本（场景、步骤、预期结果、可能出错点和应对）。",
+      "answer": "自评完成",
+      "explain": "演示脚本可以复用到面试的项目讲解里。",
+      "tags": [
+        "FDE 客户沟通"
+      ],
+      "rubric": [
+        "有一个真实业务场景",
+        "步骤 ≤6 步",
+        "每步写了预期结果",
+        "列了至少 2 个可能出错点和应对",
+        "结尾有下一步/收集反馈环节"
+      ],
+      "accept": [],
+      "grading": "self"
+    }
+  ]
+}

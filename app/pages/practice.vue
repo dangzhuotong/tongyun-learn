@@ -38,7 +38,8 @@ const activeSubject = ref<ActiveSubject>('english')
 
 function syncSubjectFromUrl() {
   const querySub = ((route.query.subject as string) || '').toLowerCase()
-  if (querySub === 'java' || querySub === 'ai' || querySub === 'english') {
+  const valid = ['english', 'java', 'ai', 'fde', 'web', 'writing', 'ip', 'tools']
+  if (valid.includes(querySub)) {
     activeSubject.value = querySub as ActiveSubject
     setActiveSubject(querySub as ActiveSubject)
   } else {
@@ -345,10 +346,55 @@ onUnmounted(() => {
       >
         AI
       </button>
+      <button
+        type="button"
+        class="tab-btn"
+        :class="{ active: activeSubject === 'fde' }"
+        data-testid="subject-tab-fde"
+        @click="setSubject('fde')"
+      >
+        FDE
+      </button>
+      <button
+        type="button"
+        class="tab-btn"
+        :class="{ active: activeSubject === 'web' }"
+        data-testid="subject-tab-web"
+        @click="setSubject('web')"
+      >
+        Web
+      </button>
+      <button
+        type="button"
+        class="tab-btn"
+        :class="{ active: activeSubject === 'writing' }"
+        data-testid="subject-tab-writing"
+        @click="setSubject('writing')"
+      >
+        写作
+      </button>
+      <button
+        type="button"
+        class="tab-btn"
+        :class="{ active: activeSubject === 'ip' }"
+        data-testid="subject-tab-ip"
+        @click="setSubject('ip')"
+      >
+        IP
+      </button>
+      <button
+        type="button"
+        class="tab-btn"
+        :class="{ active: activeSubject === 'tools' }"
+        data-testid="subject-tab-tools"
+        @click="setSubject('tools')"
+      >
+        工具
+      </button>
     </div>
 
     <SubjectPractice
-      v-if="activeSubject === 'java' || activeSubject === 'ai'"
+      v-if="activeSubject !== 'english'"
       :subject="activeSubject"
       @exit="router.push('/')"
       @switch-subject="setSubject"

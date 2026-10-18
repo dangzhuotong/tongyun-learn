@@ -1,14 +1,33 @@
-// tongyun: 学科敲字练习类型定义（Java / AI 等）
+// tongyun: 学科敲字练习类型定义（Java / AI / FDE / Web / Writing / IP / Tools 等）
 
-export type SubjectType = 'java' | 'ai' | 'english'
+export type SubjectType =
+  | 'java'
+  | 'ai'
+  | 'english'
+  | 'fde'
+  | 'web'
+  | 'writing'
+  | 'ip'
+  | 'tools'
+
+export interface SubjectDefinition {
+  id: string
+  name?: string
+  title: string
+  version: string
+  file: string
+}
 
 export interface KnowledgePoint {
   id: string
   title: string
   prereq: string[]
+  level?: number
+  unit?: string
+  map_point?: string | null
 }
 
-export type QuestionType = 'concept' | 'term' | 'code' | string
+export type QuestionType = 'concept' | 'term' | 'code' | 'choice' | 'oral' | 'project' | string
 
 export interface QuestionItem {
   id: string
@@ -21,11 +40,16 @@ export interface QuestionItem {
   explain: string
   code?: string
   tags?: string[]
+  options?: string[]
+  rubric?: string[]
+  grading?: string
 }
 
 export interface QuestionBank {
   subject: string
   version: string
+  title?: string
+  note?: string
   points: KnowledgePoint[]
   items: QuestionItem[]
 }
@@ -46,4 +70,14 @@ export interface SubjectSessionPlan {
   items: QuestionItem[]
   dueTotal: number
   newTotal: number
+}
+
+export interface SubjectMapProgress {
+  subject: string
+  totalMapPoints: number
+  masteredMapPoints: number
+  learnedMapPoints: number
+  pendingPointsCount: number
+  mapPoints: KnowledgePoint[]
+  pendingPoints: KnowledgePoint[]
 }

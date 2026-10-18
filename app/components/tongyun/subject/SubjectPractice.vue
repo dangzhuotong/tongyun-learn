@@ -17,12 +17,12 @@ import {
 } from '@/tongyun/subject'
 
 const props = defineProps<{
-  subject: 'java' | 'ai'
+  subject: string
 }>()
 
 const emit = defineEmits<{
   (e: 'exit'): void
-  (e: 'switch-subject', subject: 'english' | 'java' | 'ai'): void
+  (e: 'switch-subject', subject: string): void
 }>()
 
 const ready = ref(false)
@@ -49,13 +49,40 @@ const finished = computed(() => ready.value && !loading.value && (total.value ==
 const point = computed(() => (current.value ? getKnowledgePoint(bank.value, current.value.point_id) : undefined))
 const isCode = computed(() => (current.value ? isCodeQuestion(current.value) : false))
 
-const subjectTitle = computed(() => (props.subject === 'ai' ? 'AI' : 'Java'))
+const subjectTitle = computed(() => {
+  const titles: Record<string, string> = {
+    java: 'Java',
+    ai: 'AI',
+    fde: 'FDE 客户沟通',
+    web: '够用就行的前端与部署',
+    writing: '技术写作与自媒体',
+    ip: '个人 IP 与作品集',
+    tools: '效率工具',
+  }
+  return titles[props.subject.toLowerCase()] || props.subject.toUpperCase()
+})
+
 const typeLabel = computed(() => {
   if (!current.value) return ''
   if (current.value.type === 'code') return '编码题'
   if (current.value.type === 'concept') return '概念题'
+  if (current.value.type === 'choice') return '选择题'
+  if (current.value.type === 'oral') return '口述题'
+  if (current.value.type === 'project') return '实战题'
   return '术语题'
 })
+
+function selectOption(opt: string) {
+  if (answered.value) return
+  typed.value = opt
+  submit()
+}
+
+function selfPass() {
+  if (answered.value) return
+  typed.value = '自评完成'
+  submit()
+}
 
 function focusInput() {
   nextTick(() => {
@@ -201,6 +228,30 @@ onUnmounted(() => {
         <!-- 出题 -->
         <h1 class="prompt" data-testid="subject-prompt">{{ current.prompt }}</h1>
 
+        <!-- 评估要点 (口述/项目题型) -->
+        <div v-if="current.rubric?.length" class="rubric-box" data-testid="subject-rubric">
+          <p class="rubric-title">自评要点（{{ current.rubric.length }} 项）：</p>
+          <ul class="rubric-list">
+            <li v-for="(r, idx) in current.rubric" :key="idx">{{ r }}</li>
+          </ul>
+        </div>
+
+        <!-- 选择题选项 -->
+        <div v-if="current.type === 'choice' && current.options?.length" class="options-box" data-testid="subject-options">
+          <button
+            v-for="(opt, idx) in current.options"
+            :key="idx"
+            type="button"
+            class="opt-btn"
+            :class="{ chosen: typed === opt }"
+            :disabled="answered"
+            @click="selectOption(opt)"
+          >
+            <span class="opt-label">{{ String.fromCharCode(65 + idx) }}.</span>
+            <span class="opt-text">{{ opt }}</span>
+          </button>
+        </div>
+
         <!-- 敲答案 -->
         <div class="typing-box">
           <label class="typebox" :class="{ ok: answered && isCorrect, bad: answered && !isCorrect }">
@@ -230,7 +281,7 @@ onUnmounted(() => {
                 autocomplete="off"
                 autocapitalize="off"
                 spellcheck="false"
-                :placeholder="answered ? '' : '敲入答案，按回车交卡'"
+                :placeholder="answered ? '' : (current.type === 'choice' ? '选择选项或敲入答案' : '敲入答案，按回车交卡')"
                 aria-label="敲入答案"
                 @keydown="onInputKey"
               />
@@ -239,17 +290,28 @@ onUnmounted(() => {
 
           <div v-if="!answered" class="action-bar">
             <span class="hint-tip">
-              {{ isCode ? 'code 题忽略空格，直接敲核心逻辑' : '支持标准术语及别名' }}
+              {{ isCode ? 'code 题忽略空格，直接敲核心逻辑' : current.type === 'choice' ? '点击选项或直接敲入答案' : '支持标准术语及别名' }}
             </span>
-            <button
-              type="button"
-              class="yy-btn"
-              data-testid="subject-submit"
-              :disabled="!typed.trim()"
-              @click="submit"
-            >
-              交卡
-            </button>
+            <div class="btn-group">
+              <button
+                v-if="current.type === 'oral' || current.type === 'project' || current.grading === 'self'"
+                type="button"
+                class="yy-btn ghost self-pass-btn"
+                data-testid="subject-self-pass"
+                @click="selfPass"
+              >
+                自评通过
+              </button>
+              <button
+                type="button"
+                class="yy-btn"
+                data-testid="subject-submit"
+                :disabled="!typed.trim()"
+                @click="submit"
+              >
+                交卡
+              </button>
+            </div>
           </div>
         </div>
 
@@ -607,6 +669,83 @@ onUnmounted(() => {
     justify-content: flex-end;
     margin-top: 4px;
   }
+}
+
+.rubric-box {
+  background: var(--yy-bg);
+  border: 1px dashed var(--yy-border);
+  border-radius: 8px;
+  padding: 14px 18px;
+  margin: 12px 0 16px;
+
+  .rubric-title {
+    font-size: 14px;
+    font-weight: 650;
+    margin: 0 0 8px;
+    color: var(--yy-ink);
+  }
+
+  .rubric-list {
+    margin: 0;
+    padding-left: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+
+    li {
+      font-size: 14px;
+      line-height: 1.5;
+      color: var(--yy-ink-soft);
+    }
+  }
+}
+
+.options-box {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  margin: 14px 0 16px;
+
+  .opt-btn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    background: var(--yy-bg);
+    border: 1.5px solid var(--yy-border);
+    border-radius: 8px;
+    text-align: left;
+    cursor: pointer;
+    font-size: 15px;
+    color: var(--yy-ink);
+    transition: all 0.15s ease;
+
+    &:hover:not(:disabled) {
+      border-color: var(--yy-matcha);
+      background: var(--yy-bg-deep);
+    }
+
+    &.chosen {
+      border-color: var(--yy-matcha-deep);
+      background: rgba(164, 196, 140, 0.15);
+      font-weight: 600;
+    }
+
+    .opt-label {
+      font-weight: 650;
+      color: var(--yy-matcha-deep);
+    }
+
+    .opt-text {
+      flex: 1;
+    }
+  }
+}
+
+.btn-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .foot {

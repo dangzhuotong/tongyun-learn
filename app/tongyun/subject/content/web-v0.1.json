@@ -1,0 +1,672 @@
+{
+  "subject": "web",
+  "version": "0.1",
+  "title": "够用就行的前端与部署",
+  "note": "前两级（F1 演示页、F2 部署）。前端框架选 React 还是 Vue 尚未确定，本文件卡片均为框架无关内容；定下来后再补框架卡（新 id 追加，不改旧 id）。",
+  "points": [
+    {
+      "id": "web.http.basics",
+      "title": "HTTP 与接口调用",
+      "prereq": [],
+      "level": 1,
+      "unit": "F1",
+      "map_point": "jf.frontend-enough"
+    },
+    {
+      "id": "web.page.basics",
+      "title": "演示页：HTML/JS/表单与列表",
+      "prereq": [
+        "web.http.basics"
+      ],
+      "level": 1,
+      "unit": "F1",
+      "map_point": "jf.frontend-enough"
+    },
+    {
+      "id": "deploy.linux",
+      "title": "Linux 常用命令",
+      "prereq": [],
+      "level": 2,
+      "unit": "F2",
+      "map_point": "jf.frontend-enough"
+    },
+    {
+      "id": "deploy.docker",
+      "title": "Docker 基础",
+      "prereq": [
+        "deploy.linux"
+      ],
+      "level": 2,
+      "unit": "F2",
+      "map_point": "jf.frontend-enough"
+    },
+    {
+      "id": "deploy.nginx-env",
+      "title": "Nginx 反代与环境变量",
+      "prereq": [
+        "deploy.docker"
+      ],
+      "level": 2,
+      "unit": "F2",
+      "map_point": "jf.git-secrets"
+    }
+  ],
+  "items": [
+    {
+      "id": "web-0001",
+      "point_id": "web.http.basics",
+      "level": 1,
+      "type": "term",
+      "prompt": "HTTP 状态码 404 表示什么？",
+      "answer": "资源不存在",
+      "explain": "404 Not Found：服务器找不到请求的资源。",
+      "tags": [
+        "够用就行的前端与部署"
+      ],
+      "accept": [
+        "Not Found",
+        "not found",
+        "找不到",
+        "未找到",
+        "资源不存在"
+      ],
+      "grading": "auto"
+    },
+    {
+      "id": "web-0002",
+      "point_id": "web.http.basics",
+      "level": 1,
+      "type": "term",
+      "prompt": "HTTP 状态码 401 表示什么？",
+      "answer": "未认证",
+      "explain": "401 表示缺少或无效的认证信息，如 token 没带或过期。403 是已认证但没权限。",
+      "tags": [
+        "够用就行的前端与部署"
+      ],
+      "accept": [
+        "Unauthorized",
+        "unauthorized",
+        "未授权",
+        "未认证",
+        "未登录"
+      ],
+      "grading": "auto"
+    },
+    {
+      "id": "web-0003",
+      "point_id": "web.http.basics",
+      "level": 1,
+      "type": "term",
+      "prompt": "HTTP 状态码 500 表示什么？",
+      "answer": "服务器内部错误",
+      "explain": "5xx 是服务端问题，前端一般无法自行修复，要看后端日志。",
+      "tags": [
+        "够用就行的前端与部署"
+      ],
+      "accept": [
+        "Internal Server Error",
+        "internal server error",
+        "服务器内部错误",
+        "服务端错误"
+      ],
+      "grading": "auto"
+    },
+    {
+      "id": "web-0004",
+      "point_id": "web.http.basics",
+      "level": 1,
+      "type": "choice",
+      "prompt": "新建一条记录（如提交一次作答）通常用哪个 HTTP 方法？",
+      "answer": "POST",
+      "explain": "GET 用来读取，POST 用来提交或新建，PUT/PATCH 用来修改，DELETE 用来删除。",
+      "tags": [
+        "够用就行的前端与部署"
+      ],
+      "options": [
+        "POST",
+        "GET",
+        "DELETE",
+        "HEAD"
+      ],
+      "accept": [],
+      "grading": "auto"
+    },
+    {
+      "id": "web-0005",
+      "point_id": "web.http.basics",
+      "level": 1,
+      "type": "choice",
+      "prompt": "浏览器报错「blocked by CORS policy」，根本原因是？",
+      "answer": "前端页面和接口不同源，服务端没有返回允许该来源的响应头",
+      "explain": "同源 = 协议、域名、端口都相同。要靠服务端配置 Access-Control-Allow-Origin，或用反向代理让页面和接口同源。",
+      "tags": [
+        "够用就行的前端与部署"
+      ],
+      "options": [
+        "前端页面和接口不同源，服务端没有返回允许该来源的响应头",
+        "接口返回了 404",
+        "JSON 格式错误",
+        "浏览器版本太旧"
+      ],
+      "accept": [],
+      "grading": "auto"
+    },
+    {
+      "id": "web-0006",
+      "point_id": "web.http.basics",
+      "level": 1,
+      "type": "term",
+      "prompt": "调用 JSON 接口时，请求头 Content-Type 一般设为什么？",
+      "answer": "application/json",
+      "explain": "告诉服务端请求体是 JSON。",
+      "tags": [
+        "够用就行的前端与部署"
+      ],
+      "accept": [
+        "application/json"
+      ],
+      "grading": "auto"
+    },
+    {
+      "id": "web-0007",
+      "point_id": "web.http.basics",
+      "level": 1,
+      "type": "code",
+      "prompt": "用浏览器原生 fetch 发一个 GET 请求到 /api/points（写出调用即可）。",
+      "answer": "fetch('/api/points')",
+      "explain": "fetch 返回 Promise，结果再用 res.json() 解析。",
+      "tags": [
+        "够用就行的前端与部署"
+      ],
+      "accept": [
+        "fetch(\"/api/points\")",
+        "fetch('/api/points');",
+        "fetch(\"/api/points\");",
+        "await fetch('/api/points')"
+      ],
+      "grading": "auto",
+      "code": "fetch('/api/points')"
+    },
+    {
+      "id": "web-0008",
+      "point_id": "web.http.basics",
+      "level": 1,
+      "type": "term",
+      "prompt": "携带令牌访问接口时，常见的请求头写法是 Authorization: ____ <token>，空白处填什么？",
+      "answer": "Bearer",
+      "explain": "Bearer token 是常见约定。令牌只放在请求头或安全存储里，不写进代码仓库。",
+      "tags": [
+        "够用就行的前端与部署"
+      ],
+      "accept": [
+        "bearer"
+      ],
+      "grading": "auto"
+    },
+    {
+      "id": "web-0009",
+      "point_id": "web.http.basics",
+      "level": 1,
+      "type": "choice",
+      "prompt": "接口返回的数据是 JSON 字符串，在 JS 里把它转成对象用？",
+      "answer": "JSON.parse",
+      "explain": "JSON.stringify 方向相反，把对象转成字符串。不要用 eval。",
+      "tags": [
+        "够用就行的前端与部署"
+      ],
+      "options": [
+        "JSON.parse",
+        "JSON.stringify",
+        "eval",
+        "toString"
+      ],
+      "accept": [],
+      "grading": "auto"
+    },
+    {
+      "id": "web-0010",
+      "point_id": "web.page.basics",
+      "level": 1,
+      "type": "choice",
+      "prompt": "本节说明：前端框架（React/Vue）未定，卡片只讲框架无关的内容。下面哪项是框架无关的？",
+      "answer": "表单提交前做必填校验并给出提示",
+      "explain": "React 还是 Vue 未定，先学两者通用的概念。",
+      "tags": [
+        "够用就行的前端与部署"
+      ],
+      "options": [
+        "表单提交前做必填校验并给出提示",
+        "useState 的用法",
+        "v-model 的用法",
+        "JSX 语法"
+      ],
+      "accept": [],
+      "grading": "auto"
+    },
+    {
+      "id": "web-0011",
+      "point_id": "web.page.basics",
+      "level": 1,
+      "type": "choice",
+      "prompt": "演示页调用接口时，除了成功，至少还应处理哪两种状态？",
+      "answer": "加载中和出错",
+      "explain": "加载中、出错、空数据都要有提示，演示时最常出问题的就是这些状态。",
+      "tags": [
+        "够用就行的前端与部署"
+      ],
+      "options": [
+        "加载中和出错",
+        "动画和音效",
+        "暗色模式和多语言",
+        "SEO 和广告"
+      ],
+      "accept": [],
+      "grading": "auto"
+    },
+    {
+      "id": "web-0012",
+      "point_id": "web.page.basics",
+      "level": 1,
+      "type": "term",
+      "prompt": "阻止表单默认提交（刷新页面）的方法是 event.____()？",
+      "answer": "preventDefault",
+      "explain": "在 submit 事件里调用，然后自己用 fetch 提交。",
+      "tags": [
+        "够用就行的前端与部署"
+      ],
+      "accept": [
+        "preventDefault()"
+      ],
+      "grading": "auto"
+    },
+    {
+      "id": "web-0013",
+      "point_id": "web.page.basics",
+      "level": 1,
+      "type": "concept",
+      "prompt": "把接口返回的数组渲染成列表时，每一项需要一个稳定唯一的标识，框架用它判断哪项变了。这个标识通常叫什么？（英文一个词）",
+      "answer": "key",
+      "explain": "React 和 Vue 都要求列表项有 key，用数据里的 id，不要用数组下标。",
+      "tags": [
+        "够用就行的前端与部署"
+      ],
+      "accept": [
+        "key",
+        "Key",
+        "id"
+      ],
+      "grading": "auto"
+    },
+    {
+      "id": "web-0014",
+      "point_id": "web.page.basics",
+      "level": 1,
+      "type": "choice",
+      "prompt": "浏览器里调试接口请求，最直接看哪里？",
+      "answer": "开发者工具的 Network 面板",
+      "explain": "Network 面板能看到请求地址、状态码、请求头和响应体。",
+      "tags": [
+        "够用就行的前端与部署"
+      ],
+      "options": [
+        "开发者工具的 Network 面板",
+        "Elements 面板",
+        "浏览器历史记录",
+        "系统任务管理器"
+      ],
+      "accept": [],
+      "grading": "auto"
+    },
+    {
+      "id": "web-0015",
+      "point_id": "web.page.basics",
+      "level": 1,
+      "type": "choice",
+      "prompt": "令牌（token）放在哪里最不该？",
+      "answer": "直接写死在前端源码并提交到 GitHub",
+      "explain": "前端代码会被所有人看到，进了仓库历史也很难彻底清除。",
+      "tags": [
+        "够用就行的前端与部署"
+      ],
+      "options": [
+        "直接写死在前端源码并提交到 GitHub",
+        "用户在设置页自己填写后保存在本机",
+        "由后端会话管理",
+        "环境变量里注入到服务端"
+      ],
+      "accept": [],
+      "grading": "auto"
+    },
+    {
+      "id": "web-0016",
+      "point_id": "web.page.basics",
+      "level": 1,
+      "type": "project",
+      "prompt": "小项目：用纯 HTML+JS（不用框架）做一个页面，调用 tongyun-learn 的一个只读接口，把结果渲染成列表。",
+      "answer": "自评完成",
+      "explain": "框架无关的练习，以后换 React 或 Vue 都能用上。",
+      "tags": [
+        "够用就行的前端与部署"
+      ],
+      "rubric": [
+        "令牌没有写进代码",
+        "有加载中、出错、空数据三种提示",
+        "列表项用了唯一 key 或 id",
+        "Network 面板里看到请求成功",
+        "有一段 README 说明怎么跑"
+      ],
+      "accept": [],
+      "grading": "self"
+    },
+    {
+      "id": "web-0017",
+      "point_id": "deploy.linux",
+      "level": 2,
+      "type": "code",
+      "prompt": "查看当前目录下所有文件（包括隐藏文件）的详细列表。",
+      "answer": "ls -la",
+      "explain": "-l 详细信息，-a 包含以 . 开头的隐藏文件。",
+      "tags": [
+        "够用就行的前端与部署"
+      ],
+      "accept": [
+        "ls -al",
+        "ls -la .",
+        "ls -lA"
+      ],
+      "grading": "auto",
+      "code": "ls -la"
+    },
+    {
+      "id": "web-0018",
+      "point_id": "deploy.linux",
+      "level": 2,
+      "type": "code",
+      "prompt": "实时追看日志文件 app.log 的新增内容。",
+      "answer": "tail -f app.log",
+      "explain": "-f 持续输出新追加的内容，Ctrl+C 退出。",
+      "tags": [
+        "够用就行的前端与部署"
+      ],
+      "accept": [
+        "tail -F app.log"
+      ],
+      "grading": "auto",
+      "code": "tail -f app.log"
+    },
+    {
+      "id": "web-0019",
+      "point_id": "deploy.linux",
+      "level": 2,
+      "type": "code",
+      "prompt": "查看哪个进程在监听 8080 端口（用 lsof）。",
+      "answer": "lsof -i :8080",
+      "explain": "也可以用 ss -ltnp 查看所有监听端口。",
+      "tags": [
+        "够用就行的前端与部署"
+      ],
+      "accept": [
+        "lsof -i:8080",
+        "sudo lsof -i :8080"
+      ],
+      "grading": "auto",
+      "code": "lsof -i :8080"
+    },
+    {
+      "id": "web-0020",
+      "point_id": "deploy.linux",
+      "level": 2,
+      "type": "code",
+      "prompt": "给脚本 deploy.sh 加上可执行权限。",
+      "answer": "chmod +x deploy.sh",
+      "explain": "之后可以用 ./deploy.sh 执行。",
+      "tags": [
+        "够用就行的前端与部署"
+      ],
+      "accept": [
+        "chmod u+x deploy.sh",
+        "chmod 755 deploy.sh"
+      ],
+      "grading": "auto",
+      "code": "chmod +x deploy.sh"
+    },
+    {
+      "id": "web-0021",
+      "point_id": "deploy.linux",
+      "level": 2,
+      "type": "code",
+      "prompt": "查看磁盘各分区使用情况（人类可读单位）。",
+      "answer": "df -h",
+      "explain": "du -sh 目录名 用来看某个目录占多大。",
+      "tags": [
+        "够用就行的前端与部署"
+      ],
+      "accept": [
+        "df -H"
+      ],
+      "grading": "auto",
+      "code": "df -h"
+    },
+    {
+      "id": "web-0022",
+      "point_id": "deploy.linux",
+      "level": 2,
+      "type": "choice",
+      "prompt": "用 ssh 登录服务器，比密码更推荐的方式是？",
+      "answer": "SSH 密钥登录",
+      "explain": "私钥只留在自己机器上，公钥放到服务器的 ~/.ssh/authorized_keys。",
+      "tags": [
+        "够用就行的前端与部署"
+      ],
+      "options": [
+        "SSH 密钥登录",
+        "把密码写进脚本",
+        "共用 root 密码",
+        "关闭防火墙"
+      ],
+      "accept": [],
+      "grading": "auto"
+    },
+    {
+      "id": "web-0023",
+      "point_id": "deploy.docker",
+      "level": 2,
+      "type": "choice",
+      "prompt": "Docker 镜像（image）和容器（container）的关系？",
+      "answer": "镜像是只读模板，容器是镜像运行起来的实例",
+      "explain": "类比 Java：镜像像类，容器像对象。",
+      "tags": [
+        "够用就行的前端与部署"
+      ],
+      "options": [
+        "镜像是只读模板，容器是镜像运行起来的实例",
+        "两者是同一个东西",
+        "容器是模板，镜像是实例",
+        "镜像只能在 Windows 上用"
+      ],
+      "accept": [],
+      "grading": "auto"
+    },
+    {
+      "id": "web-0024",
+      "point_id": "deploy.docker",
+      "level": 2,
+      "type": "code",
+      "prompt": "查看正在运行的容器。",
+      "answer": "docker ps",
+      "explain": "加 -a 可以看到已停止的容器。",
+      "tags": [
+        "够用就行的前端与部署"
+      ],
+      "accept": [
+        "docker container ls"
+      ],
+      "grading": "auto",
+      "code": "docker ps"
+    },
+    {
+      "id": "web-0025",
+      "point_id": "deploy.docker",
+      "level": 2,
+      "type": "code",
+      "prompt": "把宿主机 8080 端口映射到容器 80 端口运行镜像 nginx（后台运行）。",
+      "answer": "docker run -d -p 8080:80 nginx",
+      "explain": "-p 宿主机端口:容器端口，-d 后台运行。",
+      "tags": [
+        "够用就行的前端与部署"
+      ],
+      "accept": [
+        "docker run -p 8080:80 -d nginx"
+      ],
+      "grading": "auto",
+      "code": "docker run -d -p 8080:80 nginx"
+    },
+    {
+      "id": "web-0026",
+      "point_id": "deploy.docker",
+      "level": 2,
+      "type": "code",
+      "prompt": "查看容器 web 的日志并持续追踪。",
+      "answer": "docker logs -f web",
+      "explain": "排查容器起不来时先看日志。",
+      "tags": [
+        "够用就行的前端与部署"
+      ],
+      "accept": [
+        "docker logs --follow web"
+      ],
+      "grading": "auto",
+      "code": "docker logs -f web"
+    },
+    {
+      "id": "web-0027",
+      "point_id": "deploy.docker",
+      "level": 2,
+      "type": "term",
+      "prompt": "Dockerfile 里指定基础镜像的指令是？",
+      "answer": "FROM",
+      "explain": "Dockerfile 通常第一条就是 FROM，例如 FROM eclipse-temurin:21-jre。",
+      "tags": [
+        "够用就行的前端与部署"
+      ],
+      "accept": [
+        "from"
+      ],
+      "grading": "auto"
+    },
+    {
+      "id": "web-0028",
+      "point_id": "deploy.docker",
+      "level": 2,
+      "type": "choice",
+      "prompt": "用 docker compose 一次起多个服务（如应用+MySQL+Redis），描述文件通常叫？",
+      "answer": "compose.yaml 或 docker-compose.yml",
+      "explain": "Compose 文件里写多个服务、端口、卷和环境变量；用 docker compose up -d 启动。",
+      "tags": [
+        "够用就行的前端与部署"
+      ],
+      "options": [
+        "compose.yaml 或 docker-compose.yml",
+        "Dockerfile",
+        "package.json",
+        "pom.xml"
+      ],
+      "accept": [],
+      "grading": "auto"
+    },
+    {
+      "id": "web-0029",
+      "point_id": "deploy.nginx-env",
+      "level": 2,
+      "type": "choice",
+      "prompt": "Nginx 反向代理在部署中常用来做什么？",
+      "answer": "对外统一入口，把 /api 转发给后端，同时托管前端静态文件",
+      "explain": "前端和接口走同一个域名，还能顺便避开跨域问题。",
+      "tags": [
+        "够用就行的前端与部署"
+      ],
+      "options": [
+        "对外统一入口，把 /api 转发给后端，同时托管前端静态文件",
+        "编译 Java 代码",
+        "存数据库",
+        "替代 Docker"
+      ],
+      "accept": [],
+      "grading": "auto"
+    },
+    {
+      "id": "web-0030",
+      "point_id": "deploy.nginx-env",
+      "level": 2,
+      "type": "term",
+      "prompt": "Nginx 配置里把请求转发给后端服务的指令是？",
+      "answer": "proxy_pass",
+      "explain": "例如 location /api/ { proxy_pass http://127.0.0.1:8000; }",
+      "tags": [
+        "够用就行的前端与部署"
+      ],
+      "accept": [
+        "proxy_pass;"
+      ],
+      "grading": "auto"
+    },
+    {
+      "id": "web-0031",
+      "point_id": "deploy.nginx-env",
+      "level": 2,
+      "type": "code",
+      "prompt": "修改 Nginx 配置后，先检查配置语法是否正确。",
+      "answer": "nginx -t",
+      "explain": "语法检查通过后再 reload，避免配置写错导致服务挂掉。",
+      "tags": [
+        "够用就行的前端与部署"
+      ],
+      "accept": [
+        "sudo nginx -t"
+      ],
+      "grading": "auto",
+      "code": "nginx -t"
+    },
+    {
+      "id": "web-0032",
+      "point_id": "deploy.nginx-env",
+      "level": 2,
+      "type": "choice",
+      "prompt": "数据库密码这类配置，部署时最合适的做法？",
+      "answer": "放环境变量或服务器上的私有 .env，并把 .env 加入 .gitignore",
+      "explain": "接 jf.git-secrets：一旦泄露，第一件事是更换密钥，因为历史记录可能已被别人拿到。",
+      "tags": [
+        "够用就行的前端与部署"
+      ],
+      "options": [
+        "放环境变量或服务器上的私有 .env，并把 .env 加入 .gitignore",
+        "写死在代码里",
+        "写进 README",
+        "提交到公开仓库"
+      ],
+      "accept": [],
+      "grading": "auto"
+    },
+    {
+      "id": "web-0033",
+      "point_id": "deploy.nginx-env",
+      "level": 2,
+      "type": "project",
+      "prompt": "小项目：把一个自己的小服务（如阶段二的 Spring Boot 服务）用 Docker 部署到自己的机器，前面加 Nginx 反代。不碰公司仓库和服务器。",
+      "answer": "自评完成",
+      "explain": "一次走通完整链路，面试时就能讲清楚部署。",
+      "tags": [
+        "够用就行的前端与部署"
+      ],
+      "rubric": [
+        "有 Dockerfile 或 compose 文件",
+        "密钥只在 .env，且 .env 没进仓库",
+        "Nginx 配置通过 nginx -t",
+        "能从浏览器访问到接口",
+        "README 写了部署步骤"
+      ],
+      "accept": [],
+      "grading": "self"
+    }
+  ]
+}

@@ -1,0 +1,44 @@
+[
+  {
+    "id": "java",
+    "name": "java",
+    "title": "Java",
+    "version": "0.1",
+    "file": "java-v0.1.json"
+  },
+  {
+    "id": "fde",
+    "name": "fde",
+    "title": "FDE 客户沟通",
+    "version": "0.1",
+    "file": "fde-v0.1.json"
+  },
+  {
+    "id": "web",
+    "name": "web",
+    "title": "够用就行的前端与部署",
+    "version": "0.1",
+    "file": "web-v0.1.json"
+  },
+  {
+    "id": "writing",
+    "name": "writing",
+    "title": "技术写作与自媒体",
+    "version": "0.1",
+    "file": "writing-v0.1.json"
+  },
+  {
+    "id": "ip",
+    "name": "ip",
+    "title": "个人 IP 与作品集",
+    "version": "0.1",
+    "file": "ip-v0.1.json"
+  },
+  {
+    "id": "tools",
+    "name": "tools",
+    "title": "效率工具",
+    "version": "0.1",
+    "file": "tools-v0.1.json"
+  }
+]

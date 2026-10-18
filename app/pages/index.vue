@@ -41,7 +41,7 @@ const dateText = computed(() => {
 })
 
 const countText = computed(() => {
-  if (activeSubject.value === 'java' || activeSubject.value === 'ai') {
+  if (activeSubject.value !== 'english') {
     const sp = subjectPlan.value
     if (!sp) return ''
     return `到期复习 ${sp.dueTotal} · 新题 ${sp.newTotal}`
@@ -53,7 +53,7 @@ const countText = computed(() => {
 })
 
 const empty = computed(() => {
-  if (activeSubject.value === 'java' || activeSubject.value === 'ai') {
+  if (activeSubject.value !== 'english') {
     return Boolean(subjectPlan.value) && subjectPlan.value!.items.length === 0
   }
   return Boolean(plan.value) && plan.value!.items.length === 0
@@ -62,7 +62,7 @@ const empty = computed(() => {
 async function load() {
   loading.value = true
   activeSubject.value = getActiveSubject()
-  if (activeSubject.value === 'java' || activeSubject.value === 'ai') {
+  if (activeSubject.value !== 'english') {
     const bank = getSubjectBank(activeSubject.value)
     const stats = getSubjectStats(activeSubject.value)
     subjectPlan.value = buildSubjectSession(bank, stats, Date.now())
