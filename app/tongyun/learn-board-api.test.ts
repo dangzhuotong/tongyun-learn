@@ -13,21 +13,26 @@ import {
 
 describe('learn-board-api utilities', () => {
   describe('POINT_STATES metadata', () => {
-    it('defines standard learning point states', () => {
+    it('defines standard learning point states without locked', () => {
       expect(POINT_STATES).toHaveLength(6)
       const keys = POINT_STATES.map(s => s.key)
-      expect(keys).toEqual(['locked', 'available', 'learning', 'learned', 'mastered', 'rusty'])
+      expect(keys).toEqual(['recommended', 'available', 'learning', 'learned', 'mastered', 'rusty'])
+      expect(keys).not.toContain('locked')
+      const labels = POINT_STATES.map(s => s.label)
+      expect(labels).not.toContain('未解锁')
     })
   })
 
   describe('stateLabel', () => {
-    it('maps known state keys to Chinese labels', () => {
-      expect(stateLabel('locked')).toBe('未解锁')
+    it('maps known state keys to Chinese labels and never displays 未解锁', () => {
+      expect(stateLabel('recommended')).toBe('推荐')
       expect(stateLabel('available')).toBe('可学')
       expect(stateLabel('learning')).toBe('学习中')
       expect(stateLabel('learned')).toBe('学过')
       expect(stateLabel('mastered')).toBe('掌握')
       expect(stateLabel('rusty')).toBe('生疏')
+      // 看板不再显示「未解锁」
+      expect(stateLabel('locked')).toBe('未知')
     })
 
     it('falls back to "未知" for unknown, null, or undefined states', () => {
@@ -40,7 +45,7 @@ describe('learn-board-api utilities', () => {
 
   describe('stateColor', () => {
     it('maps known state keys to hexadecimal colors', () => {
-      expect(stateColor('locked')).toBe('#9ca3af')
+      expect(stateColor('recommended')).toBe('#3b82f6')
       expect(stateColor('available')).toBe('#3b82f6')
       expect(stateColor('learning')).toBe('#f59e0b')
       expect(stateColor('learned')).toBe('#14b8a6')

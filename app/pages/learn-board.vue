@@ -28,6 +28,7 @@ import {
   mapStatusLine,
   type MapStatusSummary,
 } from '@/tongyun/learn-board-glance'
+import { applyRecommendationsToMap } from '@/tongyun/learn-board-recommend'
 
 useSeoMeta({
   title: '学习看板',
@@ -158,7 +159,8 @@ async function loadOneMap(subject: Subject | null, slot: 'java' | 'english') {
 
   const res = await fetchMap(subject.id)
   if (res.ok && res.data) {
-    setSummary(summarizeMap(res.data))
+    const recommendedMap = applyRecommendationsToMap(res.data)
+    setSummary(summarizeMap(recommendedMap))
     setState('ok')
   } else if (res.kind === 'bad_token' || res.kind === 'no_token') {
     setSummary(null)

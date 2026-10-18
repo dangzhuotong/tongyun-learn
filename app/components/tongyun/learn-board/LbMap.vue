@@ -5,6 +5,7 @@ import { useRouter } from 'vue-router'
 import type { Subject, SubjectMap, MapStage, MapPoint } from '@/tongyun/learn-board-api'
 import { fetchMap, POINT_STATES, stateLabel, stateColor } from '@/tongyun/learn-board-api'
 import { resolveBoardSubjects } from '@/tongyun/learn-board-glance'
+import { applyRecommendationsToMap } from '@/tongyun/learn-board-recommend'
 
 interface Props {
   subjects: Subject[]
@@ -69,12 +70,13 @@ async function loadMap(subjectId: string, force = false) {
 
   mapState.value = 'loading'
   const res = await fetchMap(subjectId)
-  if (res.ok) mapCache.value[subjectId] = res.data
+  const mapData = res.ok && res.data ? applyRecommendationsToMap(res.data) : res.data
+  if (res.ok && mapData) mapCache.value[subjectId] = mapData
   // 切学科后旧请求才回来：只缓存，不改当前显示状态
   if (selectedSubjectId.value !== subjectId) return
-  if (res.ok) {
+  if (res.ok && mapData) {
     mapState.value = 'ok'
-    initDefaultStages(res.data)
+    initDefaultStages(mapData)
   } else if (res.kind === 'bad_token') {
     mapState.value = 'bad_token'
   } else {
@@ -103,7 +105,7 @@ function togglePoint(pointId: string) {
 function getStageStateCounts(stage: MapStage) {
   const counts: Record<string, number> = {}
   for (const p of stage.points || []) {
-    const st = p.stats?.state || 'locked'
+    const st = p.stats?.state || 'available'
     counts[st] = (counts[st] || 0) + 1
   }
   return POINT_STATES.map(s => ({ key: s.key, color: s.color, count: counts[s.key] || 0 })).filter(s => s.count > 0)
