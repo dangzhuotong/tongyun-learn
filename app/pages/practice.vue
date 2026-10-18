@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { withAppBaseURL } from '@/core/utils/base-url'
 import { gradePrefsOf, gradeTyped } from '@/tongyun/english/grade'
 import { getEnglishPrefs } from '@/tongyun/english/prefs'
@@ -19,6 +19,8 @@ import {
   toneOf,
   type WordEntry,
 } from '@/tongyun/english/wordlist'
+import SubjectPractice from '@/components/tongyun/subject/SubjectPractice.vue'
+import { getActiveSubject, setActiveSubject, type ActiveSubject } from '@/tongyun/subject'
 
 definePageMeta({
   layout: 'yunya',
@@ -29,7 +31,26 @@ useSeoMeta({
 })
 
 const router = useRouter()
+const route = useRoute()
 const markSrc = withAppBaseURL('/yunya-mark.svg')
+
+const activeSubject = ref<ActiveSubject>('english')
+
+function syncSubjectFromUrl() {
+  const querySub = ((route.query.subject as string) || '').toLowerCase()
+  if (querySub === 'java' || querySub === 'ai' || querySub === 'english') {
+    activeSubject.value = querySub as ActiveSubject
+    setActiveSubject(querySub as ActiveSubject)
+  } else {
+    activeSubject.value = getActiveSubject()
+  }
+}
+
+function setSubject(sub: ActiveSubject) {
+  activeSubject.value = sub
+  setActiveSubject(sub)
+  router.replace({ query: { ...route.query, subject: sub } })
+}
 
 const ready = ref(false)
 const loading = ref(true)
@@ -252,6 +273,7 @@ function onSpellKey(event: KeyboardEvent) {
 }
 
 function onWindowKey(event: KeyboardEvent) {
+  if (activeSubject.value !== 'english') return
   if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey) return
   if (!item.value || finished.value) return
   if (event.key !== ' ' && event.key !== 'Enter') return
@@ -267,11 +289,24 @@ function onWindowKey(event: KeyboardEvent) {
   }
 }
 
+watch(
+  () => route.query.subject,
+  () => {
+    syncSubjectFromUrl()
+    if (activeSubject.value === 'english') {
+      load()
+    }
+  }
+)
+
 onMounted(() => {
+  syncSubjectFromUrl()
   prefs.value = getEnglishPrefs()
   ready.value = true
   window.addEventListener('keydown', onWindowKey)
-  load()
+  if (activeSubject.value === 'english') {
+    load()
+  }
 })
 
 onUnmounted(() => {
@@ -281,7 +316,45 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <section class="screen">
+  <div class="practice-container">
+    <div class="subject-bar" data-testid="subject-switcher">
+      <button
+        type="button"
+        class="tab-btn"
+        :class="{ active: activeSubject === 'english' }"
+        data-testid="subject-tab-english"
+        @click="setSubject('english')"
+      >
+        英语
+      </button>
+      <button
+        type="button"
+        class="tab-btn"
+        :class="{ active: activeSubject === 'java' }"
+        data-testid="subject-tab-java"
+        @click="setSubject('java')"
+      >
+        Java
+      </button>
+      <button
+        type="button"
+        class="tab-btn"
+        :class="{ active: activeSubject === 'ai' }"
+        data-testid="subject-tab-ai"
+        @click="setSubject('ai')"
+      >
+        AI
+      </button>
+    </div>
+
+    <SubjectPractice
+      v-if="activeSubject === 'java' || activeSubject === 'ai'"
+      :subject="activeSubject"
+      @exit="router.push('/')"
+      @switch-subject="setSubject"
+    />
+
+    <section v-else class="screen">
     <div v-if="!ready || loading" class="yy-card wait">正在准备今天的词…</div>
 
     <div v-else-if="!items.length" class="yy-card wait">
@@ -445,9 +518,46 @@ onUnmounted(() => {
       </footer>
     </template>
   </section>
+  </div>
 </template>
 
 <style scoped lang="scss">
+.practice-container {
+  display: flex;
+  flex-direction: column;
+}
+
+.subject-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 20px 4px;
+
+  .tab-btn {
+    border: none;
+    background: var(--yy-bg-deep);
+    color: var(--yy-ink-soft);
+    padding: 6px 18px;
+    border-radius: 999px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+
+    &:hover {
+      background: var(--yy-card-warm);
+      color: var(--yy-ink);
+    }
+
+    &.active {
+      background: var(--yy-matcha-deep);
+      color: #fff;
+      font-weight: 650;
+    }
+  }
+}
+
 .screen {
   position: relative;
   min-height: calc(100vh - 64px);
