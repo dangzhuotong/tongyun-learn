@@ -15,6 +15,11 @@ import {
   type QuestionItem,
   type SubjectItemStat,
 } from '@/tongyun/subject'
+import {
+  formatEndScreenSummary,
+  getWeekTrainedDaysCount,
+  recordTrainingDay,
+} from '@/tongyun/curriculum'
 
 const props = defineProps<{
   subject: 'java' | 'ai'
@@ -42,6 +47,14 @@ const inputRef = ref<HTMLInputElement | HTMLTextAreaElement | null>(null)
 // 统计
 const correctCount = ref(0)
 const totalAnswered = ref(0)
+
+const sessionDueTotal = ref(0)
+const sessionReviewedTotal = ref(0)
+const weekDays = ref(1)
+
+const endScreenText = computed(() =>
+  formatEndScreenSummary(sessionDueTotal.value, sessionReviewedTotal.value, weekDays.value)
+)
 
 const current = computed(() => items.value[index.value] || null)
 const total = computed(() => items.value.length)
@@ -77,6 +90,9 @@ function load() {
   statsMap.value = getSubjectStats(props.subject)
   const session = buildSubjectSession(bank.value, statsMap.value, Date.now())
   items.value = session.items
+  sessionDueTotal.value = session.dueTotal
+  sessionReviewedTotal.value = 0
+  weekDays.value = getWeekTrainedDaysCount()
   index.value = 0
   correctCount.value = 0
   totalAnswered.value = 0
@@ -93,6 +109,11 @@ function submit() {
   if (!t) return
 
   const item = current.value
+  const wasReview = Boolean(statsMap.value[item.id] && statsMap.value[item.id]!.last > 0)
+  if (wasReview) {
+    sessionReviewedTotal.value += 1
+  }
+
   const correct = gradeAnswer(typed.value, item)
   isCorrect.value = correct
   answered.value = true
@@ -109,6 +130,9 @@ function next() {
   index.value += 1
   if (index.value < items.value.length) {
     openCard()
+  } else {
+    recordTrainingDay()
+    weekDays.value = getWeekTrainedDaysCount()
   }
 }
 
@@ -162,6 +186,7 @@ onUnmounted(() => {
 
     <div v-else-if="finished" class="yy-card wait done" data-testid="subject-done">
       <p class="done-title">这一轮学完了</p>
+      <p class="end-summary" data-testid="end-summary">{{ endScreenText }}</p>
       <p class="summary-line">
         共完成 {{ totalAnswered }} 题 · 答对 {{ correctCount }} 题（正确率 {{ totalAnswered ? Math.round((correctCount / totalAnswered) * 100) : 0 }}%）
       </p>

@@ -16,6 +16,12 @@ import {
   type ActiveSubject,
   type SubjectSessionPlan,
 } from '@/tongyun/subject'
+import {
+  scheduleCurriculum,
+  getCurriculumSubjects,
+  type CurriculumCard,
+  type SchedulerResult,
+} from '@/tongyun/curriculum'
 
 definePageMeta({
   layout: 'yunya',
@@ -30,6 +36,7 @@ const ready = ref(false)
 const loading = ref(true)
 const plan = ref<SessionPlan | null>(null)
 const subjectPlan = ref<SubjectSessionPlan | null>(null)
+const curriculumPlan = ref<SchedulerResult | null>(null)
 const activeSubject = ref<ActiveSubject>('english')
 
 const dateText = computed(() => {
@@ -41,6 +48,9 @@ const dateText = computed(() => {
 })
 
 const countText = computed(() => {
+  if (curriculumPlan.value) {
+    return `到期复习 ${curriculumPlan.value.dueTotal} · 新卡 ${curriculumPlan.value.newItems.length}`
+  }
   if (activeSubject.value === 'java' || activeSubject.value === 'ai') {
     const sp = subjectPlan.value
     if (!sp) return ''
@@ -53,6 +63,9 @@ const countText = computed(() => {
 })
 
 const empty = computed(() => {
+  if (curriculumPlan.value) {
+    return curriculumPlan.value.items.length === 0
+  }
   if (activeSubject.value === 'java' || activeSubject.value === 'ai') {
     return Boolean(subjectPlan.value) && subjectPlan.value!.items.length === 0
   }
@@ -62,16 +75,72 @@ const empty = computed(() => {
 async function load() {
   loading.value = true
   activeSubject.value = getActiveSubject()
+  const now = Date.now()
+
+  const list = await loadWordlist()
+  const enStats: Record<string, WordStat> = getStats()
+  const optional = getOptionalLevels()
+  plan.value = buildSession(list, enStats, optional, now)
+
+  const javaBank = getSubjectBank('java')
+  const javaStats = getSubjectStats('java')
+  const aiBank = getSubjectBank('ai')
+  const aiStats = getSubjectStats('ai')
+
   if (activeSubject.value === 'java' || activeSubject.value === 'ai') {
-    const bank = getSubjectBank(activeSubject.value)
-    const stats = getSubjectStats(activeSubject.value)
-    subjectPlan.value = buildSubjectSession(bank, stats, Date.now())
-  } else {
-    const list = await loadWordlist()
-    const stats: Record<string, WordStat> = getStats()
-    const optional = getOptionalLevels()
-    plan.value = buildSession(list, stats, optional)
+    const bank = activeSubject.value === 'java' ? javaBank : aiBank
+    const stats = activeSubject.value === 'java' ? javaStats : aiStats
+    subjectPlan.value = buildSubjectSession(bank, stats, now)
   }
+
+  // 组装多学科课程表输入
+  const reviews: CurriculumCard[] = []
+  const newCards: Record<string, CurriculumCard[]> = {
+    english: [],
+    java: [],
+    ai: [],
+  }
+
+  for (const [w, st] of Object.entries(enStats)) {
+    if (st && st.last > 0 && st.due <= now) {
+      reviews.push({ id: `en-${w}`, subject: 'english', due: st.due, isReview: true })
+    }
+  }
+  for (const w of list) {
+    if (!enStats[w.word]) {
+      newCards.english.push({ id: `en-${w.word}`, subject: 'english', prompt: w.word, isReview: false })
+    }
+  }
+
+  for (const it of javaBank.items || []) {
+    const s = javaStats[it.id]
+    if (s && s.last > 0) {
+      if (s.due <= now) {
+        reviews.push({ id: it.id, subject: 'java', type: it.type, tags: it.tags, due: s.due, isReview: true })
+      }
+    } else {
+      newCards.java.push({ id: it.id, subject: 'java', type: it.type, tags: it.tags, isReview: false })
+    }
+  }
+
+  for (const it of aiBank.items || []) {
+    const s = aiStats[it.id]
+    if (s && s.last > 0) {
+      if (s.due <= now) {
+        reviews.push({ id: it.id, subject: 'ai', type: it.type, tags: it.tags, due: s.due, isReview: true })
+      }
+    } else {
+      newCards.ai.push({ id: it.id, subject: 'ai', type: it.type, tags: it.tags, isReview: false })
+    }
+  }
+
+  curriculumPlan.value = scheduleCurriculum({
+    subjects: getCurriculumSubjects(),
+    reviews,
+    newCards,
+    now,
+  })
+
   loading.value = false
 }
 

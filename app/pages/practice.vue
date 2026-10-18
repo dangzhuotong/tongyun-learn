@@ -21,6 +21,11 @@ import {
 } from '@/tongyun/english/wordlist'
 import SubjectPractice from '@/components/tongyun/subject/SubjectPractice.vue'
 import { getActiveSubject, setActiveSubject, type ActiveSubject } from '@/tongyun/subject'
+import {
+  formatEndScreenSummary,
+  getWeekTrainedDaysCount,
+  recordTrainingDay,
+} from '@/tongyun/curriculum'
 
 definePageMeta({
   layout: 'yunya',
@@ -76,6 +81,14 @@ const feedback = ref('')
 const options = ref<string[]>([])
 const teachWord = ref('')
 const teachSentence = ref('')
+
+const sessionDueTotal = ref(0)
+const sessionReviewedTotal = ref(0)
+const weekDays = ref(1)
+
+const endScreenText = computed(() =>
+  formatEndScreenSummary(sessionDueTotal.value, sessionReviewedTotal.value, weekDays.value)
+)
 
 const item = computed(() => items.value[index.value] || null)
 const total = computed(() => items.value.length)
@@ -154,7 +167,12 @@ function openCard() {
 
 function next() {
   index.value += 1
-  if (index.value < items.value.length) openCard()
+  if (index.value < items.value.length) {
+    openCard()
+  } else {
+    recordTrainingDay()
+    weekDays.value = getWeekTrainedDaysCount()
+  }
 }
 
 async function load() {
@@ -162,6 +180,9 @@ async function load() {
   list.value = await loadWordlist()
   const plan = buildSession(list.value, getStats(), getOptionalLevels())
   items.value = plan.items
+  sessionDueTotal.value = plan.dueTotal
+  sessionReviewedTotal.value = 0
+  weekDays.value = getWeekTrainedDaysCount()
   index.value = 0
   loading.value = false
   ready.value = true
@@ -202,6 +223,7 @@ function choose(option: string) {
   chosen.value = option
   const correct = option === correctOption
   choiceResult.value = correct ? 'correct' : 'wrong'
+  sessionReviewedTotal.value += 1
   const now = Date.now()
   recordAnswer(w.word, 'choice', correct, now)
   if (!correct) {
@@ -236,6 +258,7 @@ function submitSpell() {
     const prev = getStats()[w.word] || teachStat(w.word, now)
     const { stat } = resolveSpell(prev, true, 0, now)
     saveStat(w.word, stat)
+    sessionReviewedTotal.value += 1
     answered.value = true
     feedback.value = '答对了'
     return
@@ -255,6 +278,7 @@ function submitSpell() {
   const prev = getStats()[w.word] || teachStat(w.word, now)
   const { stat } = resolveSpell(prev, false, 1, now)
   saveStat(w.word, stat)
+  sessionReviewedTotal.value += 1
   const reteach: StudyItem = { id: `teach-${w.word}`, word: w, mode: 'teach', reason: 'relearn', reviewIndex: 0 }
   items.value.splice(index.value + 1, 0, reteach)
   feedback.value = '再错一次了，重新教一遍'
@@ -362,8 +386,9 @@ onUnmounted(() => {
       <button type="button" class="yy-btn" @click="router.push('/')">回到今日</button>
     </div>
 
-    <div v-else-if="finished" class="yy-card wait done">
+    <div v-else-if="finished" class="yy-card wait done" data-testid="practice-end-screen">
       <p class="done-title">这一轮学完了</p>
+      <p class="end-summary" data-testid="end-summary">{{ endScreenText }}</p>
       <p>对错和进度已记在这台浏览器。</p>
       <div class="actions">
         <button type="button" class="yy-btn" data-testid="restart" @click="restart">再学一轮</button>
