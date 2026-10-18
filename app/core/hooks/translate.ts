@@ -1,5 +1,5 @@
 import type { Article, Sentence } from '../types'
-import { Translator } from '@/libs'
+import type { Translator } from '@/libs'
 import { TranslateEngine } from '../types'
 
 export function getSentenceAllTranslateText(article: Article) {
