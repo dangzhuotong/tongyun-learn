@@ -8,6 +8,7 @@
     "generate": "nuxt generate",
     "preview": "nuxt preview",
     "i18n:write": "gulp i18nWrite",
+    "pretest": "nuxt prepare",
     "test": "vitest run"
   },
   "dependencies": {
