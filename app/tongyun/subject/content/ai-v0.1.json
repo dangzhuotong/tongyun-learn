@@ -1,0 +1,419 @@
+{
+  "subject": "ai",
+  "version": "0.1",
+  "points": [
+    {
+      "id": "ai.llm.basics",
+      "title": "LLM 基础",
+      "prereq": []
+    },
+    {
+      "id": "ai.prompt.basics",
+      "title": "Prompt 基础",
+      "prereq": [
+        "ai.llm.basics"
+      ]
+    },
+    {
+      "id": "ai.rag.embedding",
+      "title": "Embedding 与向量检索",
+      "prereq": [
+        "ai.llm.basics"
+      ]
+    },
+    {
+      "id": "ai.rag.pipeline",
+      "title": "RAG 流程（chunk / rerank）",
+      "prereq": [
+        "ai.rag.embedding",
+        "ai.prompt.basics"
+      ]
+    },
+    {
+      "id": "ai.agent.function-calling",
+      "title": "Function Calling 与 Agent",
+      "prereq": [
+        "ai.prompt.basics"
+      ]
+    },
+    {
+      "id": "ai.agent.mcp",
+      "title": "MCP",
+      "prereq": [
+        "ai.agent.function-calling"
+      ]
+    },
+    {
+      "id": "ai.eval.hallucination",
+      "title": "评测与幻觉",
+      "prereq": [
+        "ai.rag.pipeline"
+      ]
+    },
+    {
+      "id": "ai.java.frameworks",
+      "title": "Spring AI / LangChain4j",
+      "prereq": [
+        "ai.agent.function-calling",
+        "ai.rag.pipeline"
+      ]
+    }
+  ],
+  "items": [
+    {
+      "id": "ai-0001",
+      "point_id": "ai.llm.basics",
+      "level": 1,
+      "type": "term",
+      "prompt": "LLM 处理和计费的基本文本单位叫什么？",
+      "answer": "token",
+      "accept": [
+        "Token",
+        "tokens",
+        "词元"
+      ],
+      "explain": "文本先被分词器切成 token 再输入模型。API 通常按输入和输出 token 数计费。",
+      "tags": [
+        "基础"
+      ]
+    },
+    {
+      "id": "ai-0002",
+      "point_id": "ai.llm.basics",
+      "level": 1,
+      "type": "term",
+      "prompt": "模型单次能处理的最大 token 数（输入+输出）叫什么？",
+      "answer": "context window",
+      "accept": [
+        "上下文窗口",
+        "context length",
+        "上下文长度",
+        "context"
+      ],
+      "explain": "超出窗口的内容模型看不到。长文档要么截断，要么用 RAG 检索相关片段。",
+      "tags": [
+        "基础",
+        "面试"
+      ]
+    },
+    {
+      "id": "ai-0003",
+      "point_id": "ai.llm.basics",
+      "level": 1,
+      "type": "concept",
+      "prompt": "temperature 调高，输出会更怎样？",
+      "answer": "更随机",
+      "accept": [
+        "随机",
+        "更发散",
+        "more random",
+        "多样",
+        "更有创意"
+      ],
+      "explain": "temperature 控制采样分布的平滑程度。调低更确定，适合抽取和代码；调高更多样。",
+      "tags": [
+        "基础"
+      ]
+    },
+    {
+      "id": "ai-0004",
+      "point_id": "ai.llm.basics",
+      "level": 2,
+      "type": "concept",
+      "prompt": "LLM 生成文本的基本方式：一次预测下一个什么？",
+      "answer": "token",
+      "accept": [
+        "下一个token",
+        "next token",
+        "词元"
+      ],
+      "explain": "自回归模型逐个预测下一个 token，并把它接回输入继续生成。",
+      "tags": [
+        "基础"
+      ]
+    },
+    {
+      "id": "ai-0005",
+      "point_id": "ai.prompt.basics",
+      "level": 1,
+      "type": "term",
+      "prompt": "给模型设定角色和全局规则的那条消息，role 是什么？",
+      "answer": "system",
+      "accept": [
+        "System",
+        "系统消息",
+        "system prompt",
+        "系统提示词"
+      ],
+      "explain": "Chat API 常见 role 有 system、user、assistant（以及 tool）。system 用来定行为边界。",
+      "tags": [
+        "基础"
+      ]
+    },
+    {
+      "id": "ai-0006",
+      "point_id": "ai.prompt.basics",
+      "level": 1,
+      "type": "term",
+      "prompt": "在 prompt 里给几个输入输出示例的做法叫什么？",
+      "answer": "few-shot",
+      "accept": [
+        "few shot",
+        "fewshot",
+        "少样本",
+        "少样本提示"
+      ],
+      "explain": "示例能让模型对齐格式和风格。不给示例叫 zero-shot。",
+      "tags": [
+        "面试"
+      ]
+    },
+    {
+      "id": "ai-0007",
+      "point_id": "ai.rag.embedding",
+      "level": 1,
+      "type": "term",
+      "prompt": "把文本转成稠密向量表示的过程叫什么？",
+      "answer": "embedding",
+      "accept": [
+        "Embedding",
+        "嵌入",
+        "向量化",
+        "文本嵌入"
+      ],
+      "explain": "语义相近的文本向量距离也近，这是向量检索的基础。",
+      "tags": [
+        "面试"
+      ]
+    },
+    {
+      "id": "ai-0008",
+      "point_id": "ai.rag.embedding",
+      "level": 2,
+      "type": "term",
+      "prompt": "向量检索最常用的相似度度量是什么？",
+      "answer": "余弦相似度",
+      "accept": [
+        "cosine",
+        "cosine similarity",
+        "余弦",
+        "cos"
+      ],
+      "explain": "余弦相似度看方向不看长度。向量归一化后，它与点积等价。",
+      "tags": [
+        "面试"
+      ]
+    },
+    {
+      "id": "ai-0009",
+      "point_id": "ai.rag.pipeline",
+      "level": 1,
+      "type": "term",
+      "prompt": "RAG 的全称（英文）是什么？",
+      "answer": "Retrieval-Augmented Generation",
+      "accept": [
+        "retrieval augmented generation",
+        "检索增强生成",
+        "Retrieval Augmented Generation"
+      ],
+      "explain": "先检索相关文档，再把它们放进 prompt 让模型生成答案。能缓解知识过时和幻觉。",
+      "tags": [
+        "面试"
+      ]
+    },
+    {
+      "id": "ai-0010",
+      "point_id": "ai.rag.pipeline",
+      "level": 1,
+      "type": "term",
+      "prompt": "入库前把长文档切成小段，这一步叫什么？",
+      "answer": "chunking",
+      "accept": [
+        "chunk",
+        "分块",
+        "切块",
+        "切片"
+      ],
+      "explain": "块太大会稀释语义、浪费上下文，太小会丢上下文。常用固定长度加 overlap，或按标题切。",
+      "tags": [
+        "面试"
+      ]
+    },
+    {
+      "id": "ai-0011",
+      "point_id": "ai.rag.pipeline",
+      "level": 2,
+      "type": "term",
+      "prompt": "向量召回后，用交叉编码器对候选重新排序，这一步叫什么？",
+      "answer": "rerank",
+      "accept": [
+        "reranking",
+        "重排",
+        "重排序",
+        "re-rank"
+      ],
+      "explain": "召回求全，rerank 求准。rerank 模型同时看 query 和文档，比纯向量相似度更精确。",
+      "tags": [
+        "面试"
+      ]
+    },
+    {
+      "id": "ai-0012",
+      "point_id": "ai.rag.pipeline",
+      "level": 2,
+      "type": "concept",
+      "prompt": "向量检索加关键词检索（如 BM25）一起用，叫什么检索？",
+      "answer": "混合检索",
+      "accept": [
+        "hybrid search",
+        "hybrid",
+        "混合搜索",
+        "hybrid retrieval"
+      ],
+      "explain": "关键词检索擅长精确术语和编号，向量检索擅长语义。两者结果融合后召回更稳。",
+      "tags": [
+        "面试"
+      ]
+    },
+    {
+      "id": "ai-0013",
+      "point_id": "ai.agent.function-calling",
+      "level": 1,
+      "type": "concept",
+      "prompt": "Function calling 里，真正执行函数的是模型还是应用代码？",
+      "answer": "应用代码",
+      "accept": [
+        "应用",
+        "客户端",
+        "代码",
+        "application",
+        "调用方",
+        "程序"
+      ],
+      "explain": "模型只输出要调用的函数名和 JSON 参数。由你的代码执行函数，再把结果回传给模型。",
+      "tags": [
+        "面试"
+      ]
+    },
+    {
+      "id": "ai-0014",
+      "point_id": "ai.agent.function-calling",
+      "level": 2,
+      "type": "term",
+      "prompt": "定义工具参数时，通常用什么格式描述参数结构？",
+      "answer": "JSON Schema",
+      "accept": [
+        "json schema",
+        "jsonschema",
+        "JSON"
+      ],
+      "explain": "用 JSON Schema 描述参数名、类型、是否必填，模型据此生成参数。",
+      "tags": [
+        "面试"
+      ]
+    },
+    {
+      "id": "ai-0015",
+      "point_id": "ai.agent.function-calling",
+      "level": 2,
+      "type": "concept",
+      "prompt": "「思考→行动→观察」循环的经典 Agent 范式叫什么？",
+      "answer": "ReAct",
+      "accept": [
+        "react",
+        "Reason+Act",
+        "Reasoning and Acting"
+      ],
+      "explain": "ReAct 让模型交替输出推理和工具调用，并根据观察结果继续推理。很多 Agent 框架都基于这一循环。",
+      "tags": [
+        "面试"
+      ]
+    },
+    {
+      "id": "ai-0016",
+      "point_id": "ai.agent.mcp",
+      "level": 1,
+      "type": "term",
+      "prompt": "MCP 的全称是什么？",
+      "answer": "Model Context Protocol",
+      "accept": [
+        "model context protocol",
+        "模型上下文协议"
+      ],
+      "explain": "MCP 是 Anthropic 2024 年底提出的开放协议，用统一方式把工具和数据源接给 AI 应用。",
+      "tags": [
+        "面试"
+      ]
+    },
+    {
+      "id": "ai-0017",
+      "point_id": "ai.agent.mcp",
+      "level": 2,
+      "type": "concept",
+      "prompt": "MCP 服务端向客户端暴露的三类核心能力：tools、resources 和什么？",
+      "answer": "prompts",
+      "accept": [
+        "prompt",
+        "Prompts",
+        "提示词模板",
+        "提示模板"
+      ],
+      "explain": "tools 供模型调用，resources 提供可读数据，prompts 是可复用的提示模板。",
+      "tags": [
+        "面试"
+      ]
+    },
+    {
+      "id": "ai-0018",
+      "point_id": "ai.eval.hallucination",
+      "level": 1,
+      "type": "term",
+      "prompt": "模型一本正经地编造不存在的事实，这叫什么？",
+      "answer": "幻觉",
+      "accept": [
+        "hallucination",
+        "Hallucination",
+        "AI幻觉"
+      ],
+      "explain": "缓解方法：RAG 提供依据、要求引用来源、降低 temperature、用评测集回归测试。",
+      "tags": [
+        "面试"
+      ]
+    },
+    {
+      "id": "ai-0019",
+      "point_id": "ai.java.frameworks",
+      "level": 1,
+      "type": "code",
+      "prompt": "敲一行：Spring AI 中用 ChatClient 问 \"hi\" 并取回文本",
+      "answer": "chatClient.prompt().user(\"hi\").call().content();",
+      "accept": [
+        "chatClient.prompt().user(\"hi\").call().content()",
+        "String r = chatClient.prompt().user(\"hi\").call().content();"
+      ],
+      "explain": "Spring AI 的 ChatClient 是流式 API：prompt() 构建请求，call() 同步调用，content() 取文本。",
+      "code": "chatClient.prompt().user(\"hi\").call().content();",
+      "tags": [
+        "编码"
+      ]
+    },
+    {
+      "id": "ai-0020",
+      "point_id": "ai.java.frameworks",
+      "level": 2,
+      "type": "term",
+      "prompt": "LangChain4j 中，用接口+注解声明式定义 AI 服务的机制叫什么？",
+      "answer": "AiServices",
+      "accept": [
+        "AI Services",
+        "aiservices",
+        "AI 服务",
+        "Ai Services"
+      ],
+      "explain": "定义一个 Java 接口，再用 AiServices.create(...) 生成实现。可以搭配 @SystemMessage、@Tool 等注解使用。",
+      "tags": [
+        "编码"
+      ]
+    }
+  ]
+}

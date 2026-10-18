@@ -60,6 +60,12 @@ html.yunya-on body {
   color: var(--yy-matcha-deep);
 }
 
+.yy-subject-switcher {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .yy-subject {
   padding: 2px 8px;
   border-radius: 999px;
@@ -67,6 +73,18 @@ html.yunya-on body {
   color: var(--yy-ink-soft);
   font-size: 12px;
   letter-spacing: 0.04em;
+  transition: all 0.15s ease;
+
+  &:hover {
+    background: var(--yy-card-warm);
+    color: var(--yy-ink);
+  }
+
+  &.active {
+    background: var(--yy-matcha-deep);
+    color: #fff;
+    font-weight: 600;
+  }
 }
 
 .yy-brand img {

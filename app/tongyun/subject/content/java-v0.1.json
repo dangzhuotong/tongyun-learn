@@ -1,0 +1,404 @@
+{
+  "subject": "java",
+  "version": "0.1",
+  "points": [
+    {
+      "id": "java.object.equals-hashcode",
+      "title": "equals 与 hashCode",
+      "prereq": []
+    },
+    {
+      "id": "java.collections.basics",
+      "title": "集合框架基础",
+      "prereq": [
+        "java.object.equals-hashcode"
+      ]
+    },
+    {
+      "id": "java.collections.hashmap",
+      "title": "HashMap",
+      "prereq": [
+        "java.object.equals-hashcode",
+        "java.collections.basics"
+      ]
+    },
+    {
+      "id": "java.collections.concurrenthashmap",
+      "title": "ConcurrentHashMap",
+      "prereq": [
+        "java.collections.hashmap",
+        "java.concurrency.basics"
+      ]
+    },
+    {
+      "id": "java.lang.string",
+      "title": "String",
+      "prereq": [
+        "java.object.equals-hashcode"
+      ]
+    },
+    {
+      "id": "java.lang.exception",
+      "title": "异常体系",
+      "prereq": []
+    },
+    {
+      "id": "java.concurrency.basics",
+      "title": "并发基础",
+      "prereq": []
+    },
+    {
+      "id": "java.jvm.memory",
+      "title": "JVM 内存",
+      "prereq": [
+        "java.concurrency.basics"
+      ]
+    },
+    {
+      "id": "java.spring.basics",
+      "title": "Spring 基础",
+      "prereq": []
+    }
+  ],
+  "items": [
+    {
+      "id": "java-0001",
+      "point_id": "java.object.equals-hashcode",
+      "level": 1,
+      "type": "concept",
+      "prompt": "重写 equals 时必须同时重写哪个方法？",
+      "answer": "hashCode",
+      "accept": [
+        "hashcode",
+        "hashCode()",
+        "哈希码"
+      ],
+      "explain": "equals 相等的对象 hashCode 必须相等。只重写 equals 会让 HashSet/HashMap 把相等对象放进不同桶。",
+      "tags": [
+        "面试"
+      ]
+    },
+    {
+      "id": "java-0002",
+      "point_id": "java.object.equals-hashcode",
+      "level": 1,
+      "type": "term",
+      "prompt": "只重写 equals、不重写 hashCode，两个 equals 相等的对象放进 HashSet，通常有几个元素？",
+      "answer": "2",
+      "accept": [
+        "两个",
+        "二",
+        "2个"
+      ],
+      "explain": "默认 hashCode 基于对象身份，两者大概率落不同桶，equals 根本没机会比较。所以通常是 2 个。",
+      "tags": [
+        "面试"
+      ]
+    },
+    {
+      "id": "java-0003",
+      "point_id": "java.object.equals-hashcode",
+      "level": 2,
+      "type": "code",
+      "prompt": "敲一行：用 Objects 工具类为 name 和 age 生成 hashCode",
+      "answer": "return Objects.hash(name, age);",
+      "accept": [
+        "return Objects.hash(name,age);",
+        "Objects.hash(name, age)",
+        "Objects.hash(name,age)"
+      ],
+      "explain": "Objects.hash 会对多个字段组合计算哈希，并处理 null。",
+      "code": "return Objects.hash(name, age);",
+      "tags": [
+        "编码"
+      ]
+    },
+    {
+      "id": "java-0004",
+      "point_id": "java.collections.basics",
+      "level": 1,
+      "type": "term",
+      "prompt": "List、Set、Map 中，哪个不继承 Collection 接口？",
+      "answer": "Map",
+      "accept": [
+        "map",
+        "java.util.Map"
+      ],
+      "explain": "Map 是键值对，独立于 Collection 体系。List 和 Set 都继承 Collection。",
+      "tags": [
+        "面试"
+      ]
+    },
+    {
+      "id": "java-0005",
+      "point_id": "java.collections.basics",
+      "level": 1,
+      "type": "concept",
+      "prompt": "ArrayList 底层是什么数据结构？",
+      "answer": "数组",
+      "accept": [
+        "动态数组",
+        "array",
+        "Object[]",
+        "可扩容数组"
+      ],
+      "explain": "ArrayList 基于 Object[]，随机访问 O(1)。容量不足时扩容为约 1.5 倍。",
+      "tags": [
+        "面试"
+      ]
+    },
+    {
+      "id": "java-0006",
+      "point_id": "java.collections.hashmap",
+      "level": 1,
+      "type": "term",
+      "prompt": "HashMap 默认负载因子是多少？",
+      "answer": "0.75",
+      "accept": [
+        "0.75f",
+        ".75",
+        "3/4"
+      ],
+      "explain": "元素数超过 容量×0.75 时扩容。这是时间与空间的折中。",
+      "tags": [
+        "面试"
+      ]
+    },
+    {
+      "id": "java-0007",
+      "point_id": "java.collections.hashmap",
+      "level": 1,
+      "type": "term",
+      "prompt": "HashMap 默认初始容量是多少？",
+      "answer": "16",
+      "accept": [
+        "1<<4",
+        "十六"
+      ],
+      "explain": "JDK 8 中首次 put 时懒初始化为 16。容量始终是 2 的幂。",
+      "tags": [
+        "面试"
+      ]
+    },
+    {
+      "id": "java-0008",
+      "point_id": "java.collections.hashmap",
+      "level": 2,
+      "type": "term",
+      "prompt": "JDK 8 HashMap 单个桶链表长度达到多少时考虑树化？",
+      "answer": "8",
+      "accept": [
+        "八",
+        "TREEIFY_THRESHOLD=8"
+      ],
+      "explain": "链表达到 8 且表容量至少 64 时转红黑树，否则先扩容。红黑树节点数降到 6 时退化回链表。",
+      "tags": [
+        "面试"
+      ]
+    },
+    {
+      "id": "java-0009",
+      "point_id": "java.collections.hashmap",
+      "level": 2,
+      "type": "term",
+      "prompt": "HashMap 树化要求的最小表容量是多少？",
+      "answer": "64",
+      "accept": [
+        "六十四",
+        "MIN_TREEIFY_CAPACITY=64"
+      ],
+      "explain": "表容量小于 64 时，链表过长优先扩容而不是树化。",
+      "tags": [
+        "面试"
+      ]
+    },
+    {
+      "id": "java-0010",
+      "point_id": "java.collections.hashmap",
+      "level": 2,
+      "type": "concept",
+      "prompt": "HashMap 允许 null 作为 key 吗？允许几个？",
+      "answer": "1个",
+      "accept": [
+        "一个",
+        "1",
+        "允许一个",
+        "可以，一个"
+      ],
+      "explain": "HashMap 允许一个 null key（放在 0 号桶）和多个 null value。Hashtable 和 ConcurrentHashMap 都不允许 null。",
+      "tags": [
+        "面试"
+      ]
+    },
+    {
+      "id": "java-0011",
+      "point_id": "java.collections.concurrenthashmap",
+      "level": 3,
+      "type": "concept",
+      "prompt": "JDK 8 的 ConcurrentHashMap 用什么替代了分段锁 Segment？",
+      "answer": "CAS+synchronized",
+      "accept": [
+        "CAS和synchronized",
+        "cas + synchronized",
+        "synchronized+CAS",
+        "CAS 加 synchronized"
+      ],
+      "explain": "空桶用 CAS 插入，非空桶对头节点加 synchronized。锁粒度降到单个桶。",
+      "tags": [
+        "面试"
+      ]
+    },
+    {
+      "id": "java-0012",
+      "point_id": "java.lang.string",
+      "level": 1,
+      "type": "concept",
+      "prompt": "String 为什么不可变？最关键的修饰符是哪个？",
+      "answer": "final",
+      "accept": [
+        "final 修饰",
+        "private final"
+      ],
+      "explain": "内部存储数组是 private final，且不对外暴露修改方法。不可变让 String 可以安全缓存 hashCode、放进常量池。",
+      "tags": [
+        "面试"
+      ]
+    },
+    {
+      "id": "java-0013",
+      "point_id": "java.lang.string",
+      "level": 1,
+      "type": "term",
+      "prompt": "单线程下拼接大量字符串，推荐用哪个类？",
+      "answer": "StringBuilder",
+      "accept": [
+        "stringbuilder",
+        "java.lang.StringBuilder"
+      ],
+      "explain": "StringBuilder 非线程安全但更快。多线程共享时才用 StringBuffer。",
+      "tags": [
+        "面试"
+      ]
+    },
+    {
+      "id": "java-0014",
+      "point_id": "java.lang.exception",
+      "level": 1,
+      "type": "concept",
+      "prompt": "IOException 属于受检异常还是非受检异常？",
+      "answer": "受检异常",
+      "accept": [
+        "checked",
+        "checked exception",
+        "受检",
+        "检查型异常"
+      ],
+      "explain": "受检异常必须 try-catch 或 throws 声明。RuntimeException 及其子类是非受检异常。",
+      "tags": [
+        "面试"
+      ]
+    },
+    {
+      "id": "java-0015",
+      "point_id": "java.lang.exception",
+      "level": 2,
+      "type": "code",
+      "prompt": "敲一行：try-with-resources 打开文件 a.txt 的 BufferedReader（只敲 try 头）",
+      "answer": "try (BufferedReader br = new BufferedReader(new FileReader(\"a.txt\"))) {",
+      "accept": [
+        "try(BufferedReader br = new BufferedReader(new FileReader(\"a.txt\"))){",
+        "try (BufferedReader br = new BufferedReader(new FileReader(\"a.txt\")))"
+      ],
+      "explain": "实现 AutoCloseable 的资源会在块结束时自动关闭，即使抛异常。",
+      "code": "try (BufferedReader br = new BufferedReader(new FileReader(\"a.txt\"))) {",
+      "tags": [
+        "编码"
+      ]
+    },
+    {
+      "id": "java-0016",
+      "point_id": "java.concurrency.basics",
+      "level": 2,
+      "type": "concept",
+      "prompt": "volatile 能保证可见性和有序性，不能保证什么？",
+      "answer": "原子性",
+      "accept": [
+        "atomicity",
+        "原子",
+        "不保证原子性"
+      ],
+      "explain": "count++ 是读-改-写三步，volatile 无法让它原子化。需要用 AtomicInteger 或加锁。",
+      "tags": [
+        "面试"
+      ]
+    },
+    {
+      "id": "java-0017",
+      "point_id": "java.concurrency.basics",
+      "level": 1,
+      "type": "code",
+      "prompt": "敲一行：创建固定 4 个线程的线程池（Executors 写法）",
+      "answer": "ExecutorService pool = Executors.newFixedThreadPool(4);",
+      "accept": [
+        "Executors.newFixedThreadPool(4)",
+        "ExecutorService pool=Executors.newFixedThreadPool(4);"
+      ],
+      "explain": "面试常追问：阿里规范建议用 ThreadPoolExecutor 显式创建。因为 newFixedThreadPool 的队列无界，可能 OOM。",
+      "code": "ExecutorService pool = Executors.newFixedThreadPool(4);",
+      "tags": [
+        "编码",
+        "面试"
+      ]
+    },
+    {
+      "id": "java-0018",
+      "point_id": "java.jvm.memory",
+      "level": 1,
+      "type": "term",
+      "prompt": "new 出来的对象实例主要分配在 JVM 哪块内存？",
+      "answer": "堆",
+      "accept": [
+        "heap",
+        "Java堆",
+        "堆内存"
+      ],
+      "explain": "堆是线程共享的，也是 GC 的主要区域。栈存局部变量和栈帧，线程私有。",
+      "tags": [
+        "面试"
+      ]
+    },
+    {
+      "id": "java-0019",
+      "point_id": "java.jvm.memory",
+      "level": 2,
+      "type": "term",
+      "prompt": "JDK 8 起，用什么取代了永久代存放类元数据？",
+      "answer": "元空间",
+      "accept": [
+        "Metaspace",
+        "metaspace",
+        "元数据区"
+      ],
+      "explain": "元空间使用本地内存，不在堆中。可以用 -XX:MaxMetaspaceSize 限制大小。",
+      "tags": [
+        "面试"
+      ]
+    },
+    {
+      "id": "java-0020",
+      "point_id": "java.spring.basics",
+      "level": 1,
+      "type": "term",
+      "prompt": "Spring Bean 默认作用域是什么？",
+      "answer": "singleton",
+      "accept": [
+        "单例",
+        "Singleton"
+      ],
+      "explain": "默认每个容器一个实例。需要每次获取都新建时用 prototype。",
+      "tags": [
+        "面试"
+      ]
+    }
+  ]
+}
