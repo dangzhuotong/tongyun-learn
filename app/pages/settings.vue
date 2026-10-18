@@ -56,7 +56,7 @@ function toggle(key: keyof EnglishPrefs, value: boolean) {
       </div>
       <p class="hint">敲句那一屏的中文提示会留着，不然整句没有可看的题目。上面的中文开关管词义和例句译文。</p>
     </div>
-    <p class="hint credit">词表：{{ NGSL_ATTRIBUTION }} {{ ECDICT_ATTRIBUTION }}</p>
+    <p class="hint credit" data-testid="ngsl-credit">词表：{{ NGSL_ATTRIBUTION }} {{ ECDICT_ATTRIBUTION }}</p>
   </section>
 </template>
 

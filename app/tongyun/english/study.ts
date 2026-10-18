@@ -192,3 +192,63 @@ export function resolveSpell(prev: WordStat, correct: boolean, wrongCount: numbe
     action: 'reteach',
   }
 }
+
+export interface ChoiceResolution {
+  stat: WordStat
+  action: 'hint_spell' | 'reteach'
+}
+
+/**
+ * 第 1 次复习选择题（choice）的结果处理。
+ * - 选对：进入随机提示拼写（hint_spell），stat 暂不推进（拼写答对才进下一档）。
+ * - 选错：不得进入提示拼写；按规格重教（该词从第 1 步重来），重新入队。
+ */
+export function resolveChoice(prev: WordStat, correct: boolean, now = Date.now()): ChoiceResolution {
+  if (correct) {
+    return {
+      stat: prev,
+      action: 'hint_spell',
+    }
+  }
+  return {
+    stat: {
+      ...prev,
+      wrong: prev.wrong + 1,
+      last: now,
+      box: 0,
+      due: now,
+      first: prev.first || now,
+      taught: false,
+    },
+    action: 'reteach',
+  }
+}
+
+/**
+ * 第 1 次复习选择题答题后的队列调整：
+ * - 选对：保留紧随其后的 hint_spell 提示拼写卡片。
+ * - 选错：移除 hint_spell（选错不得进入提示拼写），并将重教卡片重新入队（从第 1 步重来）。
+ */
+export function handleChoiceTransition(
+  items: StudyItem[],
+  currentIndex: number,
+  word: WordEntry,
+  correct: boolean
+): StudyItem[] {
+  if (correct) return items
+  const nextItem = items[currentIndex + 1]
+  const hasHint = nextItem && nextItem.word.word === word.word && nextItem.mode === 'hint_spell'
+  const reteach: StudyItem = {
+    id: `teach-${word.word}`,
+    word,
+    mode: 'teach',
+    reason: 'relearn',
+    reviewIndex: 0,
+  }
+  if (hasHint) {
+    items.splice(currentIndex + 1, 1, reteach)
+  } else {
+    items.splice(currentIndex + 1, 0, reteach)
+  }
+  return items
+}
