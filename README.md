@@ -1,171 +1,70 @@
-<h1 align=center>
-  <img src="https://github.com/user-attachments/assets/9d626e0f-0601-4640-8981-ad66d8ac4853" alt="TypeWords" style="width: 500px;"/>
-</h1>
+# 橦云学习
 
-<p align="center">
-  <a href="/README.md">English</a> |
-  <a href="/docs/README.es.md">Español</a> |
-  <a href="/docs/README.de.md">Deutsch</a> |
-  <a href="/docs/README.fr.md">Français</a> |
-  <a href="/docs/README.pt.md">Português</a> |
-  <a href="/docs/README.ru.md">Русский</a> |
-  <a href="/docs/README.uk.md">Українська</a> |
-  <a href="/docs/README.ja.md">日本語</a> |
-  <a href="/docs/README.ko.md">한국인</a> |
-  <a href="/docs/README.th.md">ไทย</a> |
-  <a href="/docs/README.vi.md">Tiếng Việt</a> |
-  <a href="/docs/README.id.md">Bahasa Indonesia</a> |
-  <a href="/docs/README.zh-TW.md">繁體中文</a> |
-  <a href="/docs/README.zh-CN.md">简体中文</a> 
-</p>
+橦云学习是一个智能学习中枢与练习系统，包含背单词、手敲练习、AI 记忆法讲解、AI 错词复习卷与个人学习看板等功能模块。前端采用 Nuxt 4、Vue 3 与 TypeScript 构建，以轻量、高效、专注为核心体验。
 
-<p align="center">
-  <b>Learn English, one keystroke at a time; smarter memorization, more efficient learning - an open-source word and article practice tool</b>
-</p>
+## 环境要求 (Requirements)
 
-<!-- tongyun: 单一仓库 -->
-## 橦云学习
+- **Node.js**：`>= 24`（根目录已提供 `.nvmrc`，推荐使用 `nvm use` 切换至 Node 24）
+- **包管理器**：`pnpm`（版本请与 `package.json` 中的 `packageManager` 保持一致，推荐 pnpm 10）
 
-本仓库是「橦云学习」的单一代码库。[tongyun-words](https://github.com/dangzhuotong/tongyun-words) 已归档，它的前端代码和提交历史都在这里。旧的 Python 学习服务在 [`legacy/`](legacy/README.md)，在被替换之前仍在 82 上提供 `/learn/api`（本机 `127.0.0.1:8031`）。
+## 环境配置 (.env Setup)
 
-前端基于 [TypeWords](https://github.com/zyronon/TypeWords)（GPL-3.0）。对上游的改动在代码里带 `tongyun:` 标记。
+项目根目录提供 `.env.example` 作为环境变量配置模板：
 
-### 目录
+```bash
+# 复制示例配置文件
+cp .env.example .env
+```
 
-| 路径 | 内容 |
-| --- | --- |
-| 仓库根（`app/`、`public/`、`package.json`） | Nuxt 前端，主应用。`npm run generate` 产出静态站 |
-| `public/dicts/`、`public/list/`、`public/wordlists/` | 词表。不要改这些内容 |
-| `legacy/` | 旧 FastAPI 学习服务。命令在该目录执行，说明见 [`legacy/README.md`](legacy/README.md) |
-| `docs/` | 前端贡献说明、各语言 README、联调说明 |
-| `legacy/docs/` | 旧服务的测试体系与看板契约 |
+按需修改 `.env` 中的配置项：
+- `NUXT_APP_BASE_URL`：站点部署子路径，默认为 `/learn/`。
+- `API_BASE` / `ORIGIN` / `HOST`：前端运行时配置。
+- `WORDS_DATABASE_URL`：数据库连接字符串（仅服务端进程读取，切勿暴露给前端）。
+- `WORDS_SESSION_SECRET` / `WORDS_STATS_TOKEN` 等服务端认证密钥。
 
-阿学英语词表（`public/wordlists/`）的音标取自 [ECDICT](https://github.com/skywind3000/ECDICT)（MIT License），已规范化为英式 IPA。L4 选词派生自 NGSL 1.2（CC BY-SA 4.0），出处见 [`public/wordlists/README.md`](public/wordlists/README.md)。
+> **安全提示**：切勿将真实密码、Token 或 API Key 提交到代码仓库。
 
-### 静态站 base
+## 常用命令 (Scripts)
 
-默认子路径是 `/learn/`（以前是 `/words/`）。`nuxt.config.ts` 读 `NUXT_APP_BASE_URL`，没设时用 `/learn/`。要换路径就在命令前加上这个变量，例如 `NUXT_APP_BASE_URL=/preview/ npm run generate`。本地开发同样受这个变量控制，默认打开 `http://localhost:5567/learn/`。
+在仓库根目录下执行：
 
-站内「背单词」页面仍是 `/words`（部署后是 `/learn/words`）。这是页面路由，不是站点 base。
-
-### 前端
+### 1. 安装依赖
 
 ```bash
 pnpm install
-pnpm dev          # http://localhost:5567/learn/
-pnpm test         # vitest
-npm run generate  # 静态站，默认 base /learn/，产物在 .output/public
 ```
 
-`npm run generate` 和 `pnpm generate` 走同一条脚本。
-
-今日、练习、教练、设置是站内模块，背单词在练习里。先整词手敲再整句手敲，空格继续。今天学几项、要不要敲句都听学习服务的 `GET /v1/today`；敲完 `POST /v1/type`（`card_id`、`phase`、`typed`、`duration_ms`）；教练页 `GET/POST /v1/coach`。令牌只存本机。旧地址 `/typewords` 会进练习。视觉见 [DESIGN.md](DESIGN.md)。
-
-- **智能混学**：跨词书按记忆曲线复习，再随机补新词，不分章节。
-- **AI 记忆法 / AI 讲解**：单词记忆法和文章句子讲解，调同域的学习服务 `/learn/api/v1/ai/explain`。学习服务地址和令牌在「设置 → 通用设置」顶部填写，只存在本浏览器 localStorage。
-- **AI 错词复习卷**（`/ai-quiz`，部署后是 `/learn/ai-quiz`）：从错词本选词，调 `/learn/api/v1/ai/quiz` 生成 cloze / 选择 / 英译中，本地判分。复用同一份学习服务地址和令牌。
-- **学习看板**（`/learn-board`，部署后是 `/learn/learn-board`）：手机优先的只读页面，按顺序显示今天学什么（待复查在前，新点标出会不会占今天的新开名额）、待复习数和前几张卡的正面、卡点、各科统计（掌握数、各状态数、30 天保持率）、按阶段折叠的知识地图（点开一个点能看到硬前置和软前置）。
-  - 复用设置里的同一份学习服务地址和令牌。没填令牌时只提示去设置，不发任何请求。
-  - 只调学习服务的 GET 接口：`/subjects`、`/subjects/{id}/map`、`/next`、`/review/due`、`/progress`、`/blockers`。每块单独加载、单独报错：令牌不对提示去设置改，连不上提示「连不上学习服务」；连到没有 `/blockers` 的旧版服务（404）时显示「卡点记录即将接入」。
-  - 页面是 `ssr:false` 的纯客户端页面，静态产物里没有任何学习数据。
-- 本机联调、探活命令和常见错误见 [docs/tongyun-learn-integration.md](docs/tongyun-learn-integration.md)。
-- 文章页的百度网络翻译目前停用。appid/key 不能放进前端（会打进静态 HTML）。以后要在 `/learn/api` 加服务端代理来保管密钥并签名，见 [docs/TODO.md](docs/TODO.md)。
-- 默认关闭了原作者的第三方统计脚本（开关在 `app/tongyun/config.ts`）。
-
-### 旧后端
-
-在 `legacy/` 里。82 上的反代仍把 `/learn/api/` 转到 `127.0.0.1:8031/`。对外静态站是 `https://主机/learn/`，接口是 `https://主机/learn/api/v1/health`。
+### 2. 本地开发
 
 ```bash
-cd legacy
-uv sync
-cp .env.example .env
-uv run alembic upgrade head
-uv run uvicorn tongyun_learn.main:app --host 127.0.0.1 --port 8031 --reload
+pnpm dev
 ```
 
-## Project Introduction
+默认开发服务器地址为 `http://localhost:5567/learn/`。
 
-<https://www.bilibili.com/video/BV1QwYv6eEAS>
+### 3. 运行测试
 
-## Online Access
+```bash
+pnpm test
+```
 
-<https://typewords.cc>
+### 4. 构建产物
 
-<img width="1920" height="1440" alt="practice words" src="/public/imgs/words.png" />
-<img width="1920" height="1440" alt="practice articles" src="/public/imgs/articles.png" />
+```bash
+# 生产构建
+pnpm build
 
-## Features
+# 静态站点生成（输出至 .output/public）
+npm run generate
+```
 
-### Word Practice
+## 关于旧服务 (Note on legacy/)
 
-- Practice modes: Follow-along / Dictation / Self-test / Spelling from memory
-- Smart mode: Automatically calculates learning words based on memory curves, deepening memory through dictation
-- Free mode: No restrictions, plan your own learning
-- Provides phonetics, pronunciation (American/British), example sentences, phrases, synonyms, root words, etymology, error statistics, and more
+仓库中的 `legacy/` 目录保留了被替换前的 FastAPI Python 学习服务：
+- 使用 `uv` 管理依赖与环境。
+- 在被完全替代前，仍在特定环境下提供 `/learn/api` 接口与知识地图/卡片调度功能。
+- 详细的使用说明、接口文档及测试方法参见 [`legacy/README.md`](legacy/README.md) 与 `legacy/AGENTS.md`。
 
-### Article Memorization
+## 许可说明
 
-- Built-in classic textbooks; you can also add or import articles with one-click translation and bilingual comparison
-- Follow-along + dictation dual modes, sentence-by-sentence input with automatic pronunciation for more efficient memorization
-- Supports listening while writing from memory to reinforce learning
-
-### Favorites, Wrong Words, Mastered
-
-- Words typed incorrectly while learning are automatically added to your wrong word book for later review
-- Actively add words to mastered to automatically skip them in future sessions
-- Add words to favorites for consolidation and review
-
-### Highly Customizable
-
-- Rich keyboard sound effects
-- Customizable shortcuts
-- Highly configurable settings
-
-### Clean and Efficient
-
-- Clean design, modern UI, ad-free
-- Refreshing interface, simple operation
-- No forced subscription to any platform
-
-### Vocabulary Library
-
-Built-in commonly used vocabulary including CET-4, CET-6, GMAT, GRE, IELTS, SAT, TOEFL, Graduate English, TEM-4, TEM-8, and more (official website only).
-Designed to meet most users' vocabulary learning needs. Community contributions of additional vocabulary are welcome.
-
-## Running the Project
-
-#### Note: This project can run standalone with data saved locally. Manual backup is required when switching devices; this does not affect normal usage.
-
-This project is built with `Nuxt` and requires a Node.js environment.
-
-1. Install NodeJS, refer to the [official documentation](https://nodejs.org/en/download)
-2. The project is large. It's recommended to use `git clone --depth 1 https://github.com/zyronon/TypeWords.git` to clone only the latest commit. GitHub's Download ZIP feature will not work properly.
-3. In the project root directory, open a terminal and run `pnpm install` to download dependencies.
-4. Run `pnpm run dev` to start the project. The default address is [`http://localhost:5567`](http://localhost:5567)
-5. Open [`http://localhost:5567`](http://localhost:5567) in your browser to access the project.
-6. Run `pnpm run generate` to build the project files.
-
-## Features and Suggestions
-
-The project is currently in early development, with new features being added continuously. If you have any suggestions or feature requests, feel free to open an `Issue`.
-If you like the design philosophy of this software, please submit a `PR`. Thank you for your support!
-
-## Contributing Guide
-
-[Contributing Guidelines](/docs/CONTRIBUTING.md)
-
-If you're interested in this project, we welcome your contributions and will provide as much help as possible.
-
-Before contributing, please communicate with the developers to avoid code conflicts.
-
-Thank you again for your contributions!
-
-
-## ❤️ Support TypeWords
-If TypeWords has been helpful to you, feel free to sponsor the project to support server operation and future development.  
-Of course, sponsorship is not required for use—sharing the project, submitting feedback, or contributing code are also highly valuable forms of support.
-
-<img width="300" height="390" alt="practice words" src="/public/imgs/zhifubao.png" />
-<img width="300" height="390" alt="practice words" src="/public/imgs/weixin.png" />
-
+本项目前端基于开源项目二次开发，遵循 GPL-3.0 协议；所有定制修改均以 `tongyun:` 标注以便追溯。
