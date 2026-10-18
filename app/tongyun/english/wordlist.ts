@@ -84,11 +84,18 @@ export interface WordStat {
   box: number
   /** 下次到期时间（毫秒） */
   due: number
+  /** tongyun: 首次教学时间，用于统计「今天学过几个新词」 */
+  first: number
+  /** tongyun: 是否已教过；连续两次拼错后置 false，触发重教（从第 1 步重来） */
+  taught: boolean
 }
+
+export const ZERO_STAT: WordStat = { right: 0, wrong: 0, last: 0, box: 0, due: 0, first: 0, taught: false }
 
 const STATS_KEY = 'tongyun-en-stats-v1'
 const PROGRESS_KEY = 'tongyun-en-progress-v1'
 const LEVEL_KEY = 'tongyun-en-level-v1'
+const OPTIONAL_KEY = 'tongyun-en-optional-v1'
 
 function readJson<T>(key: string, fallback: T): T {
   try {
@@ -120,7 +127,9 @@ export function normalizeStat(raw: any): WordStat {
   let box = r.box !== undefined ? num(r.box) : Math.max(0, num(r.stability) - 1)
   box = Math.min(INTERVALS.length - 1, Math.max(0, Math.floor(box)))
   const due = r.due !== undefined ? num(r.due) : last ? last + INTERVALS[box] * DAY : 0
-  return { right: num(r.right), wrong: num(r.wrong), last, box, due }
+  const first = num(r.first) || last
+  const taught = r.taught !== undefined ? Boolean(r.taught) : last > 0
+  return { right: num(r.right), wrong: num(r.wrong), last, box, due, first, taught }
 }
 
 export function getStats(): Record<string, WordStat> {
@@ -132,7 +141,7 @@ export function getStats(): Record<string, WordStat> {
 
 /** 答对：进入下一档（首次答对排 1 天后）；答错：重置到第 1 天 */
 export function nextStat(cur: WordStat | undefined, correct: boolean, now: number): WordStat {
-  const c = cur || { right: 0, wrong: 0, last: 0, box: 0, due: 0 }
+  const c = cur || ZERO_STAT
   if (!correct) return { ...c, wrong: c.wrong + 1, last: now, box: 0, due: now + INTERVALS[0] * DAY }
   const box = c.last ? Math.min(INTERVALS.length - 1, c.box + 1) : 0
   return { ...c, right: c.right + 1, last: now, box, due: now + INTERVALS[box] * DAY }
@@ -144,6 +153,94 @@ export function recordResult(word: string, correct: boolean, now = Date.now()): 
   stats[word] = next
   writeJson(STATS_KEY, stats)
   return next
+}
+
+/** tongyun: 直接写回某个词的排课状态（教学 / 复习 / 重教都走这里）。 */
+export function saveStat(word: string, stat: WordStat): WordStat {
+  const stats = getStats()
+  stats[word] = stat
+  writeJson(STATS_KEY, stats)
+  return stat
+}
+
+/** tongyun: 教完一个新词 —— 记为已教，首次复习排到明天（档 0，间隔 1 天）。 */
+export function teachStat(word: string, now = Date.now()): WordStat {
+  return { right: 0, wrong: 0, last: now, box: 0, due: now + INTERVALS[0] * DAY, first: now, taught: true }
+}
+
+/** tongyun: 重教已学过的词 —— 保留历史，档重置到 0，明天再复习。 */
+export function relearnStat(prev: WordStat, now = Date.now()): WordStat {
+  return {
+    right: prev.right,
+    wrong: prev.wrong,
+    last: now,
+    box: 0,
+    due: now + INTERVALS[0] * DAY,
+    first: prev.first || now,
+    taught: true,
+  }
+}
+
+/** tongyun: 还没教过的词（完全没见过）。 */
+export function isNewWord(stat: WordStat | undefined): boolean {
+  return !stat
+}
+
+export function startOfDay(ts: number): number {
+  const d = new Date(ts)
+  d.setHours(0, 0, 0, 0)
+  return d.getTime()
+}
+
+/** tongyun: 今天已教过的新词数（按 first 落在今天统计）。 */
+export function countIntroducedToday(stats: Record<string, WordStat> = getStats(), now = Date.now()): number {
+  const from = startOfDay(now)
+  const to = from + DAY
+  return Object.values(stats).filter(s => s.first >= from && s.first < to).length
+}
+
+// ---- tongyun: 级别顺序与每日新词额度 ----
+
+/** 级别引入顺序：L1→L2→L3→L5→L4，L6 可选。 */
+export const LEVEL_ORDER = [1, 2, 3, 5, 4, 6]
+
+/** 按引入顺序展开；L6 等 optional 级别只有显式开启时才出现。 */
+export function orderedLevels(optional: number[] = []): number[] {
+  const on = new Set(optional)
+  return LEVEL_ORDER.filter(n => {
+    const meta = LEVELS.find(l => l.level === n)
+    if (!meta) return false
+    return meta.optional ? on.has(n) : true
+  })
+}
+
+export function getOptionalLevels(): number[] {
+  const v = readJson<number[]>(OPTIONAL_KEY, [])
+  return Array.isArray(v) ? v.filter(n => typeof n === 'number') : []
+}
+
+export function setOptionalLevel(level: number, on: boolean) {
+  const set = new Set(getOptionalLevels())
+  if (on) set.add(level)
+  else set.delete(level)
+  writeJson(OPTIONAL_KEY, [...set].sort((a, b) => a - b))
+}
+
+export const NEW_DEFAULT = 8
+export const NEW_WHEN_DUE_HIGH = 3
+export const NEW_DUE_REDUCE = 40
+export const NEW_DUE_STOP = 80
+
+/** 每日新词上限：默认 8；到期 >40 降到 3；>80 不加新词。 */
+export function dailyNewBudget(due: number): number {
+  if (due > NEW_DUE_STOP) return 0
+  if (due > NEW_DUE_REDUCE) return NEW_WHEN_DUE_HIGH
+  return NEW_DEFAULT
+}
+
+/** 今天还能引入几个新词（扣掉今天已经教过的）。 */
+export function remainingNewBudget(due: number, introducedToday: number): number {
+  return Math.max(0, dailyNewBudget(due) - Math.max(0, introducedToday))
 }
 
 /** 每级一个游标：已学到第几个词。线性推进，不跳级。 */

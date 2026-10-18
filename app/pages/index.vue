@@ -1,11 +1,18 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { getLearnConfig } from '@/tongyun/learn-client'
-import { fetchToday } from '@/tongyun/english/client'
-import type { TodayQueue } from '@/tongyun/english/types'
-import { buildLocalQueue } from '@/tongyun/english/local-queue'
-import { LEVELS, NGSL_ATTRIBUTION, dueCount, getLevel, getProgress, loadWordlist, setLevel } from '@/tongyun/english/wordlist'
+import { buildSession, type SessionPlan } from '@/tongyun/english/study'
+import {
+  LEVELS,
+  NGSL_ATTRIBUTION,
+  getOptionalLevels,
+  getStats,
+  loadWordlist,
+  orderedLevels,
+  setOptionalLevel,
+  type WordEntry,
+  type WordStat,
+} from '@/tongyun/english/wordlist'
 
 definePageMeta({
   layout: 'yunya',
@@ -17,14 +24,10 @@ useSeoMeta({
 
 const router = useRouter()
 const ready = ref(false)
-const hasToken = ref(false)
-const loading = ref(false)
-const error = ref('')
-const queue = ref<TodayQueue | null>(null)
-// tongyun: 按 L1–L5 分级选词
-const level = ref(1)
-const levelStats = ref<{ level: number; title: string; optional?: boolean; done: number; total: number; due: number }[]>([])
-const localMode = ref(false)
+const loading = ref(true)
+const plan = ref<SessionPlan | null>(null)
+const levels = ref<{ level: number; title: string; optional?: boolean; done: number; total: number }[]>([])
+const optional = ref<number[]>([])
 
 const dateText = computed(() => {
   const now = new Date()
@@ -34,54 +37,38 @@ const dateText = computed(() => {
   return `${now.getFullYear()}-${month}-${date} 周${days[now.getDay()]}`
 })
 
-const progressPct = computed(() => {
-  const value = queue.value?.unitProgress
-  if (value === null || value === undefined) return 0
-  return Math.round(value * 100)
+const countText = computed(() => {
+  const p = plan.value
+  if (!p) return ''
+  const parts = [`到期复习 ${p.dueTotal}`, `新词 ${p.newTotal}`]
+  return parts.join(' · ')
 })
 
-const countText = computed(() => {
-  const items = queue.value?.items ?? []
-  const n = localMode.value ? items.filter(i => i.stage === 'A').length : items.length
-  if (!n) return '今天没有要练的词'
-  return localMode.value ? `本轮 ${n} 个词：看中文拼英文，再敲例句` : `今天 ${n} 项`
-})
+const empty = computed(() => Boolean(plan.value) && plan.value!.items.length === 0)
 
 async function load() {
   loading.value = true
-  error.value = ''
-  // tongyun: 没令牌就不请求学习服务；today 404/报错时静默回退本地词书，不弹报错
-  const res = hasToken.value ? await fetchToday() : null
-  if (res && res.ok && res.data && res.data.items.length) {
-    queue.value = res.data
-    localMode.value = false
-  } else {
-    await refreshLevels()
-    queue.value = await buildLocalQueue(level.value)
-    localMode.value = true
-  }
+  const list = await loadWordlist()
+  const stats: Record<string, WordStat> = getStats()
+  optional.value = getOptionalLevels()
+  plan.value = buildSession(list, stats, optional.value)
+  levels.value = orderedLevels(optional.value).map(n => {
+    const meta = LEVELS.find(l => l.level === n)
+    const words: WordEntry[] = list.filter(w => w.level === n)
+    const done = words.filter(w => stats[w.word]?.taught).length
+    return { level: n, title: meta?.title || `L${n}`, optional: meta?.optional, done, total: words.length }
+  })
   loading.value = false
 }
 
-async function refreshLevels() {
-  const list = await loadWordlist()
-  const prog = getProgress()
-  levelStats.value = LEVELS.map(l => {
-    const total = list.filter(w => w.level === l.level).length
-    return { ...l, total, done: Math.min(prog[l.level] || 0, total), due: dueCount(list, l.level) }
-  })
-}
-
-async function pickLevel(n: number) {
-  level.value = n
-  setLevel(n)
-  queue.value = await buildLocalQueue(n)
+function toggleOptional(n: number) {
+  const on = !optional.value.includes(n)
+  setOptionalLevel(n, on)
+  load()
 }
 
 onMounted(() => {
   ready.value = true
-  hasToken.value = Boolean(getLearnConfig().token)
-  level.value = getLevel()
   load()
 })
 </script>
@@ -92,54 +79,51 @@ onMounted(() => {
     <h1>今日</h1>
     <p class="date">{{ dateText }}</p>
 
-    <div v-if="!ready" class="yy-card panel skeleton" />
+    <div v-if="!ready || loading" class="yy-card panel skeleton" />
 
     <div v-else class="yy-card panel">
-      <p v-if="loading" class="lead">正在准备今天的词…</p>
-      <template v-else-if="error">
-        <p class="lead">{{ error }}</p>
-        <div class="actions">
-          <button type="button" class="yy-btn ghost" @click="load">重试</button>
-        </div>
+      <template v-if="empty">
+        <p class="lead">今天的词都学完了，明天再来。</p>
       </template>
-      <template v-else-if="queue">
-        <div v-if="localMode" class="levels" data-testid="level-picker">
-          <button
-            v-for="l in levelStats"
-            :key="l.level"
-            type="button"
-            class="lv"
-            :class="{ on: l.level === level }"
-            :data-testid="`level-${l.level}`"
-            @click="pickLevel(l.level)"
-          >
-            <strong>{{ l.title }}</strong>
-            <span>{{ l.done }}/{{ l.total }}<template v-if="l.due"> · 待复习 {{ l.due }}</template><template v-if="l.optional"> · 可选</template></span>
-          </button>
-        </div>
-        <p class="unit">{{ queue.unitTitle || '英语' }}</p>
-        <div class="bar" aria-hidden="true">
-          <span :style="{ width: progressPct + '%' }" />
-        </div>
-        <p v-if="queue.unitProgress !== null" class="meta">单元进度 {{ progressPct }}%</p>
-        <p v-if="queue.suggestion" class="suggest">{{ queue.suggestion }}</p>
-        <p class="meta">{{ countText }}</p>
-        <button type="button" class="yy-btn" data-testid="start-practice" :disabled="!queue.items.length" @click="router.push('/practice')">
-          开始练习
-        </button>
+      <template v-else>
+        <p class="unit">{{ countText }}</p>
+        <p class="meta">先复习到期的，再学新词；随时可以停下。</p>
       </template>
+      <button
+        type="button"
+        class="yy-btn"
+        data-testid="start-learn"
+        :disabled="empty"
+        @click="router.push('/practice')"
+      >
+        开始学
+      </button>
     </div>
-    <p v-if="localMode" class="credit">{{ NGSL_ATTRIBUTION }}</p>
+
+    <details class="levels" data-testid="level-progress">
+      <summary>级别进度</summary>
+      <ul>
+        <li v-for="l in levels" :key="l.level" :data-testid="`level-${l.level}`">
+          <span class="lv-title">{{ l.title }}</span>
+          <span class="lv-count">{{ l.done }}/{{ l.total }}</span>
+          <label v-if="l.optional" class="lv-opt">
+            <input
+              type="checkbox"
+              :checked="optional.includes(l.level)"
+              :data-testid="`level-optional-${l.level}`"
+              @change="toggleOptional(l.level)"
+            />
+            可选
+          </label>
+        </li>
+      </ul>
+    </details>
+
+    <p class="credit">{{ NGSL_ATTRIBUTION }}</p>
   </section>
 </template>
 
 <style scoped lang="scss">
-.levels { display: flex; flex-wrap: wrap; gap: 8px; }
-.lv { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 8px 12px; border-radius: 12px; border: 1px solid var(--yy-line, #e5ddd0); background: transparent; cursor: pointer; font-size: 13px; color: inherit; }
-.lv span { color: var(--yy-ink-soft); font-size: 12px; }
-.lv.on { border-color: var(--yy-matcha, #a4c48c); background: rgba(164, 196, 140, 0.15); }
-.credit { margin-top: 18px; font-size: 12px; color: var(--yy-ink-soft); line-height: 1.6; }
-
 .today {
   padding-top: 28px;
 }
@@ -180,9 +164,9 @@ h1 {
 }
 
 .lead,
-.suggest {
+.meta {
   margin: 0;
-  font-size: 18px;
+  font-size: 16px;
   line-height: 1.6;
 }
 
@@ -192,34 +176,50 @@ h1 {
   font-weight: 650;
 }
 
-.suggest {
-  padding: 14px 16px;
-  border-radius: 16px;
-  background: var(--yy-matcha-soft);
+.levels {
+  margin-top: 20px;
+  font-size: 13px;
+  color: var(--yy-ink-soft);
+}
+
+.levels summary {
+  cursor: pointer;
+  min-height: 32px;
+}
+
+.levels ul {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.levels li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.lv-title {
+  flex: 1;
+}
+
+.lv-count {
   color: var(--yy-matcha-deep);
 }
 
-.bar {
-  width: min(420px, 100%);
-  height: 8px;
-  border-radius: 999px;
-  background: var(--yy-bg-deep);
-  overflow: hidden;
+.lv-opt {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 
-.bar span {
-  display: block;
-  height: 100%;
-  background: var(--yy-matcha);
-}
-
-.meta {
-  margin: 0;
-}
-
-.actions {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
+.credit {
+  margin-top: 18px;
+  font-size: 12px;
+  color: var(--yy-ink-soft);
+  line-height: 1.6;
 }
 </style>

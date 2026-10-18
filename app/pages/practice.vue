@@ -2,280 +2,271 @@
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { withAppBaseURL } from '@/core/utils/base-url'
-import { getLearnConfig } from '@/tongyun/learn-client'
-import { freshAttempt, isResolved, submitAttempt, type AttemptState } from '@/tongyun/english/attempt'
-import { buildTypeEvent, expectedOf, fetchToday, postTypeEvent } from '@/tongyun/english/client'
-import { gradePrefsOf, gradeTyped, markLetters } from '@/tongyun/english/grade'
-import { getEnglishPrefs, type EnglishPrefs } from '@/tongyun/english/prefs'
-import type { PracticeStep, TodayQueue, TypeEventBody } from '@/tongyun/english/types'
-import { buildLocalQueue } from '@/tongyun/english/local-queue'
-import { splitPhonetics, advanceProgress, getLevel, loadWordlist, recordResult } from '@/tongyun/english/wordlist'
+import { gradePrefsOf, gradeTyped } from '@/tongyun/english/grade'
+import { getEnglishPrefs } from '@/tongyun/english/prefs'
+import { recordAnswer, type AnswerMode } from '@/tongyun/english/records'
+import { hintText, randomHint, type HintMask } from '@/tongyun/english/hint'
+import { typeableSentence } from '@/tongyun/english/local-queue'
+import { buildMeaningChoices, buildSession, buildWordChoices, resolveSpell, type StudyItem } from '@/tongyun/english/study'
+import {
+  getOptionalLevels,
+  getStats,
+  loadWordlist,
+  relearnStat,
+  saveStat,
+  splitPhonetics,
+  teachStat,
+  toneOf,
+  type WordEntry,
+} from '@/tongyun/english/wordlist'
 
 definePageMeta({
   layout: 'yunya',
 })
 
 useSeoMeta({
-  title: '橦云学习',
+  title: '学习 · 橦云学习',
 })
 
 const router = useRouter()
 const markSrc = withAppBaseURL('/yunya-mark.svg')
+
 const ready = ref(false)
-const hasToken = ref(false)
-const loading = ref(false)
-const error = ref('')
-const queue = ref<TodayQueue | null>(null)
-// tongyun: 本地词书模式下敲击只本地判分，不上报学习服务
-const localMode = ref(false)
+const loading = ref(true)
+const list = ref<WordEntry[]>([])
+const items = ref<StudyItem[]>([])
 const index = ref(0)
-const attempt = ref<AttemptState>(freshAttempt())
-const prefs = ref<EnglishPrefs>(getEnglishPrefs())
-const busy = ref(false)
-const saveError = ref('')
-const pending = ref<TypeEventBody | null>(null)
-const elapsedMs = ref(0)
+const prefs = ref(getEnglishPrefs())
+const gradePrefs = computed(() => gradePrefsOf(prefs.value))
+
 const wordInput = ref<HTMLInputElement | null>(null)
 const sentenceInput = ref<HTMLTextAreaElement | null>(null)
+const spellInput = ref<HTMLInputElement | null>(null)
 
-let cardStarted = 0
-let sessionStarted = 0
-let timer = 0
-let alive = true
-let confirming = false
+// 当前卡片状态
+const typed = ref('')
+const chosen = ref('')
+const choiceResult = ref<'idle' | 'correct' | 'wrong'>('idle')
+const wrongCount = ref(0)
+const hintMask = ref<HintMask | null>(null)
+const hintShown = ref(false)
+const answered = ref(false)
+const feedback = ref('')
+const options = ref<string[]>([])
+const teachWord = ref('')
+const teachSentence = ref('')
 
-const step = computed(() => queue.value?.items[index.value] || null)
-const total = computed(() => queue.value?.items.length ?? 0)
-const finished = computed(() => Boolean(queue.value) && index.value >= total.value && total.value > 0)
-const gradePrefs = computed(() => gradePrefsOf(prefs.value))
-const expected = computed(() => (step.value ? expectedOf(step.value) : ''))
-const matched = computed(() =>
-  step.value ? gradeTyped(attempt.value.typed, expected.value, step.value.stage, gradePrefs.value) : false
+const item = computed(() => items.value[index.value] || null)
+const total = computed(() => items.value.length)
+const finished = computed(() => ready.value && !loading.value && index.value >= total.value)
+const mode = computed<AnswerMode>(() => item.value?.mode || 'teach')
+const entry = computed(() => item.value?.word || null)
+const meaning = computed(() => entry.value?.meaning || '')
+const answer = computed(() => entry.value?.word || '')
+const exampleText = computed(() => (entry.value ? typeableSentence(entry.value.example) : ''))
+const tone = computed(() => (entry.value ? toneOf(entry.value) : ''))
+const hintDisplay = computed(() => (entry.value && hintMask.value ? hintText(entry.value.word, hintMask.value) : ''))
+const spellMode = computed(() => (mode.value === 'spell' || mode.value === 'hint_spell'))
+const modeLabel = computed(() => {
+  if (mode.value === 'teach') return item.value?.reason === 'relearn' ? '重教' : '新词·先教'
+  if (mode.value === 'choice') return '第 1 次复习·选'
+  return '拼写'
+})
+const canTeach = computed(
+  () => teachWord.value.trim().length > 0 && (!exampleText.value || teachSentence.value.trim().length > 0)
 )
-const letters = computed(() => (step.value?.stage === 'A' ? markLetters(step.value.word, attempt.value.typed, gradePrefs.value) : []))
-const resolved = computed(() => isResolved(attempt.value))
-const locked = computed(() => resolved.value || busy.value)
+const hintsHint = computed(() => (hintMask.value ? `提示：${hintDisplay.value}（${hintMask.value.letters} 个字母）` : ''))
 
-const sentencePos = computed(() => {
-  const items = queue.value?.items || []
-  let n = 0
-  let k = 0
-  items.forEach((item, i) => {
-    if (item.stage !== 'B') return
-    n += 1
-    if (i === index.value) k = n
-  })
-  return { k, n }
-})
+function speak(text: string) {
+  if (!text || typeof speechSynthesis === 'undefined') return
+  try {
+    speechSynthesis.cancel()
+    const utter = new SpeechSynthesisUtterance(text)
+    utter.lang = 'en-US'
+    speechSynthesis.speak(utter)
+  } catch {}
+}
 
-const progressPct = computed(() => {
-  if (!total.value) return 0
-  return Math.round(((index.value + (finished.value ? 0 : 1)) / total.value) * 100)
-})
+function focusSpell() {
+  nextTick(() => spellInput.value?.focus())
+}
 
-const unitTitle = computed(() => step.value?.unitTitle || queue.value?.unitTitle || '英语')
+function focusWord() {
+  nextTick(() => wordInput.value?.focus())
+}
 
-const hint = computed(() => {
-  if (saveError.value) return saveError.value
-  if (busy.value) return '正在记下…'
-  if (attempt.value.hint) return attempt.value.hint
-  if (step.value?.stage === 'B') return '请完成整个句子'
-  if (matched.value) return '敲完按空格'
-  return '敲完按空格'
-})
+function openCard() {
+  const current = item.value
+  if (!current) return
+  typed.value = ''
+  chosen.value = ''
+  choiceResult.value = 'idle'
+  wrongCount.value = 0
+  hintMask.value = null
+  hintShown.value = false
+  answered.value = false
+  feedback.value = ''
+  options.value = []
+  teachWord.value = ''
+  teachSentence.value = ''
+  const w = current.word
+  if (current.mode === 'teach') {
+    focusWord()
+    speak(w.word)
+    return
+  }
+  if (current.mode === 'choice') {
+    if (current.variant === 'audio2zh') {
+      options.value = buildMeaningChoices(w, list.value)
+      speak(w.word)
+    } else {
+      options.value = buildWordChoices(w, list.value)
+    }
+    return
+  }
+  if (current.mode === 'hint_spell') {
+    hintMask.value = randomHint(w.word)
+    hintShown.value = true
+  }
+  focusSpell()
+}
 
-const clock = computed(() => {
-  const seconds = Math.max(0, Math.floor(elapsedMs.value / 1000))
-  const minutes = Math.floor(seconds / 60)
-  if (minutes <= 0) return `${seconds}秒`
-  return `${minutes}分钟`
-})
-
-function resetCard() {
-  attempt.value = freshAttempt()
-  pending.value = null
-  saveError.value = ''
-  cardStarted = Date.now()
+function next() {
+  index.value += 1
+  if (index.value < items.value.length) openCard()
 }
 
 async function load() {
   loading.value = true
-  error.value = ''
-  // tongyun: 没令牌不请求；today 404/报错/空时静默回退本地词书
-  const res = hasToken.value ? await fetchToday() : null
-  if (!alive) return
-  if (res && res.ok && res.data && res.data.items.length) {
-    queue.value = res.data
-    localMode.value = false
-  } else {
-    queue.value = await buildLocalQueue()
-    if (!alive) return
-    localMode.value = true
-  }
-  loading.value = false
+  list.value = await loadWordlist()
+  const plan = buildSession(list.value, getStats(), getOptionalLevels())
+  items.value = plan.items
   index.value = 0
-  resetCard()
-  sessionStarted = Date.now()
-  openCard()
+  loading.value = false
+  ready.value = true
+  if (items.value.length) openCard()
 }
 
-function focusField() {
-  return nextTick(() => {
-    const el = step.value?.stage === 'B' ? sentenceInput.value : wordInput.value
-    el?.focus()
-  })
+async function restart() {
+  await load()
 }
 
-function openCard() {
-  focusField()
-  // tongyun: 主动回忆卡先不读音，免得泄露答案
-  if (step.value?.stage === 'A' && step.value.word && !step.value.recall) speak(step.value)
+// ---- 教学 ----
+function finishTeach() {
+  const w = entry.value
+  if (!w || !canTeach.value) return
+  const now = Date.now()
+  const stats = getStats()
+  const stat = stats[w.word] ? relearnStat(stats[w.word]!, now) : teachStat(w.word, now)
+  saveStat(w.word, stat)
+  recordAnswer(w.word, 'teach', true, now)
+  next()
 }
 
-function onWordInput(event: Event) {
-  if (locked.value || !step.value) return
-  const raw = (event.target as HTMLInputElement).value
-  const allowSpace = step.value.word.includes(' ')
-  attempt.value = {
-    ...attempt.value,
-    typed: raw.replace(allowSpace ? /[^A-Za-z'’ \-]/g : /[^A-Za-z'’-]/g, ''),
-  }
-}
-
-function onSentenceInput(event: Event) {
-  if (locked.value) return
-  attempt.value = { ...attempt.value, typed: (event.target as HTMLTextAreaElement).value }
-}
-
-async function confirm() {
-  if (!step.value || busy.value || confirming) return
-  confirming = true
-  try {
-    if (resolved.value) {
-      await advance()
-      return
-    }
-    const next = submitAttempt(attempt.value, expected.value, step.value.stage, gradePrefs.value)
-    if (next === attempt.value) return
-    attempt.value = next
-    // tongyun: 主动回忆卡交卡后停在揭示页（音标/例句），再按空格进入敲句
-    if (step.value.stage === 'A' && step.value.recall) {
-      if (isResolved(next)) speak(step.value)
-      return
-    }
-    if (next.phase === 'done' && step.value.stage === 'A') await advance()
-  } finally {
-    confirming = false
-  }
-}
-
-function onWordKey(event: KeyboardEvent) {
-  if (event.repeat) return
-  if (event.key !== ' ' && event.key !== 'Enter') return
-  if (event.key === ' ' && step.value?.word.includes(' ')) return
+function onTeachKey(event: KeyboardEvent) {
+  if (event.key !== 'Enter') return
   event.preventDefault()
-  confirm()
+  if (mode.value === 'teach' && document.activeElement === wordInput.value && exampleText.value) {
+    sentenceInput.value?.focus()
+    return
+  }
+  finishTeach()
 }
 
-function onSentenceKey(event: KeyboardEvent) {
-  if (event.repeat) return
-  if (event.key === 'Enter' || (resolved.value && event.key === ' ')) {
-    event.preventDefault()
-    confirm()
+// ---- 选择 ----
+function choose(option: string) {
+  if (choiceResult.value !== 'idle' || !entry.value) return
+  const w = entry.value
+  const correctOption = item.value?.variant === 'audio2zh' ? w.meaning : w.word
+  chosen.value = option
+  const correct = option === correctOption
+  choiceResult.value = correct ? 'correct' : 'wrong'
+  recordAnswer(w.word, 'choice', correct)
+}
+
+function continueChoice() {
+  if (choiceResult.value === 'idle') return
+  next()
+}
+
+// ---- 拼写 ----
+function spellAnswerMode(): AnswerMode {
+  if (mode.value === 'hint_spell') return 'hint_spell'
+  return hintShown.value ? 'hint_spell' : 'spell'
+}
+
+function submitSpell() {
+  const w = entry.value
+  if (!w || answered.value || !typed.value.trim()) return
+  const now = Date.now()
+  const correct = gradeTyped(typed.value, w.word, 'A', gradePrefs.value)
+  if (correct) {
+    recordAnswer(w.word, spellAnswerMode(), true, now)
+    const prev = getStats()[w.word] || teachStat(w.word, now)
+    const { stat } = resolveSpell(prev, true, 0, now)
+    saveStat(w.word, stat)
+    answered.value = true
+    feedback.value = '答对了'
+    return
   }
+  recordAnswer(w.word, spellAnswerMode(), false, now)
+  wrongCount.value += 1
+  if (wrongCount.value < 2) {
+    typed.value = ''
+    hintMask.value = randomHint(w.word)
+    hintShown.value = true
+    feedback.value = mode.value === 'spell' && wrongCount.value === 1
+      ? '第一次错，给个提示，再试一次'
+      : '还是不对，提示更新了，再试一次'
+    focusSpell()
+    return
+  }
+  const prev = getStats()[w.word] || teachStat(w.word, now)
+  const { stat } = resolveSpell(prev, false, 1, now)
+  saveStat(w.word, stat)
+  const reteach: StudyItem = { id: `teach-${w.word}`, word: w, mode: 'teach', reason: 'relearn', reviewIndex: 0 }
+  items.value.splice(index.value + 1, 0, reteach)
+  feedback.value = '再错一次了，重新教一遍'
+  next()
+}
+
+function continueSpell() {
+  if (answered.value) next()
+}
+
+function onSpellKey(event: KeyboardEvent) {
+  if (event.key !== 'Enter') return
+  event.preventDefault()
+  if (answered.value) continueSpell()
+  else submitSpell()
 }
 
 function onWindowKey(event: KeyboardEvent) {
   if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey) return
-  if (!step.value || finished.value) return
-  if (resolved.value && (event.key === ' ' || event.key === 'Enter')) {
+  if (!item.value || finished.value) return
+  if (event.key !== ' ' && event.key !== 'Enter') return
+  if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return
+  if (mode.value === 'choice' && choiceResult.value !== 'idle') {
     event.preventDefault()
-    confirm()
+    continueChoice()
+    return
   }
-}
-
-async function advance() {
-  if (!step.value || busy.value) return
-  if (!isResolved(attempt.value)) return
-  busy.value = true
-  saveError.value = ''
-  try {
-    if (localMode.value) {
-      // tongyun: 本地记录对错次数/稳定度；敲完词算学过，游标线性前进
-      const cur = step.value
-      if (cur.stage === 'A') {
-        recordResult(cur.word, attempt.value.correct && !attempt.value.usedCorrection)
-        const lv = getLevel()
-        if (cur.unitTitle.startsWith(`L${lv}`)) advanceProgress(lv, cur.word, await loadWordlist())
-      }
-      index.value += 1
-      if (index.value < (queue.value?.items.length || 0)) {
-        resetCard()
-        openCard()
-      }
-      return
-    }
-    if (!pending.value) {
-      const built = buildTypeEvent(step.value, attempt.value, Date.now() - cardStarted)
-      if (!built) {
-        saveError.value = '这一项没有 card_id，记不进去。'
-        return
-      }
-      pending.value = built
-    }
-    const res = await postTypeEvent(pending.value)
-    if (!alive) return
-    if (!res.ok) {
-      saveError.value = res.message || '没记上，再按一次空格。'
-      return
-    }
-    pending.value = null
-    index.value += 1
-    if (index.value < (queue.value?.items.length || 0)) {
-      resetCard()
-      openCard()
-    }
-  } finally {
-    if (alive) busy.value = false
+  if (spellMode.value && answered.value) {
+    event.preventDefault()
+    continueSpell()
   }
-}
-
-let audio: HTMLAudioElement | null = null
-
-function speak(current: PracticeStep) {
-  const text = current.stage === 'B' ? current.sentence : current.word
-  if (!text) return
-  const url = current.audioUrl || `https://dict.youdao.com/dictvoice?audio=${encodeURIComponent(current.word || text)}&type=2`
-  if (audio) audio.pause()
-  const el = new Audio(url)
-  audio = el
-  el.play().catch(() => {
-    if (typeof speechSynthesis === 'undefined') return
-    const utter = new SpeechSynthesisUtterance(text)
-    utter.lang = 'en-US'
-    speechSynthesis.cancel()
-    speechSynthesis.speak(utter)
-  })
 }
 
 onMounted(() => {
-  alive = true
-  ready.value = true
   prefs.value = getEnglishPrefs()
-  hasToken.value = Boolean(getLearnConfig().token)
-  sessionStarted = Date.now()
-  timer = window.setInterval(() => {
-    elapsedMs.value = Date.now() - sessionStarted
-  }, 500)
+  ready.value = true
   window.addEventListener('keydown', onWindowKey)
   load()
 })
 
 onUnmounted(() => {
-  alive = false
-  window.clearInterval(timer)
   window.removeEventListener('keydown', onWindowKey)
-  if (audio) audio.pause()
+  if (typeof speechSynthesis !== 'undefined') speechSynthesis.cancel()
 })
 </script>
 
@@ -283,215 +274,170 @@ onUnmounted(() => {
   <section class="screen">
     <div v-if="!ready || loading" class="yy-card wait">正在准备今天的词…</div>
 
-    <div v-else-if="error" class="yy-card wait">
-      <p>{{ error }}</p>
-      <div class="actions">
-        <button type="button" class="yy-btn ghost" @click="load">重试</button>
-      </div>
-    </div>
-
-    <div v-else-if="queue && !queue.items.length" class="yy-card wait">
-      <p>今天的队列是空的。</p>
+    <div v-else-if="!items.length" class="yy-card wait">
+      <p>今天的词都学完了，明天再来。</p>
       <button type="button" class="yy-btn" @click="router.push('/')">回到今日</button>
     </div>
 
     <div v-else-if="finished" class="yy-card wait done">
-      <p class="done-title">这一轮敲完了</p>
-      <p v-if="localMode">这一轮练完了，对错已记在这台浏览器。</p>
-      <p v-else>这一轮敲完了，记录已保存。</p>
-      <button v-if="localMode" type="button" class="yy-btn" @click="load">再来一轮</button>
+      <p class="done-title">这一轮学完了</p>
+      <p>对错和进度已记在这台浏览器。</p>
       <div class="actions">
-        <button type="button" class="yy-btn ghost" @click="router.push('/coach')">看教练</button>
-        <button type="button" class="yy-btn" @click="router.push('/')">回到今日</button>
+        <button type="button" class="yy-btn" data-testid="restart" @click="restart">再学一轮</button>
+        <button type="button" class="yy-btn ghost" @click="router.push('/')">回到今日</button>
       </div>
     </div>
 
-    <template v-else-if="step">
+    <template v-else-if="item">
       <header class="top">
         <button type="button" class="back" @click="router.push('/')">
           <span aria-hidden="true">←</span>
           返回
         </button>
-        <div v-if="step.stage === 'A'" class="progress">
+        <div class="progress">
           <div class="frac">{{ index + 1 }} / {{ total }}</div>
-          <div class="bar" aria-hidden="true"><span :style="{ width: progressPct + '%' }" /></div>
+          <div class="bar" aria-hidden="true"><span :style="{ width: ((index + 1) / total) * 100 + '%' }" /></div>
         </div>
-        <div v-else class="sentence-label">
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path
-              fill="currentColor"
-              d="M5 4.5A2.5 2.5 0 0 1 7.5 2H19v16.2a2.8 2.8 0 0 0-2.2-.7H7.2A2.2 2.2 0 0 0 5 19.7V4.5Zm2.2 14h9.6c.4 0 .8.1 1.2.2V4H7.5A.5.5 0 0 0 7 4.5v12.6c.4-.1.8-.1 1.2-.1.3 0 .7 0 1 .1Z"
-            />
-          </svg>
-          <span>{{ unitTitle }} · 例句 {{ sentencePos.k }}/{{ sentencePos.n }}</span>
-        </div>
-        <div v-if="step.stage === 'A'" class="unit">
+        <div class="unit">
           <img :src="markSrc" alt="" />
-          <span>{{ unitTitle }}</span>
-        </div>
-        <div v-else class="progress side">
-          <div class="frac quiet">进度 {{ index + 1 }}/{{ total }}</div>
-          <div class="bar" aria-hidden="true"><span :style="{ width: progressPct + '%' }" /></div>
+          <span>{{ modeLabel }}</span>
         </div>
       </header>
 
-      <div v-if="step.stage === 'A' && step.recall" class="word-stage recall" data-testid="recall-card">
+      <!-- 新词先教 -->
+      <div v-if="mode === 'teach'" class="stage teach" data-testid="teach-card">
         <div class="chips">
-          <span v-if="step.tag" class="chip" data-testid="recall-tag">{{ step.tag }}</span>
-          <span v-if="step.tone" class="chip tone" data-testid="recall-tone">{{ step.tone }}</span>
+          <span v-if="entry?.tag" class="chip">{{ entry.tag }}</span>
+          <span v-if="tone" class="chip tone" data-testid="teach-register">{{ tone }}</span>
         </div>
-        <h1 class="recall-meaning" data-testid="recall-meaning" @click="focusField">{{ step.meaning }}</h1>
-        <p class="recall-ask">用英文怎么说？</p>
-        <label class="typebox" :class="{ bad: attempt.failures > 0 && !matched, ok: resolved && matched }">
-          <input
-            ref="wordInput"
-            data-testid="word-input"
-            :value="attempt.typed"
-            :readonly="locked"
-            autocomplete="off"
-            autocapitalize="off"
-            spellcheck="false"
-            :placeholder="attempt.typed ? '' : '拼出英文，按回车交卡'"
-            aria-label="拼出这个英文"
-            @input="onWordInput"
-            @keydown="onWordKey"
-          />
-        </label>
-        <p class="hint" data-testid="practice-hint">{{ resolved ? (attempt.correct ? '答对了。按空格继续敲例句' : '记下了，答案在下面。按空格继续敲例句') : attempt.hint || '拼完按回车交卡' }}</p>
-        <div v-if="resolved" class="reveal" data-testid="recall-reveal">
-          <p class="reveal-word">{{ step.word }}</p>
-          <p v-if="step.phonetic" class="phonetic" data-testid="recall-phonetic">
-            <span v-for="(ph, i) in splitPhonetics(step.phonetic)" :key="i" class="ph">{{ ph }}</span>
-            <button type="button" class="speaker" aria-label="播放发音" @click="speak(step)">🔊</button>
-          </p>
-          <p v-if="step.phoneticNote" class="ph-note" data-testid="recall-phonetic-note">{{ step.phoneticNote }}</p>
-          <ul v-if="step.examples.length" class="examples">
-            <li v-for="(example, i) in step.examples" :key="i">
-              <p class="en" style="white-space: pre-line">{{ example.en }}</p>
-              <p v-if="example.zh" class="zh">{{ example.zh }}</p>
-            </li>
-          </ul>
+        <h1 class="word">{{ answer }}</h1>
+        <p v-if="entry?.phonetic" class="phonetic">
+          <span v-for="(ph, i) in splitPhonetics(entry.phonetic)" :key="i" class="ph">{{ ph }}</span>
+          <button type="button" class="speaker" aria-label="重播发音" data-testid="replay" @click="speak(answer)">🔊</button>
+        </p>
+        <p v-if="entry?.phonetic_note" class="ph-note">{{ entry.phonetic_note }}</p>
+        <p class="meaning">{{ meaning }}</p>
+        <div v-if="entry?.example" class="example">
+          <p class="en" style="white-space: pre-line">{{ entry.example }}</p>
+          <p v-if="entry?.example_zh" class="zh">{{ entry.example_zh }}</p>
         </div>
-      </div>
 
-      <div v-else-if="step.stage === 'A'" class="word-stage">
-        <h1 class="word" @click="focusField">
-          <span v-for="(mark, i) in letters" :key="i" :class="mark">{{ [...step.word][i] }}</span>
-        </h1>
-        <p v-if="prefs.showPhonetic && step.phonetic" class="phonetic">
-          {{ step.phonetic }}
-          <button type="button" class="speaker" aria-label="播放发音" @click="speak(step)">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path
-                fill="currentColor"
-                d="M4 9v6h4l5 4V5L8 9H4zm11.5 3a3.5 3.5 0 0 0-1.8-3.06v6.12A3.5 3.5 0 0 0 15.5 12zM13.7 5.1v1.7a6 6 0 0 1 0 10.4v1.7a7.8 7.8 0 0 0 0-13.8z"
-              />
-            </svg>
-          </button>
-        </p>
-        <p v-else-if="step.word" class="phonetic solo">
-          <button type="button" class="speaker" aria-label="播放发音" @click="speak(step)">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path
-                fill="currentColor"
-                d="M4 9v6h4l5 4V5L8 9H4zm11.5 3a3.5 3.5 0 0 0-1.8-3.06v6.12A3.5 3.5 0 0 0 15.5 12z"
-              />
-            </svg>
-          </button>
-        </p>
-        <p v-if="prefs.showChinese && step.meaning" class="meaning">{{ step.meaning }}</p>
-        <label class="typebox" :class="{ bad: attempt.failures > 0 && !matched, ok: matched }">
-          <input
-            ref="wordInput"
-            data-testid="word-input"
-            :value="attempt.typed"
-            :readonly="locked"
-            autocomplete="off"
-            autocapitalize="off"
-            spellcheck="false"
-            :placeholder="matched || !attempt.typed ? '敲完按空格' : ''"
-            aria-label="手敲这个词"
-            @input="onWordInput"
-            @keydown="onWordKey"
-          />
-        </label>
-        <p class="hint" data-testid="practice-hint">{{ hint }}</p>
-        <ul v-if="step.examples.length" class="examples">
-          <li v-for="(example, i) in step.examples" :key="i">
-            <p class="en">{{ example.en }}</p>
-            <p v-if="prefs.showChinese && example.zh" class="zh">{{ example.zh }}</p>
-          </li>
-        </ul>
-      </div>
-
-      <div v-else class="sentence-stage">
-        <article class="yy-card sentence-card">
-          <p class="kicker">中文提示</p>
-          <h1 class="prompt">{{ step.promptZh || '听完后敲出整句' }}</h1>
-          <p v-if="step.word" class="listen">
-            <button type="button" @click="speak(step)">听英文</button>
-          </p>
-          <div class="divider" />
-          <p class="kicker">输入英文例句</p>
-          <label class="sentence-box" :class="{ ok: matched, bad: attempt.failures > 0 && !matched }">
-            <textarea
-              ref="sentenceInput"
-              data-testid="sentence-input"
-              rows="2"
-              :value="attempt.typed"
-              :readonly="locked"
+        <div class="typing">
+          <p class="kicker">照着敲一遍这个词</p>
+          <label class="typebox">
+            <input
+              ref="wordInput"
+              data-testid="teach-word-input"
+              v-model="teachWord"
               autocomplete="off"
               autocapitalize="off"
               spellcheck="false"
-              aria-label="手敲英文例句"
-              @input="onSentenceInput"
-              @keydown="onSentenceKey"
+              aria-label="照着敲这个词"
+              @keydown="onTeachKey"
             />
-            <span v-if="matched" class="check" aria-hidden="true">✓</span>
           </label>
-          <p class="hint inline" data-testid="practice-hint">
-            <span v-if="matched" class="mini-check">✓</span>
-            {{ hint }}
-          </p>
-          <p v-if="resolved && !matched" class="answer">{{ expected }}</p>
-          <button type="button" class="yy-btn continue" data-testid="continue" :disabled="busy" @click="confirm">
+          <template v-if="exampleText">
+            <p class="kicker">照着敲一遍例句</p>
+            <label class="typebox">
+              <textarea
+                ref="sentenceInput"
+                data-testid="teach-sentence-input"
+                v-model="teachSentence"
+                rows="2"
+                autocomplete="off"
+                autocapitalize="off"
+                spellcheck="false"
+                aria-label="照着敲例句"
+                @keydown="onTeachKey"
+              />
+            </label>
+          </template>
+          <p class="hint">不判对错，照着敲完就行。</p>
+          <button type="button" class="yy-btn" data-testid="teach-continue" :disabled="!canTeach" @click="finishTeach">
             继续
           </button>
-        </article>
+        </div>
+      </div>
+
+      <!-- 第 1 次复习：选择 -->
+      <div v-else-if="mode === 'choice'" class="stage choice" data-testid="choice-card">
+        <template v-if="item.variant === 'audio2zh'">
+          <p class="kicker">听发音，选中文</p>
+          <button type="button" class="big-speaker" aria-label="播放发音" @click="speak(answer)">🔊 再听一次</button>
+        </template>
+        <template v-else>
+          <p class="kicker">看中文，选英文</p>
+          <h1 class="prompt" data-testid="choice-prompt">{{ meaning }}</h1>
+        </template>
+        <ul class="options">
+          <li v-for="option in options" :key="option">
+            <button
+              type="button"
+              class="option"
+              :class="{
+                correct: choiceResult !== 'idle' && option === (item.variant === 'audio2zh' ? meaning : answer),
+                wrong: choiceResult === 'wrong' && option === chosen,
+              }"
+              :disabled="choiceResult !== 'idle'"
+              @click="choose(option)"
+            >
+              {{ option }}
+            </button>
+          </li>
+        </ul>
+        <p v-if="choiceResult !== 'idle'" class="hint" data-testid="choice-feedback">
+          {{ choiceResult === 'correct' ? '答对了。' : `答案是 ${item.variant === 'audio2zh' ? meaning : answer}` }}
+        </p>
+        <button
+          v-if="choiceResult !== 'idle'"
+          type="button"
+          class="yy-btn"
+          data-testid="choice-continue"
+          @click="continueChoice"
+        >
+          继续
+        </button>
+      </div>
+
+      <!-- 拼写（hint_spell / spell） -->
+      <div v-else class="stage spell" data-testid="spell-card">
+        <p class="kicker">看中文，拼英文</p>
+        <h1 class="prompt" data-testid="spell-prompt">{{ meaning }}</h1>
+        <p v-if="hintShown" class="hint-mask" data-testid="spell-hint">{{ hintsHint }}</p>
+        <label class="typebox" :class="{ ok: answered }">
+          <input
+            ref="spellInput"
+            data-testid="spell-input"
+            v-model="typed"
+            :readonly="answered"
+            autocomplete="off"
+            autocapitalize="off"
+            spellcheck="false"
+            :placeholder="answered ? '' : '拼出英文，按回车交卡'"
+            aria-label="拼出这个英文"
+            @keydown="onSpellKey"
+          />
+        </label>
+        <p class="hint" data-testid="spell-feedback">
+          <template v-if="answered">答对了：{{ answer }}</template>
+          <template v-else>{{ feedback || '敲完按回车' }}</template>
+        </p>
+        <button v-if="answered" type="button" class="yy-btn" data-testid="spell-continue" @click="continueSpell">
+          继续
+        </button>
+        <button v-else type="button" class="yy-btn ghost" data-testid="spell-submit" :disabled="!typed.trim()" @click="submitSpell">
+          交卡
+        </button>
       </div>
 
       <footer class="foot">
-        <span class="time">时间 {{ clock }}</span>
-        <div v-if="total <= 12" class="dots" aria-hidden="true">
-          <i v-for="n in total" :key="n" :class="{ on: n - 1 < index, now: n - 1 === index }" />
-        </div>
+        <span class="time">可以随时点返回停下</span>
       </footer>
-
-      <svg class="cloud" viewBox="0 0 200 80" aria-hidden="true">
-        <path
-          fill="#e7d8c4"
-          d="M46 62c-18 0-30-12-30-26 0-12 9-22 21-23 5-14 18-23 34-23 12 0 22 6 28 15 6-10 16-16 28-16 18 0 32 14 32 30 10 3 18 12 18 23 0 14-12 20-26 20H46z"
-        />
-      </svg>
-      <svg class="leaf" viewBox="0 0 80 140" aria-hidden="true">
-        <path fill="#d5e3cc" d="M42 128c0-48-28-62-18-104 26 18 48 34 36 86-6 16-12 22-18 18z" />
-        <path fill="none" stroke="#b7cba8" stroke-width="2" d="M40 126c4-36 8-62 16-92" />
-      </svg>
     </template>
   </section>
 </template>
 
 <style scoped lang="scss">
-.recall .chips { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-bottom: 10px; }
-.recall .chip { font-size: 12px; padding: 3px 10px; border-radius: 999px; background: rgba(164, 196, 140, 0.2); color: var(--yy-matcha-deep, #5d7a48); }
-.recall .chip.tone { background: rgba(253, 200, 156, 0.35); color: #9a5b2a; }
-.recall-meaning { font-size: 30px; font-weight: 650; text-align: center; margin: 6px 0; line-height: 1.4; }
-.recall-ask { text-align: center; color: var(--yy-ink-soft); margin: 0 0 12px; }
-.reveal { margin-top: 14px; text-align: center; }
-.reveal .ph { margin: 0 6px; }
-.ph-note { font-size: 12px; color: var(--yy-ink-soft); margin: 2px 0 8px; }
-.reveal-word { font-size: 34px; font-weight: 700; margin: 0; letter-spacing: 0.02em; }
-
 .screen {
   position: relative;
   min-height: calc(100vh - 64px);
@@ -512,14 +458,14 @@ onUnmounted(() => {
   box-sizing: border-box;
 }
 
-.wait p,
-.done-title {
+.wait p {
   margin: 0;
   font-size: 18px;
   line-height: 1.6;
 }
 
 .done-title {
+  margin: 0;
   font-size: 28px;
   font-weight: 650;
 }
@@ -539,8 +485,7 @@ onUnmounted(() => {
 }
 
 .back,
-.unit,
-.sentence-label {
+.unit {
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -573,38 +518,15 @@ onUnmounted(() => {
   border-radius: 6px;
 }
 
-.sentence-label {
-  justify-self: start;
-  color: #8c6b45;
-  font-weight: 650;
-}
-
-.sentence-label svg {
-  width: 22px;
-  height: 22px;
-}
-
 .progress {
   min-width: 180px;
   text-align: center;
-}
-
-.progress.side {
-  justify-self: end;
-  min-width: 160px;
 }
 
 .frac {
   color: var(--yy-matcha);
   font-weight: 700;
   letter-spacing: 0.08em;
-}
-
-.frac.quiet {
-  color: var(--yy-ink-soft);
-  font-weight: 600;
-  letter-spacing: 0;
-  font-size: 14px;
 }
 
 .bar {
@@ -621,8 +543,7 @@ onUnmounted(() => {
   background: #8eae78;
 }
 
-.word-stage,
-.sentence-stage {
+.stage {
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -632,23 +553,43 @@ onUnmounted(() => {
   z-index: 1;
 }
 
+.chips {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-bottom: 10px;
+}
+
+.chip {
+  font-size: 12px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(164, 196, 140, 0.2);
+  color: var(--yy-matcha-deep, #5d7a48);
+}
+
+.chip.tone {
+  background: rgba(253, 200, 156, 0.35);
+  color: #9a5b2a;
+}
+
 .word {
   margin: 8px 0 0;
   font-family: 'Iowan Old Style', Palatino, 'Palatino Linotype', 'Songti SC', Georgia, serif;
-  font-size: clamp(64px, 9vw, 112px);
+  font-size: clamp(52px, 8vw, 92px);
   font-weight: 560;
   line-height: 1.05;
   letter-spacing: -0.03em;
   color: var(--yy-matcha);
-  cursor: text;
 }
 
-.word span.bad {
-  color: var(--yy-danger);
-}
-
-.word span.next {
-  box-shadow: inset 0 -3px 0 var(--yy-matcha);
+.prompt {
+  margin: 12px 0 0;
+  font-size: clamp(28px, 4vw, 40px);
+  font-weight: 650;
+  text-align: center;
+  letter-spacing: 0.04em;
 }
 
 .phonetic,
@@ -664,13 +605,23 @@ onUnmounted(() => {
   font-size: 18px;
 }
 
+.ph {
+  margin: 0 4px;
+}
+
 .meaning {
   color: var(--yy-matcha);
   font-size: 18px;
 }
 
+.ph-note {
+  font-size: 12px;
+  color: var(--yy-ink-soft);
+  margin: 2px 0 0;
+}
+
 .speaker,
-.listen button {
+.big-speaker {
   border: 0;
   background: transparent;
   color: var(--yy-matcha);
@@ -678,32 +629,68 @@ onUnmounted(() => {
   padding: 4px;
 }
 
-.speaker svg {
-  width: 18px;
-  height: 18px;
-  display: block;
+.big-speaker {
+  font-size: 18px;
+  margin-top: 12px;
+  padding: 10px 18px;
+  border-radius: 999px;
+  background: var(--yy-matcha-soft);
+}
+
+.example {
+  margin-top: 20px;
+  width: min(640px, 100%);
+  text-align: center;
+  padding-top: 14px;
+  border-top: 1px solid rgba(228, 217, 200, 0.9);
+}
+
+.example .en {
+  margin: 0;
+  color: #4e463e;
+  font-size: 18px;
+  line-height: 1.6;
+}
+
+.example .zh {
+  margin: 6px 0 0;
+  color: var(--yy-ink-soft);
+  font-size: 14px;
+}
+
+.typing {
+  margin-top: 26px;
+  width: min(520px, 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.kicker {
+  margin: 12px 0 0;
+  color: #a89478;
+  font-size: 14px;
 }
 
 .typebox {
-  margin-top: 28px;
   width: min(440px, 100%);
   background: var(--yy-card-warm);
   border-radius: 16px;
   border: 1px solid transparent;
-}
-
-.typebox.bad {
-  background: var(--yy-danger-soft);
+  padding: 0 12px;
+  box-sizing: border-box;
 }
 
 .typebox.ok {
   background: var(--yy-matcha-soft);
 }
 
-.typebox input {
+.typebox input,
+.typebox textarea {
   width: 100%;
   box-sizing: border-box;
-  min-height: 64px;
+  min-height: 56px;
   border: 0;
   background: transparent;
   text-align: center;
@@ -712,231 +699,84 @@ onUnmounted(() => {
   outline: none;
 }
 
+.typebox textarea {
+  min-height: 84px;
+  padding-top: 12px;
+  resize: none;
+  line-height: 1.5;
+}
+
 .typebox input::placeholder {
   color: #b3a89a;
 }
 
 .hint {
   min-height: 1.4em;
-  margin: 12px 0 0;
+  margin: 4px 0 0;
   color: var(--yy-ink-soft);
   font-size: 14px;
 }
 
-.examples {
+.hint-mask {
+  margin: 10px 0 0;
+  font-size: 22px;
+  letter-spacing: 0.18em;
+  color: var(--yy-matcha-deep);
+  font-family: 'Iowan Old Style', Palatino, Georgia, serif;
+}
+
+.options {
   list-style: none;
-  margin: 28px 0 0;
+  margin: 22px 0 0;
   padding: 0;
-  width: min(640px, 100%);
-}
-
-.examples li {
-  padding: 12px 0 12px 18px;
-  border-top: 1px solid rgba(228, 217, 200, 0.9);
-  position: relative;
-}
-
-.examples li::before {
-  content: '';
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: #8eae78;
-  position: absolute;
-  left: 0;
-  top: 18px;
-}
-
-.examples .en,
-.examples .zh {
-  margin: 0;
-}
-
-.examples .en {
-  color: #4e463e;
-}
-
-.examples .zh {
-  margin-top: 4px;
-  color: var(--yy-ink-soft);
-  font-size: 14px;
-}
-
-.sentence-card {
-  width: min(760px, 100%);
-  padding: 28px 32px 24px;
-  box-sizing: border-box;
+  width: min(520px, 100%);
   display: flex;
   flex-direction: column;
-  align-items: center;
-  text-align: center;
+  gap: 10px;
 }
 
-.kicker {
-  margin: 0;
-  color: #a89478;
-  font-size: 14px;
-}
-
-.prompt {
-  margin: 12px 0 0;
-  font-size: clamp(28px, 4vw, 40px);
-  font-weight: 650;
-  letter-spacing: 0.04em;
-}
-
-.listen {
-  margin: 8px 0 0;
-}
-
-.divider {
+.option {
   width: 100%;
-  height: 1px;
-  margin: 22px 0 16px;
-  background: var(--yy-line);
-}
-
-.sentence-box {
-  width: 100%;
-  margin-top: 12px;
-  background: var(--yy-card-warm);
-  border-radius: 18px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px 8px 18px;
-  box-sizing: border-box;
-}
-
-.sentence-box.ok {
-  background: #f4f7f1;
-}
-
-.sentence-box.bad {
-  background: var(--yy-danger-soft);
-}
-
-.sentence-box textarea {
-  flex: 1;
-  border: 0;
-  resize: none;
-  background: transparent;
-  min-height: 72px;
-  font-size: 26px;
-  font-weight: 650;
-  color: #2c261f;
-  outline: none;
+  padding: 16px 18px;
+  border-radius: 16px;
+  border: 1px solid var(--yy-line);
+  background: var(--yy-card);
+  color: var(--yy-ink);
+  font-size: 18px;
+  cursor: pointer;
   text-align: left;
-  line-height: 1.45;
 }
 
-.check,
-.mini-check {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: var(--yy-matcha);
-  color: white;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex: none;
+.option:hover:not(:disabled) {
+  border-color: var(--yy-matcha);
 }
 
-.mini-check {
-  width: 18px;
-  height: 18px;
-  font-size: 12px;
-  margin-right: 6px;
-}
-
-.hint.inline {
-  display: inline-flex;
-  align-items: center;
+.option.correct {
+  background: var(--yy-matcha-soft);
+  border-color: var(--yy-matcha);
   color: var(--yy-matcha-deep);
 }
 
-.answer {
-  margin: 4px 0 0;
-  color: var(--yy-ink-soft);
+.option.wrong {
+  background: var(--yy-danger-soft);
+  border-color: var(--yy-danger);
+  color: var(--yy-danger);
 }
 
-.continue {
-  margin-top: 18px;
-  min-width: 148px;
-  background: #f3ebdd;
-  color: #8d7b68;
-}
-
-.continue:hover:not(:disabled) {
-  background: #e7dccb;
-}
-
-.continue:disabled {
-  opacity: 0.7;
+.option:disabled {
+  cursor: default;
 }
 
 .foot {
   margin-top: auto;
   position: relative;
   z-index: 1;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
   padding: 14px 8px 8px;
   color: var(--yy-matcha-deep);
 }
 
 .time {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
   font-size: 14px;
-}
-
-.dots {
-  display: flex;
-  gap: 8px;
-}
-
-.dots i {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: #ddd4c6;
-  display: block;
-}
-
-.dots i.on,
-.dots i.now {
-  background: #7ea37a;
-}
-
-.dots i.now {
-  background: var(--yy-matcha-deep);
-  transform: scale(1.12);
-}
-
-.cloud,
-.leaf {
-  position: absolute;
-  pointer-events: none;
-  z-index: 0;
-}
-
-.cloud {
-  width: 220px;
-  left: -20px;
-  bottom: 36px;
-  opacity: 0.85;
-}
-
-.leaf {
-  width: 90px;
-  right: 12px;
-  bottom: 28px;
-  opacity: 0.9;
 }
 
 @media (max-width: 760px) {
@@ -950,23 +790,12 @@ onUnmounted(() => {
   }
 
   .back,
-  .unit,
-  .sentence-label,
-  .progress.side {
+  .unit {
     justify-self: center;
   }
 
-  .sentence-card {
-    padding: 22px 16px;
-  }
-
-  .sentence-box textarea {
-    font-size: 20px;
-  }
-
-  .cloud,
-  .leaf {
-    display: none;
+  .typebox textarea {
+    font-size: 18px;
   }
 }
 </style>

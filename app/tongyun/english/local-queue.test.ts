@@ -35,8 +35,8 @@ describe('wordlist v0.2 queue', () => {
   })
   it('reviews due words first, skips not-yet-due', () => {
     const stats = {
-      a3: { right: 1, wrong: 0, last: NOW - 2 * DAY, box: 0, due: NOW - DAY },
-      a4: { right: 1, wrong: 0, last: NOW, box: 0, due: NOW + DAY },
+      a3: { right: 1, wrong: 0, last: NOW - 2 * DAY, box: 0, due: NOW - DAY, first: NOW - 2 * DAY, taught: true },
+      a4: { right: 1, wrong: 0, last: NOW, box: 0, due: NOW + DAY, first: NOW, taught: true },
     }
     const r = pickRound(list, 1, stats, { 1: 10 }, NOW).map(w => w.word)
     expect(r[0]).toBe('a3')
@@ -68,7 +68,7 @@ describe('spaced repetition 1/3/7/14/30', () => {
     const old = normalizeStat({ right: 2, wrong: 1, last: NOW, stability: 3 })
     expect(old.box).toBe(2)
     expect(old.due).toBe(NOW + 7 * DAY)
-    expect(normalizeStat(null)).toEqual({ right: 0, wrong: 0, last: 0, box: 0, due: 0 })
+    expect(normalizeStat(null)).toEqual({ right: 0, wrong: 0, last: 0, box: 0, due: 0, first: 0, taught: false })
     expect(normalizeStat({ stability: 'x', last: 'y' }).box).toBe(0)
   })
 })
