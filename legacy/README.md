@@ -1,3 +1,11 @@
+# 旧学习服务（legacy）
+
+这里是并入 Nuxt 前端之前的 tongyun-learn Python 服务。仓库根目录现在是「橦云学习」前端；本目录在被替换之前，仍然是 82 上 `/learn/api` 的实现（反代到 `127.0.0.1:8031`）。
+
+下面的命令都在本目录执行。生产若部署整个仓库，systemd 的 `WorkingDirectory` 应指向本目录；若仍把本目录内容同步到 `/opt/tongyun/learn/current`，现有 unit 不用改。
+
+---
+
 # tongyun-learn
 
 tongyun-learn 是给 tongyun-words（TypeWords 分支）和 阿学 用的学习服务后端，负责知识地图、FSRS 卡片复习调度、证据过关判定与 AI 讲解代理。云芽英语手敲（今日队列、敲词/敲句、DeepSeek 教练）也在这个服务里。

@@ -1,10 +1,10 @@
-# tongyun-learn · AI 开发规则
+# 旧学习服务（legacy）· AI 开发规则
 
-所有 AI 代理在动手前必须先读本文件，遵守其中的构建、测试与代码审查规矩。
+本文件只管 `legacy/` 里的 Python 学习服务。仓库总规则在根目录 `AGENTS.md`。下面的路径和命令都以本目录为工作目录。CI（仓库根 `.github/workflows/ci.yml`）的 Python 任务也把工作目录设在这里。
 
 ## 项目概况
 
-- 定位：tongyun-learn 是给 tongyun-words（TypeWords 分支）和「阿学」用的学习服务后端，负责知识地图、FSRS 卡片复习调度、证据过关判定与 AI 讲解代理，并包含云芽英语手敲（今日队列、敲词/敲句、DeepSeek 教练）。
+- 定位：本目录是「橦云学习」被替换前的学习服务后端，仍在 82 上提供 `/learn/api`。负责知识地图、FSRS 卡片复习调度、证据过关判定与 AI 讲解代理，并包含云芽英语手敲（今日队列、敲词/敲句、DeepSeek 教练）。
 - 技术栈：Python 3.10+、FastAPI、Uvicorn、SQLAlchemy 2.0、Alembic、Pydantic Settings、py-fsrs；数据库支持 SQLite 与 MySQL 8.0（pymysql）。
 - 依赖与工具：使用 uv 管理依赖（`pyproject.toml` / `uv.lock`），开发依赖为 pytest 与 ruff（line-length 120，py310）。
 - 入口与目录：应用入口 `tongyun_learn/main.py`；路由在 `tongyun_learn/routers/`；业务逻辑在 `tongyun_learn/services/`；AI 适配在 `tongyun_learn/ai/`；数据与词表在 `tongyun_learn/data/`。
@@ -28,7 +28,7 @@
 | 导入知识地图（预演） | `uv run python -m tongyun_learn.cli import-maps maps/english.yaml maps/java-fde.yaml` |
 | 导入知识地图（真导入） | `uv run python -m tongyun_learn.cli import-maps --commit maps/english.yaml maps/java-fde.yaml` |
 
-CI（`.github/workflows/ci.yml`）会跑 `uv run ruff check .`、`uv run pytest -q`，并在 MySQL 8.0 上验证迁移（`alembic upgrade head` / `downgrade base` / `alembic check`）与 MySQL 下的全量测试。
+CI（仓库根 `.github/workflows/ci.yml`，工作目录 `legacy/`）会跑 `uv run ruff check .`、`uv run pytest -q`，并在 MySQL 8.0 上验证迁移（`alembic upgrade head` / `downgrade base` / `alembic check`）与 MySQL 下的全量测试。
 
 ## 代码审查规矩
 

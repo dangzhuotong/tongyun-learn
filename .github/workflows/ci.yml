@@ -6,9 +6,13 @@ on:
       - main
   pull_request:
 
+# Python jobs run in legacy/ — the previous tongyun-learn service.
 jobs:
   test:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: legacy
     steps:
       - uses: actions/checkout@v4
 
@@ -29,6 +33,9 @@ jobs:
 
   mysql-migrate:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: legacy
     services:
       mysql:
         image: mysql:8.0
