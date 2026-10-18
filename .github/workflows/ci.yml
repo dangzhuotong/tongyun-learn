@@ -88,3 +88,50 @@ jobs:
           LEARN_DATABASE_URL: mysql+pymysql://root:root@127.0.0.1:3306/tongyun_learn?charset=utf8mb4
         run: |
           LEARN_TEST_DATABASE_URL=$LEARN_DATABASE_URL uv run pytest -q
+
+  # Words SQL stays in this job. mysql-migrate asserts the legacy schema is exactly 22 tables.
+  node:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: tongyun_learn
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd "mysqladmin ping -h 127.0.0.1 -proot"
+          --health-interval 5s
+          --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Apply words sync migration up, down, up
+        env:
+          WORDS_DATABASE_URL: mysql://root:root@127.0.0.1:3306/tongyun_learn
+        run: |
+          node scripts/apply-words-sql.mjs server/db/migrations/001_words_sync.sql
+          node scripts/apply-words-sql.mjs server/db/migrations/001_words_sync.down.sql
+          node scripts/apply-words-sql.mjs --expect-absent words_attempts words_card_state
+          node scripts/apply-words-sql.mjs server/db/migrations/001_words_sync.sql
+
+      - name: Run vitest
+        env:
+          WORDS_DATABASE_URL: mysql://root:root@127.0.0.1:3306/tongyun_learn
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build
