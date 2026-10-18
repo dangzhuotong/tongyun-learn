@@ -163,6 +163,8 @@ export default defineNuxtConfig({
       passwordRsaPublicKey: process.env.VITE_PASSWORD_RSA_PUBLIC_KEY || '',
       latestCommitHash: latestCommitHash + (process.env.NODE_ENV === 'production' ? '' : ' (dev)'),
       latestCommitTime: latestCommitTime,
+      baiduTranslateAppid: process.env.NUXT_PUBLIC_BAIDU_TRANSLATE_APPID || '',
+      baiduTranslateKey: process.env.NUXT_PUBLIC_BAIDU_TRANSLATE_KEY || '',
     },
   },
   // 构建配置

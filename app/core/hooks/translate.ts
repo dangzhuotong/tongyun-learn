@@ -41,12 +41,16 @@ export async function getNetworkTranslate(
 ) {
   let translator: Translator
   if (translateEngine === TranslateEngine.Baidu) {
-    translator = new Baidu({
-      config: {
-        appid: '',
-        key: '',
-      },
-    }) as any
+    const cfg = useRuntimeConfig().public as Record<string, string>
+    const appid = cfg.baiduTranslateAppid
+    const key = cfg.baiduTranslateKey
+    // 未配置百度翻译凭据时直接跳过网络翻译（功能降级，不报错）
+    if (!appid || !key) {
+      console.warn('[translate] NUXT_PUBLIC_BAIDU_TRANSLATE_APPID/KEY 未配置，跳过百度翻译')
+      progressCb?.(100)
+      return
+    }
+    translator = new Baidu({ config: { appid, key } }) as any
   }
 
   if (translator) {
