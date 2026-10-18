@@ -40,6 +40,8 @@
 | `docs/` | 前端贡献说明、各语言 README、联调说明 |
 | `legacy/docs/` | 旧服务的测试体系与看板契约 |
 
+阿学英语词表（`public/wordlists/`）的音标取自 [ECDICT](https://github.com/skywind3000/ECDICT)（MIT License），已规范化为英式 IPA。L4 选词派生自 NGSL 1.2（CC BY-SA 4.0），出处见 [`public/wordlists/README.md`](public/wordlists/README.md)。
+
 ### 静态站 base
 
 默认子路径是 `/learn/`（以前是 `/words/`）。`nuxt.config.ts` 读 `NUXT_APP_BASE_URL`，没设时用 `/learn/`。要换路径就在命令前加上这个变量，例如 `NUXT_APP_BASE_URL=/preview/ npm run generate`。本地开发同样受这个变量控制，默认打开 `http://localhost:5567/learn/`。

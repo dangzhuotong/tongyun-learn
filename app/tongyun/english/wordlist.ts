@@ -1,5 +1,5 @@
 // tongyun: 阿学定制英语词表 v1.0（L1–L6，L6 可选）+ 本地间隔复习。完全不依赖学习服务。
-// 许可：en-ngsl.json 为 NGSL 1.2 派生（CC BY-SA 4.0，文件头保留出处），en-tongyun.json 为自编，分文件存放。
+// 许可：en-ngsl.json 为 NGSL 1.2 派生（CC BY-SA 4.0，文件头保留出处），en-tongyun.json 为自编，分文件存放。音标取自 ECDICT（MIT）。
 import { withAppBaseURL } from '@/core/utils/base-url'
 
 /** 语体。与词表顶层 register_values 一致，只有这五种。 */
@@ -47,20 +47,13 @@ export const WORDLIST_FILES = ['/wordlists/en-ngsl.json', '/wordlists/en-tongyun
 export const NGSL_ATTRIBUTION =
   'L4 词条派生自 New General Service List (NGSL) 1.2，Browne, C., Culligan, B. & Phillips, J.，CC BY-SA 4.0（https://www.newgeneralservicelist.com/ ，https://creativecommons.org/licenses/by-sa/4.0/）。已筛选并加注，本词表按 CC BY-SA 4.0 共享。其余词表与例句为橦云自编。'
 
-const PENDING_POINT_ID = '待定'
-const COMMUNITY_POINT_ID = 'en.x-community'
-
-/** L2/L5 里 point_id 仍为「待定」的条目挂到社区知识点。 */
-export function normalizeEntry(raw: WordEntry): WordEntry {
-  if ((raw.level === 2 || raw.level === 5) && raw.point_id === PENDING_POINT_ID) {
-    return { ...raw, point_id: COMMUNITY_POINT_ID }
-  }
-  return raw
-}
+/** 音标来源，与 NGSL 的 CC BY-SA 分开注明。 */
+export const ECDICT_ATTRIBUTION =
+  '音标取自 ECDICT（MIT License，https://github.com/skywind3000/ECDICT），已规范化为英式 IPA。'
 
 export function entriesFromWordlist(data: { words?: WordEntry[] } | null | undefined): WordEntry[] {
   if (!data || !Array.isArray(data.words)) return []
-  return data.words.map(normalizeEntry)
+  return data.words
 }
 
 /** 语气标注：词表字段优先；没有就按释义/标签推断（俚语、缩写、回复用语） */
