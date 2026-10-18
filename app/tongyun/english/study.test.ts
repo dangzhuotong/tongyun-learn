@@ -1,10 +1,15 @@
 import { describe, expect, it } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import {
   buildMeaningChoices,
   buildSession,
   buildWordChoices,
+  handleChoiceTransition,
   pickNewWords,
+  resolveChoice,
   resolveSpell,
+  type StudyItem,
 } from './study'
 import { DAY, dailyNewBudget, orderedLevels, remainingNewBudget, type WordEntry, type WordStat } from './wordlist'
 
@@ -151,3 +156,77 @@ describe('resolveSpell ladder and re-teach', () => {
     expect(reteach.stat.first).toBe(s.first)
   })
 })
+
+describe('first review choice rules (P2 fix)', () => {
+  it('allows entering hint_spell only when choice is correct', () => {
+    const s = stat({ last: NOW - DAY, box: 0, due: NOW - DAY, first: NOW - DAY, taught: true })
+    const res = resolveChoice(s, true, NOW)
+    expect(res.action).toBe('hint_spell')
+    expect(res.stat).toEqual(s)
+
+    const w = mk('alpha', 1)
+    const items: StudyItem[] = [
+      { id: 'choice-alpha', word: w, mode: 'choice', reason: 'review', reviewIndex: 0 },
+      { id: 'hint-alpha', word: w, mode: 'hint_spell', reason: 'review', reviewIndex: 0 },
+    ]
+    const updated = handleChoiceTransition(items, 0, w, true)
+    expect(updated).toHaveLength(2)
+    expect(updated[1].mode).toBe('hint_spell')
+  })
+
+  it('does not enter hint_spell on wrong choice and re-enqueues reteach according to spec-583', () => {
+    const s = stat({ last: NOW - DAY, box: 0, due: NOW - DAY, first: NOW - DAY, taught: true })
+    const res = resolveChoice(s, false, NOW)
+    expect(res.action).toBe('reteach')
+    expect(res.stat.taught).toBe(false)
+    expect(res.stat.box).toBe(0)
+    expect(res.stat.due).toBe(NOW)
+    expect(res.stat.wrong).toBe(1)
+
+    const w = mk('alpha', 1)
+    const items: StudyItem[] = [
+      { id: 'choice-alpha', word: w, mode: 'choice', reason: 'review', reviewIndex: 0 },
+      { id: 'hint-alpha', word: w, mode: 'hint_spell', reason: 'review', reviewIndex: 0 },
+      { id: 'spell-beta', word: mk('beta', 1), mode: 'spell', reason: 'review', reviewIndex: 1 },
+    ]
+    const updated = handleChoiceTransition(items, 0, w, false)
+    expect(updated).toHaveLength(3)
+    // hint_spell must NOT be entered
+    expect(updated.find(i => i.mode === 'hint_spell' && i.word.word === 'alpha')).toBeUndefined()
+    // reteach must be re-enqueued
+    expect(updated[1]).toEqual({
+      id: 'teach-alpha',
+      word: w,
+      mode: 'teach',
+      reason: 'relearn',
+      reviewIndex: 0,
+    })
+
+    // On subsequent session build, a word reset by wrong choice builds as teach:relearn
+    const session = buildSession([w], { alpha: res.stat }, [], NOW, () => 0)
+    expect(session.items[0]).toEqual({
+      id: 'teach-alpha',
+      word: w,
+      mode: 'teach',
+      reason: 'relearn',
+      reviewIndex: 0,
+    })
+  })
+})
+
+describe('words home page and settings page attribution', () => {
+  it('has removed level progress details and NGSL credit from home page', () => {
+    const indexVue = readFileSync(resolve(__dirname, '../../pages/index.vue'), 'utf-8')
+    expect(indexVue).not.toContain('data-testid="level-progress"')
+    expect(indexVue).not.toContain('级别进度')
+    expect(indexVue).not.toContain('NGSL_ATTRIBUTION')
+    expect(indexVue).toContain('data-testid="start-learn"')
+  })
+
+  it('keeps NGSL attribution on settings page footer', () => {
+    const settingsVue = readFileSync(resolve(__dirname, '../../pages/settings.vue'), 'utf-8')
+    expect(settingsVue).toContain('NGSL_ATTRIBUTION')
+    expect(settingsVue).toContain('data-testid="ngsl-credit"')
+  })
+})
+
