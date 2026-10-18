@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { buildSession, type SessionPlan } from '@/tongyun/english/study'
 import {
@@ -8,6 +8,14 @@ import {
   loadWordlist,
   type WordStat,
 } from '@/tongyun/english/wordlist'
+import {
+  buildSubjectSession,
+  getActiveSubject,
+  getSubjectBank,
+  getSubjectStats,
+  type ActiveSubject,
+  type SubjectSessionPlan,
+} from '@/tongyun/subject'
 
 definePageMeta({
   layout: 'yunya',
@@ -21,6 +29,8 @@ const router = useRouter()
 const ready = ref(false)
 const loading = ref(true)
 const plan = ref<SessionPlan | null>(null)
+const subjectPlan = ref<SubjectSessionPlan | null>(null)
+const activeSubject = ref<ActiveSubject>('english')
 
 const dateText = computed(() => {
   const now = new Date()
@@ -31,26 +41,56 @@ const dateText = computed(() => {
 })
 
 const countText = computed(() => {
+  if (activeSubject.value === 'java' || activeSubject.value === 'ai') {
+    const sp = subjectPlan.value
+    if (!sp) return ''
+    return `到期复习 ${sp.dueTotal} · 新题 ${sp.newTotal}`
+  }
   const p = plan.value
   if (!p) return ''
   const parts = [`到期复习 ${p.dueTotal}`, `新词 ${p.newTotal}`]
   return parts.join(' · ')
 })
 
-const empty = computed(() => Boolean(plan.value) && plan.value!.items.length === 0)
+const empty = computed(() => {
+  if (activeSubject.value === 'java' || activeSubject.value === 'ai') {
+    return Boolean(subjectPlan.value) && subjectPlan.value!.items.length === 0
+  }
+  return Boolean(plan.value) && plan.value!.items.length === 0
+})
 
 async function load() {
   loading.value = true
-  const list = await loadWordlist()
-  const stats: Record<string, WordStat> = getStats()
-  const optional = getOptionalLevels()
-  plan.value = buildSession(list, stats, optional)
+  activeSubject.value = getActiveSubject()
+  if (activeSubject.value === 'java' || activeSubject.value === 'ai') {
+    const bank = getSubjectBank(activeSubject.value)
+    const stats = getSubjectStats(activeSubject.value)
+    subjectPlan.value = buildSubjectSession(bank, stats, Date.now())
+  } else {
+    const list = await loadWordlist()
+    const stats: Record<string, WordStat> = getStats()
+    const optional = getOptionalLevels()
+    plan.value = buildSession(list, stats, optional)
+  }
   loading.value = false
+}
+
+function startPractice() {
+  if (activeSubject.value === 'english') {
+    router.push('/practice')
+  } else {
+    router.push(`/practice?subject=${activeSubject.value}`)
+  }
 }
 
 onMounted(() => {
   ready.value = true
   load()
+  window.addEventListener('tongyun-subject-changed', load)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('tongyun-subject-changed', load)
 })
 </script>
 
@@ -75,7 +115,7 @@ onMounted(() => {
         class="yy-btn"
         data-testid="start-learn"
         :disabled="empty"
-        @click="router.push('/practice')"
+        @click="startPractice"
       >
         开始学
       </button>
