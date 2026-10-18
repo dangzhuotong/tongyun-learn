@@ -1,5 +1,5 @@
 import type { Article, Sentence } from '../types'
-import { Baidu, Translator } from '@/libs'
+import { Translator } from '@/libs'
 import { TranslateEngine } from '../types'
 
 export function getSentenceAllTranslateText(article: Article) {
@@ -41,16 +41,12 @@ export async function getNetworkTranslate(
 ) {
   let translator: Translator
   if (translateEngine === TranslateEngine.Baidu) {
-    const cfg = useRuntimeConfig().public as Record<string, string>
-    const appid = cfg.baiduTranslateAppid
-    const key = cfg.baiduTranslateKey
-    // 未配置百度翻译凭据时直接跳过网络翻译（功能降级，不报错）
-    if (!appid || !key) {
-      console.warn('[translate] NUXT_PUBLIC_BAIDU_TRANSLATE_APPID/KEY 未配置，跳过百度翻译')
-      progressCb?.(100)
-      return
-    }
-    translator = new Baidu({ config: { appid, key } }) as any
+    // tongyun: 不把百度 appid/key 下发到浏览器。runtimeConfig.public 会在
+    // nuxt generate 时写进静态 index.html。网络翻译停用，等 /learn/api
+    // 代理保管 key 并签名后再接上。见 docs/TODO.md。
+    console.warn('[translate] 百度翻译未启用（需 /learn/api 服务端代理），跳过网络翻译')
+    progressCb?.(100)
+    return
   }
 
   if (translator) {

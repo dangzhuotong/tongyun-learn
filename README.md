@@ -69,6 +69,7 @@ npm run generate  # 静态站，默认 base /learn/，产物在 .output/public
   - 只调学习服务的 GET 接口：`/subjects`、`/subjects/{id}/map`、`/next`、`/review/due`、`/progress`、`/blockers`。每块单独加载、单独报错：令牌不对提示去设置改，连不上提示「连不上学习服务」；连到没有 `/blockers` 的旧版服务（404）时显示「卡点记录即将接入」。
   - 页面是 `ssr:false` 的纯客户端页面，静态产物里没有任何学习数据。
 - 本机联调、探活命令和常见错误见 [docs/tongyun-learn-integration.md](docs/tongyun-learn-integration.md)。
+- 文章页的百度网络翻译目前停用。appid/key 不能放进前端（会打进静态 HTML）。以后要在 `/learn/api` 加服务端代理来保管密钥并签名，见 [docs/TODO.md](docs/TODO.md)。
 - 默认关闭了原作者的第三方统计脚本（开关在 `app/tongyun/config.ts`）。
 
 ### 旧后端
