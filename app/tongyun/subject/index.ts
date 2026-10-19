@@ -7,6 +7,7 @@ export * from './grade'
 export * from './self-assessment'
 export * from './stats'
 export * from './session'
+export * from './schedule'
 export {
   STORAGE_KEY,
   UI_SUBJECTS,
