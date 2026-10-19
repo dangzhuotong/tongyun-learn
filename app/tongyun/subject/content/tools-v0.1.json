@@ -1,0 +1,623 @@
+{
+  "subject": "tools",
+  "version": "0.1",
+  "title": "效率工具",
+  "note": "前两级（T1 Git 与命令行、T2 AI 编程工具）。",
+  "points": [
+    {
+      "id": "tools.git.basics",
+      "title": "Git 分支与提交",
+      "prereq": [],
+      "level": 1,
+      "unit": "T1"
+    },
+    {
+      "id": "tools.git.secrets",
+      "title": "密钥轮换与历史清理",
+      "prereq": [
+        "tools.git.basics"
+      ],
+      "level": 1,
+      "unit": "T1",
+      "map_point": "jf.git-secrets"
+    },
+    {
+      "id": "tools.shell",
+      "title": "常用 shell",
+      "prereq": [],
+      "level": 1,
+      "unit": "T1"
+    },
+    {
+      "id": "tools.ai-coding",
+      "title": "AI 编程工具与 axue-skills",
+      "prereq": [
+        "tools.git.basics"
+      ],
+      "level": 2,
+      "unit": "T2"
+    }
+  ],
+  "items": [
+    {
+      "id": "tool-0001",
+      "point_id": "tools.git.basics",
+      "level": 1,
+      "type": "code",
+      "prompt": "新建并切换到分支 feat/start-learn（用 git switch）。",
+      "answer": "git switch -c feat/start-learn",
+      "explain": "git switch -c 是较新的写法，等价于 git checkout -b。",
+      "tags": [
+        "效率工具"
+      ],
+      "accept": [
+        "git checkout -b feat/start-learn"
+      ],
+      "grading": "auto",
+      "code": "git switch -c feat/start-learn"
+    },
+    {
+      "id": "tool-0002",
+      "point_id": "tools.git.basics",
+      "level": 1,
+      "type": "code",
+      "prompt": "查看工作区和暂存区的状态。",
+      "answer": "git status",
+      "explain": "提交前先看一眼，避免把不该提交的文件带进去。",
+      "tags": [
+        "效率工具"
+      ],
+      "accept": [
+        "git status -s"
+      ],
+      "grading": "auto",
+      "code": "git status"
+    },
+    {
+      "id": "tool-0003",
+      "point_id": "tools.git.basics",
+      "level": 1,
+      "type": "code",
+      "prompt": "以单行形式查看提交历史，并显示分支图。",
+      "answer": "git log --oneline --graph",
+      "explain": "看清分支是怎么分叉、怎么合并的。",
+      "tags": [
+        "效率工具"
+      ],
+      "accept": [
+        "git log --graph --oneline",
+        "git log --oneline --graph --all"
+      ],
+      "grading": "auto",
+      "code": "git log --oneline --graph"
+    },
+    {
+      "id": "tool-0004",
+      "point_id": "tools.git.basics",
+      "level": 1,
+      "type": "code",
+      "prompt": "把暂存区的文件 a.txt 撤回到未暂存（不改文件内容）。",
+      "answer": "git restore --staged a.txt",
+      "explain": "只撤销 git add，不改文件内容。",
+      "tags": [
+        "效率工具"
+      ],
+      "accept": [
+        "git reset a.txt",
+        "git reset HEAD a.txt"
+      ],
+      "grading": "auto",
+      "code": "git restore --staged a.txt"
+    },
+    {
+      "id": "tool-0005",
+      "point_id": "tools.git.basics",
+      "level": 1,
+      "type": "choice",
+      "prompt": "git merge 和 git rebase 的主要区别？",
+      "answer": "merge 保留分叉并生成合并提交；rebase 把提交重放到新基底上，历史变成线性",
+      "explain": "已经推送、别人也在用的分支，不要 rebase 后强推。",
+      "tags": [
+        "效率工具"
+      ],
+      "options": [
+        "merge 保留分叉并生成合并提交；rebase 把提交重放到新基底上，历史变成线性",
+        "两者完全相同",
+        "rebase 会删除代码",
+        "merge 只能用于主分支"
+      ],
+      "accept": [],
+      "grading": "auto"
+    },
+    {
+      "id": "tool-0006",
+      "point_id": "tools.git.basics",
+      "level": 1,
+      "type": "choice",
+      "prompt": "合并时出现冲突，正确的处理顺序？",
+      "answer": "打开冲突文件手动改好 → git add → 继续 merge/rebase",
+      "explain": "冲突标记 <<<<<<< ======= >>>>>>> 必须全部清理掉。",
+      "tags": [
+        "效率工具"
+      ],
+      "options": [
+        "打开冲突文件手动改好 → git add → 继续 merge/rebase",
+        "直接 git push -f",
+        "删掉整个仓库重新 clone",
+        "忽略冲突标记直接提交"
+      ],
+      "accept": [],
+      "grading": "auto"
+    },
+    {
+      "id": "tool-0007",
+      "point_id": "tools.git.basics",
+      "level": 1,
+      "type": "choice",
+      "prompt": "git push --force 在什么情况下最危险？",
+      "answer": "推送到多人共用的分支，会覆盖别人的提交",
+      "explain": "必须强推时用 --force-with-lease，更安全一些。",
+      "tags": [
+        "效率工具"
+      ],
+      "options": [
+        "推送到多人共用的分支，会覆盖别人的提交",
+        "推送到只有自己用的新分支",
+        "推送前先 pull",
+        "从不危险"
+      ],
+      "accept": [],
+      "grading": "auto"
+    },
+    {
+      "id": "tool-0008",
+      "point_id": "tools.git.basics",
+      "level": 1,
+      "type": "choice",
+      "prompt": "好的 commit message 第一行应该？",
+      "answer": "简短说明这次改了什么，必要时说明为什么",
+      "explain": "例如：feat(learn): add start-learn queue ordering。",
+      "tags": [
+        "效率工具"
+      ],
+      "options": [
+        "简短说明这次改了什么，必要时说明为什么",
+        "写「update」",
+        "写「fix bug」",
+        "写日期"
+      ],
+      "accept": [],
+      "grading": "auto"
+    },
+    {
+      "id": "tool-0009",
+      "point_id": "tools.git.secrets",
+      "level": 1,
+      "type": "choice",
+      "prompt": "发现密钥已经提交并推送到 GitHub，第一件该做的事？",
+      "answer": "立即在服务方吊销并更换这个密钥",
+      "explain": "推送后可能已被别人拿到，删文件和改历史都不能让旧密钥失效。阿橦的原话：「换密钥啊，有记录的，这样做最根本」。",
+      "tags": [
+        "效率工具"
+      ],
+      "options": [
+        "立即在服务方吊销并更换这个密钥",
+        "删掉那个文件再提交",
+        "把仓库改成私有就够了",
+        "什么都不做"
+      ],
+      "accept": [],
+      "grading": "auto"
+    },
+    {
+      "id": "tool-0010",
+      "point_id": "tools.git.secrets",
+      "level": 1,
+      "type": "choice",
+      "prompt": "只在新提交里删掉含密钥的文件，问题解决了吗？",
+      "answer": "没有，旧提交历史里仍然能看到",
+      "explain": "Git 会保留全部历史，所以必须先换密钥。",
+      "tags": [
+        "效率工具"
+      ],
+      "options": [
+        "没有，旧提交历史里仍然能看到",
+        "解决了",
+        "只要 push 就解决了",
+        "重启电脑就解决了"
+      ],
+      "accept": [],
+      "grading": "auto"
+    },
+    {
+      "id": "tool-0011",
+      "point_id": "tools.git.secrets",
+      "level": 1,
+      "type": "concept",
+      "prompt": "防止 .env 被 Git 跟踪，要把它写进哪个文件？",
+      "answer": "gitignore",
+      "explain": ".gitignore 只对还没被跟踪的文件生效；已经跟踪的，要先 git rm --cached。",
+      "tags": [
+        "效率工具"
+      ],
+      "accept": [
+        ".gitignore",
+        "gitignore 文件"
+      ],
+      "grading": "auto"
+    },
+    {
+      "id": "tool-0012",
+      "point_id": "tools.git.secrets",
+      "level": 1,
+      "type": "code",
+      "prompt": "停止跟踪已提交的 .env，但保留本地文件。",
+      "answer": "git rm --cached .env",
+      "explain": "之后把 .env 加进 .gitignore 再提交。",
+      "tags": [
+        "效率工具"
+      ],
+      "accept": [
+        "git rm --cached -- .env"
+      ],
+      "grading": "auto",
+      "code": "git rm --cached .env"
+    },
+    {
+      "id": "tool-0013",
+      "point_id": "tools.git.secrets",
+      "level": 1,
+      "type": "choice",
+      "prompt": "要从整个 Git 历史中彻底删掉某个文件，GitHub 官方文档推荐的工具是？",
+      "answer": "git filter-repo",
+      "explain": "改写历史后要强推，协作者需要重新 clone。即使改了历史，也必须先换密钥。",
+      "tags": [
+        "效率工具"
+      ],
+      "options": [
+        "git filter-repo",
+        "git stash",
+        "git cherry-pick",
+        "git blame"
+      ],
+      "accept": [],
+      "grading": "auto"
+    },
+    {
+      "id": "tool-0014",
+      "point_id": "tools.git.secrets",
+      "level": 1,
+      "type": "choice",
+      "prompt": "密钥应该放在哪里？",
+      "answer": "本机私有 env 文件或密钥管理服务，权限只给自己",
+      "explain": "学习站令牌也一样：只存在私有文件里，不往聊天里贴。",
+      "tags": [
+        "效率工具"
+      ],
+      "options": [
+        "本机私有 env 文件或密钥管理服务，权限只给自己",
+        "代码常量",
+        "README",
+        "聊天记录里"
+      ],
+      "accept": [],
+      "grading": "auto"
+    },
+    {
+      "id": "tool-0015",
+      "point_id": "tools.git.secrets",
+      "level": 1,
+      "type": "oral",
+      "prompt": "口述练习：2 分钟讲清「密钥误提交到 GitHub 后怎么处理」，按顺序讲。",
+      "answer": "自评完成",
+      "explain": "这是 W1D1 的核心知识点，也常被面试问到。",
+      "tags": [
+        "效率工具"
+      ],
+      "rubric": [
+        "第一步是吊销/更换密钥",
+        "说明为什么删文件不够",
+        "讲了清理历史和 .gitignore",
+        "讲了以后怎么预防",
+        "2 分钟内"
+      ],
+      "accept": [],
+      "grading": "self"
+    },
+    {
+      "id": "tool-0016",
+      "point_id": "tools.shell",
+      "level": 1,
+      "type": "code",
+      "prompt": "在当前目录递归搜索包含 TODO 的行（用 ripgrep）。",
+      "answer": "rg TODO",
+      "explain": "rg 默认会跳过 .gitignore 里列出的文件，比 grep -r 快。",
+      "tags": [
+        "效率工具"
+      ],
+      "accept": [
+        "rg \"TODO\"",
+        "rg 'TODO'"
+      ],
+      "grading": "auto",
+      "code": "rg TODO"
+    },
+    {
+      "id": "tool-0017",
+      "point_id": "tools.shell",
+      "level": 1,
+      "type": "code",
+      "prompt": "把命令 ls 的输出写入文件 out.txt（覆盖写）。",
+      "answer": "ls > out.txt",
+      "explain": "> 覆盖写，>> 追加写。",
+      "tags": [
+        "效率工具"
+      ],
+      "accept": [
+        "ls >out.txt"
+      ],
+      "grading": "auto",
+      "code": "ls > out.txt"
+    },
+    {
+      "id": "tool-0018",
+      "point_id": "tools.shell",
+      "level": 1,
+      "type": "code",
+      "prompt": "用管道统计当前目录下的条目数量（ls 配合 wc）。",
+      "answer": "ls | wc -l",
+      "explain": "管道 | 把前一个命令的输出交给后一个命令。",
+      "tags": [
+        "效率工具"
+      ],
+      "accept": [
+        "ls|wc -l",
+        "ls -1 | wc -l"
+      ],
+      "grading": "auto",
+      "code": "ls | wc -l"
+    },
+    {
+      "id": "tool-0019",
+      "point_id": "tools.shell",
+      "level": 1,
+      "type": "code",
+      "prompt": "查看环境变量 PATH 的值。",
+      "answer": "echo $PATH",
+      "explain": "但不要用 echo 打印含密钥的变量，否则会留在终端历史和日志里。",
+      "tags": [
+        "效率工具"
+      ],
+      "accept": [
+        "echo \"$PATH\"",
+        "printenv PATH"
+      ],
+      "grading": "auto",
+      "code": "echo $PATH"
+    },
+    {
+      "id": "tool-0020",
+      "point_id": "tools.shell",
+      "level": 1,
+      "type": "term",
+      "prompt": "命令前加什么符号可以把它放到后台运行？（填在命令末尾的符号）",
+      "answer": "&",
+      "explain": "例如 long_task &；用 jobs 查看后台任务。",
+      "tags": [
+        "效率工具"
+      ],
+      "accept": [
+        "＆"
+      ],
+      "grading": "auto"
+    },
+    {
+      "id": "tool-0021",
+      "point_id": "tools.shell",
+      "level": 1,
+      "type": "choice",
+      "prompt": "执行 rm -rf 前最该做的事？",
+      "answer": "确认路径无误，必要时先 ls 看一下要删的内容",
+      "explain": "删除后无法恢复，变量为空时可能删错目录。",
+      "tags": [
+        "效率工具"
+      ],
+      "options": [
+        "确认路径无误，必要时先 ls 看一下要删的内容",
+        "加 sudo",
+        "直接执行",
+        "在根目录执行"
+      ],
+      "accept": [],
+      "grading": "auto"
+    },
+    {
+      "id": "tool-0022",
+      "point_id": "tools.ai-coding",
+      "level": 2,
+      "type": "choice",
+      "prompt": "本课程对 AI 编程工具的原则是？",
+      "answer": "AI 当老师和陪练，自己动手写，不让它代写作业",
+      "explain": "学习路径原则：自己写，AI 讲解和追问。面试时要讲的是自己的理解。",
+      "tags": [
+        "效率工具"
+      ],
+      "options": [
+        "AI 当老师和陪练，自己动手写，不让它代写作业",
+        "全部交给 AI",
+        "不用 AI",
+        "只用 AI 写文档"
+      ],
+      "accept": [],
+      "grading": "auto"
+    },
+    {
+      "id": "tool-0023",
+      "point_id": "tools.ai-coding",
+      "level": 2,
+      "type": "code",
+      "prompt": "在 Claude Code 里添加 axue-skills 插件市场（GitHub 仓库 dangzhuotong/axue-skills）。",
+      "answer": "/plugin marketplace add dangzhuotong/axue-skills",
+      "explain": "添加后再执行 /plugin install axue-skills@axue-skills。",
+      "tags": [
+        "效率工具"
+      ],
+      "accept": [
+        "/plugin marketplace add dangzhuotong/axue-skills "
+      ],
+      "grading": "auto",
+      "code": "/plugin marketplace add dangzhuotong/axue-skills"
+    },
+    {
+      "id": "tool-0024",
+      "point_id": "tools.ai-coding",
+      "level": 2,
+      "type": "code",
+      "prompt": "在 Claude Code 里安装 axue-skills 插件。",
+      "answer": "/plugin install axue-skills@axue-skills",
+      "explain": "前提是已经添加了市场。",
+      "tags": [
+        "效率工具"
+      ],
+      "accept": [],
+      "grading": "auto",
+      "code": "/plugin install axue-skills@axue-skills"
+    },
+    {
+      "id": "tool-0025",
+      "point_id": "tools.ai-coding",
+      "level": 2,
+      "type": "term",
+      "prompt": "axue-skills 读取学习站令牌用的环境变量名是？",
+      "answer": "TONGYUN_LEARN_TOKEN",
+      "explain": "令牌只放环境变量或私有文件里，不贴进对话。",
+      "tags": [
+        "效率工具"
+      ],
+      "accept": [],
+      "grading": "auto"
+    },
+    {
+      "id": "tool-0026",
+      "point_id": "tools.ai-coding",
+      "level": 2,
+      "type": "choice",
+      "prompt": "在 Cursor 里使用 axue-skills 的方式是？",
+      "answer": "git clone 仓库后运行 install.sh（或 Windows 上的 install.ps1）",
+      "explain": "安装方式写在 axue-skills 仓库的 README 里。",
+      "tags": [
+        "效率工具"
+      ],
+      "options": [
+        "git clone 仓库后运行 install.sh（或 Windows 上的 install.ps1）",
+        "在应用商店搜索",
+        "复制粘贴到聊天框",
+        "不支持"
+      ],
+      "accept": [],
+      "grading": "auto"
+    },
+    {
+      "id": "tool-0027",
+      "point_id": "tools.ai-coding",
+      "level": 2,
+      "type": "choice",
+      "prompt": "让 AI 改代码后，提交前最该做什么？",
+      "answer": "自己读一遍 diff，跑测试，确认看得懂每一处改动",
+      "explain": "看不懂的改动不要提交，也讲不清楚。",
+      "tags": [
+        "效率工具"
+      ],
+      "options": [
+        "自己读一遍 diff，跑测试，确认看得懂每一处改动",
+        "直接提交",
+        "让 AI 再检查一遍就提交",
+        "删掉测试"
+      ],
+      "accept": [],
+      "grading": "auto"
+    },
+    {
+      "id": "tool-0028",
+      "point_id": "tools.ai-coding",
+      "level": 2,
+      "type": "choice",
+      "prompt": "给 AI 编程工具的提示，哪种更有效？",
+      "answer": "说清目标、相关文件、约束和验收方式",
+      "explain": "上下文越具体，结果越准。密钥永远不要贴进去。",
+      "tags": [
+        "效率工具"
+      ],
+      "options": [
+        "说清目标、相关文件、约束和验收方式",
+        "只说「帮我优化」",
+        "越短越好",
+        "贴上密钥方便它调试"
+      ],
+      "accept": [],
+      "grading": "auto"
+    },
+    {
+      "id": "tool-0029",
+      "point_id": "tools.ai-coding",
+      "level": 2,
+      "type": "choice",
+      "prompt": "项目根目录放一份给 AI 看的说明文件（例如 CLAUDE.md 或 AGENTS.md）的作用？",
+      "answer": "告诉 AI 项目约定、命令和禁区，减少重复说明",
+      "explain": "可以写：怎么跑测试、不能改哪些目录、代码风格等。",
+      "tags": [
+        "效率工具"
+      ],
+      "options": [
+        "告诉 AI 项目约定、命令和禁区，减少重复说明",
+        "替代 README 给人看",
+        "存放密钥",
+        "没有作用"
+      ],
+      "accept": [],
+      "grading": "auto"
+    },
+    {
+      "id": "tool-0030",
+      "point_id": "tools.ai-coding",
+      "level": 2,
+      "type": "project",
+      "prompt": "小项目：用 Claude Code 或 Cursor 装好 axue-skills，跟 AI 上一节 Java 课（如 equals/hashCode），代码自己敲。",
+      "answer": "自评完成",
+      "explain": "同一套学法，换个工具也能继续。",
+      "tags": [
+        "效率工具"
+      ],
+      "rubric": [
+        "插件装好且能读到学习站（令牌没贴进对话）",
+        "代码是自己敲的",
+        "课后完成了自测",
+        "讲不通的地方记成卡点",
+        "进度在 tongyun-learn 里能看到"
+      ],
+      "accept": [],
+      "grading": "self"
+    },
+    {
+      "id": "tool-0031",
+      "point_id": "tools.ai-coding",
+      "level": 2,
+      "type": "project",
+      "prompt": "小项目：给 tongyun-cli 写一份 AGENTS.md（或 CLAUDE.md）：项目简介、常用命令、禁区（如密钥、生产库）、提交规范。",
+      "answer": "自评完成",
+      "explain": "只在自己的仓库里练，不碰公司仓库。",
+      "tags": [
+        "效率工具"
+      ],
+      "rubric": [
+        "命令真实可执行",
+        "写明不能碰的东西",
+        "有提交规范",
+        "一页以内",
+        "自己按它让 AI 做一个小改动验证"
+      ],
+      "accept": [],
+      "grading": "self"
+    }
+  ]
+}

@@ -8,6 +8,11 @@ import type { QuestionBank } from './types'
 const LOADERS = {
   java: () => import('./content/java-v0.1.json').then(m => m.default ?? m),
   ai: () => import('./content/ai-v0.1.json').then(m => m.default ?? m),
+  fde: () => import('./content/fde-v0.1.json').then(m => m.default ?? m),
+  web: () => import('./content/web-v0.1.json').then(m => m.default ?? m),
+  writing: () => import('./content/writing-v0.1.json').then(m => m.default ?? m),
+  ip: () => import('./content/ip-v0.1.json').then(m => m.default ?? m),
+  tools: () => import('./content/tools-v0.1.json').then(m => m.default ?? m),
 } as const
 
 /** 学科 id 的联合类型，由题库注册表推导 */
