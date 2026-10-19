@@ -1,257 +1,237 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { loadBank, hasBank } from './bank'
+import { activeCards, isSelfType, parseBank, validateBank } from './parse'
+import { SUBJECTS, SUBJECT_IDS, getSubject, isSubjectType, requireSubject } from './registry'
+import { gradeCard, gradeChoice, gradeText, isCodeQuestion } from './grade'
 import {
-  AI_BANK,
-  DAY,
-  INTERVALS,
-  JAVA_BANK,
-  buildSubjectSession,
-  getKnowledgePoint,
-  getSubjectBank,
-  gradeAnswer,
-  isCodeQuestion,
-  nextSubjectStat,
-  stripWhitespace,
-  type QuestionItem,
-  type SubjectItemStat,
-} from './index'
+  SELF_FAIL_DAYS,
+  SELF_PARTIAL_DAYS,
+  applySelfAssessment,
+  selfIntervalDays,
+  selfNextDue,
+} from './self-assessment'
+import type { Card, QuestionBank } from './types'
+import subjectsJson from './subjects.json'
 
-const NOW = 1_800_000_000_000
+const root = process.cwd()
+const read = (p: string) => readFileSync(resolve(root, p), 'utf8')
 
-describe('subject question bank loading (java-v0.1.json & ai-v0.1.json)', () => {
-  it('loads Java question bank with correct version and 20 items', () => {
-    expect(JAVA_BANK.subject).toBe('java')
-    expect(JAVA_BANK.version).toBe('0.1')
-    expect(JAVA_BANK.points.length).toBeGreaterThan(0)
-    expect(JAVA_BANK.items.length).toBe(20)
-
-    const equalsPoint = getKnowledgePoint(JAVA_BANK, 'java.object.equals-hashcode')
-    expect(equalsPoint?.title).toBe('equals 与 hashCode')
+describe('题库解析：兼容现有 java / ai', () => {
+  it('java-v0.1.json 原样加载，id 与答案不变', async () => {
+    const bank = await loadBank('java')
+    expect(bank.subject).toBe('java')
+    expect(bank.points).toHaveLength(9)
+    expect(bank.items).toHaveLength(20)
+    const card = bank.items.find(c => c.id === 'java-0001')!
+    expect(card.point_id).toBe('java.object.equals-hashcode')
+    expect(card.answer).toBe('hashCode')
+    expect(card.type).toBe('concept')
+    // 旧题库没有 level/unit/map_point/refs/options/rubric/retired，也不该被凭空加上
+    expect('retired' in card).toBe(false)
   })
 
-  it('loads AI question bank with correct version and 20 items', () => {
-    expect(AI_BANK.subject).toBe('ai')
-    expect(AI_BANK.version).toBe('0.1')
-    expect(AI_BANK.points.length).toBeGreaterThan(0)
-    expect(AI_BANK.items.length).toBe(20)
-
-    const llmPoint = getKnowledgePoint(AI_BANK, 'ai.llm.basics')
-    expect(llmPoint?.title).toBe('LLM 基础')
+  it('ai-v0.1.json 原样加载', async () => {
+    const bank = await loadBank('ai')
+    expect(bank.subject).toBe('ai')
+    expect(bank.items.length).toBeGreaterThan(0)
+    expect(bank.items.every(c => c.type === 'term' || c.type === 'concept' || c.type === 'code')).toBe(true)
   })
 
-  it('retrieves subject banks via getSubjectBank', () => {
-    expect(getSubjectBank('java')).toBe(JAVA_BANK)
-    expect(getSubjectBank('JAVA')).toBe(JAVA_BANK)
-    expect(getSubjectBank('ai')).toBe(AI_BANK)
-    expect(getSubjectBank('AI')).toBe(AI_BANK)
-  })
-})
-
-describe('code question grading (ignores whitespace)', () => {
-  const java0003 = JAVA_BANK.items.find(i => i.id === 'java-0003')!
-  const java0015 = JAVA_BANK.items.find(i => i.id === 'java-0015')!
-  const java0017 = JAVA_BANK.items.find(i => i.id === 'java-0017')!
-  const ai0019 = AI_BANK.items.find(i => i.id === 'ai-0019')!
-
-  it('identifies code questions correctly', () => {
-    expect(isCodeQuestion(java0003)).toBe(true)
-    expect(isCodeQuestion(java0015)).toBe(true)
-    expect(isCodeQuestion(java0017)).toBe(true)
-    expect(isCodeQuestion(ai0019)).toBe(true)
-
-    const java0001 = JAVA_BANK.items.find(i => i.id === 'java-0001')!
-    expect(isCodeQuestion(java0001)).toBe(false)
+  it('新字段全可选：只有旧字段也能解析', () => {
+    const bank = parseBank({
+      subject: 'x',
+      version: '0.1',
+      points: [{ id: 'x.p1', title: '点1', prereq: [] }],
+      items: [
+        { id: 'x-1', point_id: 'x.p1', level: 1, type: 'term', prompt: '问', answer: '答' },
+      ],
+    })
+    expect(bank.points[0]!.level).toBeUndefined()
+    expect(bank.points[0]!.unit).toBeUndefined()
+    expect(bank.items[0]!.accept).toBeUndefined()
   })
 
-  it('grades java-0003 ignoring whitespace', () => {
-    // answer: "return Objects.hash(name, age);"
-    expect(gradeAnswer('return Objects.hash(name, age);', java0003)).toBe(true)
-    expect(gradeAnswer('return Objects.hash(name,age);', java0003)).toBe(true)
-    expect(gradeAnswer('return   Objects.hash( name , age ) ;', java0003)).toBe(true)
-    expect(gradeAnswer('Objects.hash(name, age)', java0003)).toBe(true)
-    expect(gradeAnswer('Objects.hash(name,age)', java0003)).toBe(true)
-    expect(gradeAnswer('Objects.hash( name , age )', java0003)).toBe(true)
-
-    expect(gradeAnswer('return Objects.equals(name, age);', java0003)).toBe(false)
+  it('points 支持可选 level / unit / map_point / refs，含显式 null', () => {
+    const bank = parseBank({
+      subject: 'y',
+      version: '0.1',
+      points: [{ id: 'y.p1', title: '点', prereq: [], level: 2, unit: 'C1', map_point: null, refs: ['jf.x'] }],
+      items: [],
+    })
+    expect(bank.points[0]!.level).toBe(2)
+    expect(bank.points[0]!.unit).toBe('C1')
+    expect(bank.points[0]!.map_point).toBeNull()
+    expect(bank.points[0]!.refs).toEqual(['jf.x'])
   })
 
-  it('grades java-0015 ignoring whitespace and quotes', () => {
-    // answer: "try (BufferedReader br = new BufferedReader(new FileReader(\"a.txt\"))) {"
-    expect(gradeAnswer('try (BufferedReader br = new BufferedReader(new FileReader("a.txt"))) {', java0015)).toBe(true)
-    expect(gradeAnswer('try(BufferedReader br = new BufferedReader(new FileReader("a.txt"))){', java0015)).toBe(true)
-    expect(gradeAnswer('try(BufferedReader br=new BufferedReader(new FileReader("a.txt"))){', java0015)).toBe(true)
-    expect(gradeAnswer('try ( BufferedReader br = new BufferedReader( new FileReader( "a.txt" ) ) ) {', java0015)).toBe(true)
-    expect(gradeAnswer('try (BufferedReader br = new BufferedReader(new FileReader("a.txt")))', java0015)).toBe(true)
-
-    expect(gradeAnswer('BufferedReader br = new BufferedReader(new FileReader("a.txt"))', java0015)).toBe(false)
-  })
-
-  it('grades java-0017 ignoring whitespace', () => {
-    // answer: "ExecutorService pool = Executors.newFixedThreadPool(4);"
-    expect(gradeAnswer('ExecutorService pool = Executors.newFixedThreadPool(4);', java0017)).toBe(true)
-    expect(gradeAnswer('ExecutorService pool=Executors.newFixedThreadPool(4);', java0017)).toBe(true)
-    expect(gradeAnswer('ExecutorService   pool = Executors.newFixedThreadPool( 4 );', java0017)).toBe(true)
-    expect(gradeAnswer('Executors.newFixedThreadPool(4)', java0017)).toBe(true)
-    expect(gradeAnswer('Executors.newFixedThreadPool( 4 )', java0017)).toBe(true)
-
-    expect(gradeAnswer('Executors.newCachedThreadPool()', java0017)).toBe(false)
-  })
-
-  it('grades ai-0019 ignoring whitespace', () => {
-    // answer: "chatClient.prompt().user(\"hi\").call().content();"
-    expect(gradeAnswer('chatClient.prompt().user("hi").call().content();', ai0019)).toBe(true)
-    expect(gradeAnswer('chatClient.prompt().user("hi").call().content()', ai0019)).toBe(true)
-    expect(gradeAnswer('chatClient . prompt() . user( "hi" ) . call() . content() ;', ai0019)).toBe(true)
-    expect(gradeAnswer('String r = chatClient.prompt().user("hi").call().content();', ai0019)).toBe(true)
-    expect(gradeAnswer('String r=chatClient.prompt().user("hi").call().content();', ai0019)).toBe(true)
-
-    expect(gradeAnswer('chatClient.prompt().user("hi").call().entity()', ai0019)).toBe(false)
+  it('未知学科抛错，不回落 Java', async () => {
+    await expect(loadBank('nope')).rejects.toThrow('未知学科')
+    await expect(loadBank('java2')).rejects.toThrow()
   })
 })
 
-describe('non-code question grading', () => {
-  it('grades java-0001 with answer and accept alternatives', () => {
-    const itm = JAVA_BANK.items.find(i => i.id === 'java-0001')!
-    expect(gradeAnswer('hashCode', itm)).toBe(true)
-    expect(gradeAnswer('hashcode', itm)).toBe(true)
-    expect(gradeAnswer('hashCode()', itm)).toBe(true)
-    expect(gradeAnswer('哈希码', itm)).toBe(true)
-    expect(gradeAnswer('  hashCode  ', itm)).toBe(true)
-    expect(gradeAnswer('equals', itm)).toBe(false)
+describe('注册表驱动类型与页面校验', () => {
+  it('SUBJECTS 每项都有 load()，且与 subjects.json 对齐', () => {
+    expect(SUBJECTS.length).toBeGreaterThan(0)
+    expect(SUBJECTS.every(s => typeof s.load === 'function')).toBe(true)
+    const jsonIds = (subjectsJson as { subjects: { id: string }[] }).subjects.map(s => s.id)
+    expect(SUBJECT_IDS).toEqual(jsonIds.filter(id => hasBank(id)))
   })
 
-  it('grades java-0002 with number representations', () => {
-    const itm = JAVA_BANK.items.find(i => i.id === 'java-0002')!
-    expect(gradeAnswer('2', itm)).toBe(true)
-    expect(gradeAnswer('两个', itm)).toBe(true)
-    expect(gradeAnswer('二', itm)).toBe(true)
-    expect(gradeAnswer('2个', itm)).toBe(true)
-    expect(gradeAnswer('1', itm)).toBe(false)
+  it('SubjectType 由注册表推导，isSubjectType 只认已注册学科', () => {
+    expect(SUBJECT_IDS).toContain('java')
+    expect(isSubjectType('java')).toBe(true)
+    expect(isSubjectType('chem')).toBe(false)
   })
 
-  it('grades ai-0001 with token terms', () => {
-    const itm = AI_BANK.items.find(i => i.id === 'ai-0001')!
-    expect(gradeAnswer('token', itm)).toBe(true)
-    expect(gradeAnswer('Token', itm)).toBe(true)
-    expect(gradeAnswer('tokens', itm)).toBe(true)
-    expect(gradeAnswer('词元', itm)).toBe(true)
-    expect(gradeAnswer('character', itm)).toBe(false)
+  it('getSubject / requireSubject 对未知学科抛错', () => {
+    expect(getSubject('java').title).toBe('Java')
+    expect(() => getSubject('nope')).toThrow('未知学科')
+    expect(() => requireSubject('')).toThrow('缺少学科')
+    expect(() => requireSubject(undefined)).toThrow('缺少学科')
   })
 
-  it('grades ai-0002 with context window synonyms', () => {
-    const itm = AI_BANK.items.find(i => i.id === 'ai-0002')!
-    expect(gradeAnswer('context window', itm)).toBe(true)
-    expect(gradeAnswer('上下文窗口', itm)).toBe(true)
-    expect(gradeAnswer('context length', itm)).toBe(true)
-    expect(gradeAnswer('上下文长度', itm)).toBe(true)
-    expect(gradeAnswer('context', itm)).toBe(true)
-    expect(gradeAnswer('temperature', itm)).toBe(false)
-  })
-
-  it('grades ai-0020 with AiServices variations', () => {
-    const itm = AI_BANK.items.find(i => i.id === 'ai-0020')!
-    expect(gradeAnswer('AiServices', itm)).toBe(true)
-    expect(gradeAnswer('AI Services', itm)).toBe(true)
-    expect(gradeAnswer('aiservices', itm)).toBe(true)
-    expect(gradeAnswer('AI 服务', itm)).toBe(true)
-    expect(gradeAnswer('Spring AI', itm)).toBe(false)
-  })
-})
-
-describe('1/3/7/14/30 spaced repetition progression and reset', () => {
-  it('advances through 1, 3, 7, 14, 30 day intervals on correct answers', () => {
-    // 首次作答正确：进入第 0 档（1 天）
-    let s = nextSubjectStat(undefined, true, NOW)
-    expect(s.box).toBe(0)
-    expect(s.due - NOW).toBe(1 * DAY)
-    expect(s.right).toBe(1)
-    expect(s.wrong).toBe(0)
-
-    // 第二次作答正确：进入第 1 档（3 天）
-    s = nextSubjectStat(s, true, NOW)
-    expect(s.box).toBe(1)
-    expect(s.due - NOW).toBe(3 * DAY)
-    expect(s.right).toBe(2)
-
-    // 第三次作答正确：进入第 2 档（7 天）
-    s = nextSubjectStat(s, true, NOW)
-    expect(s.box).toBe(2)
-    expect(s.due - NOW).toBe(7 * DAY)
-    expect(s.right).toBe(3)
-
-    // 第四次作答正确：进入第 3 档（14 天）
-    s = nextSubjectStat(s, true, NOW)
-    expect(s.box).toBe(3)
-    expect(s.due - NOW).toBe(14 * DAY)
-    expect(s.right).toBe(4)
-
-    // 第五次作答正确：进入第 4 档（30 天）
-    s = nextSubjectStat(s, true, NOW)
-    expect(s.box).toBe(4)
-    expect(s.due - NOW).toBe(30 * DAY)
-    expect(s.right).toBe(5)
-
-    // 第六次作答正确：最高停在第 4 档（30 天）
-    s = nextSubjectStat(s, true, NOW)
-    expect(s.box).toBe(4)
-    expect(s.due - NOW).toBe(30 * DAY)
-    expect(s.right).toBe(6)
-  })
-
-  it('resets interval back to box 0 (1 day) on wrong answer', () => {
-    // 假设已到第 3 档（14 天）
-    const prev: SubjectItemStat = {
-      right: 4,
-      wrong: 0,
-      last: NOW - 14 * DAY,
-      box: 3,
-      due: NOW,
-      first: NOW - 30 * DAY,
+  it('注册表里每个学科都能 load 出对应 subject', async () => {
+    for (const s of SUBJECTS) {
+      const bank = await s.load()
+      expect(bank.subject).toBe(s.id)
     }
-
-    const wrongResult = nextSubjectStat(prev, false, NOW)
-    expect(wrongResult.box).toBe(0)
-    expect(wrongResult.due - NOW).toBe(1 * DAY)
-    expect(wrongResult.wrong).toBe(1)
-    expect(wrongResult.right).toBe(4)
-    expect(wrongResult.first).toBe(prev.first)
   })
 })
 
-describe('subject practice session building', () => {
-  it('schedules due items first in order of due date, then new items', () => {
-    const stats: Record<string, SubjectItemStat> = {
-      'java-0001': {
-        right: 1,
-        wrong: 0,
-        last: NOW - 3 * DAY,
-        box: 0,
-        due: NOW - 2 * DAY, // 到期较早
-        first: NOW - 3 * DAY,
-      },
-      'java-0002': {
-        right: 2,
-        wrong: 0,
-        last: NOW - 2 * DAY,
-        box: 1,
-        due: NOW - 1 * DAY, // 到期较晚
-        first: NOW - 5 * DAY,
-      },
-      'java-0003': {
-        right: 3,
-        wrong: 0,
-        last: NOW - DAY,
-        box: 2,
-        due: NOW + 6 * DAY, // 未到期，不应进入 due
-        first: NOW - 10 * DAY,
-      },
-    }
+describe('判分：choice 自动判、code 按 type 判、oral/project 自评', () => {
+  const choice: Card = {
+    id: 'c-1', point_id: 'p', level: 1, type: 'choice', prompt: 'q', answer: 'B',
+    options: ['A', 'B', 'C'], grading: 'auto',
+  }
+  const code: Card = {
+    id: 'java-0003', point_id: 'p', level: 2, type: 'code', prompt: 'q',
+    answer: 'return Objects.hash(name, age);',
+    accept: ['Objects.hash(name, age)'], code: 'return Objects.hash(name, age);',
+  }
+  // 同一个 id 若被当成 term，走 accept 而不是 code 逻辑
+  const termSameId: Card = { ...code, type: 'term' }
+  const oral: Card = {
+    id: 'o-1', point_id: 'p', level: 1, type: 'oral', prompt: 'q', answer: '自评完成',
+    rubric: ['a', 'b', 'c'], grading: 'self',
+  }
 
-    const plan = buildSubjectSession(JAVA_BANK, stats, NOW, 5)
-    expect(plan.dueTotal).toBe(2)
-    expect(plan.items[0].id).toBe('java-0001')
-    expect(plan.items[1].id).toBe('java-0002')
-    // 新题排在后面
-    expect(plan.items[2].id).toBe('java-0004')
-    expect(plan.newTotal).toBe(5)
+  it('choice 自动判分', () => {
+    expect(gradeChoice(choice, 'B')).toBe(true)
+    expect(gradeCard(choice, 'B')).toBe('correct')
+    expect(gradeCard(choice, 'A')).toBe('wrong')
+  })
+
+  it('code 由 type === "code" 识别，不靠 id 白名单', () => {
+    expect(isCodeQuestion(code)).toBe(true)
+    expect(isCodeQuestion(termSameId)).toBe(false)
+    expect(gradeText(code, 'return  Objects.hash(name,   age);')).toBe(true)
+    expect(gradeCard(code, 'return Objects.hash(name, age)')).toBe('correct')
+  })
+
+  it('oral / project 返回 self', () => {
+    expect(isSelfType('oral')).toBe(true)
+    expect(isSelfType('project')).toBe(true)
+    expect(gradeCard(oral, '')).toBe('self')
+  })
+})
+
+describe('自评驱动间隔：不会 1 天 / 半会 3 天 / 会走正常间隔', () => {
+  it('selfIntervalDays', () => {
+    expect(selfIntervalDays('self_fail', 7)).toBe(SELF_FAIL_DAYS)
+    expect(selfIntervalDays('self_partial', 7)).toBe(SELF_PARTIAL_DAYS)
+    expect(selfIntervalDays('self_ok', 7)).toBe(7)
+    expect(selfNextDue('self_fail', 7, 0)).toBe(SELF_FAIL_DAYS * 24 * 3600 * 1000)
+  })
+
+  it('applySelfAssessment：会前进一档、半会不动、不会重置', () => {
+    const intervals = [1, 3, 7, 14, 30]
+    const now = 0
+    const ok = applySelfAssessment('self_ok', { box: 1, intervals, now })
+    expect(ok.box).toBe(2)
+    expect(ok.due).toBe(7 * 24 * 3600 * 1000)
+
+    const partial = applySelfAssessment('self_partial', { box: 1, intervals, now })
+    expect(partial.box).toBe(1)
+    expect(partial.due).toBe(3 * 24 * 3600 * 1000)
+
+    const fail = applySelfAssessment('self_fail', { box: 4, intervals, now })
+    expect(fail.box).toBe(0)
+    expect(fail.due).toBe(1 * 24 * 3600 * 1000)
+  })
+})
+
+describe('choice / rubric 校验与退役卡', () => {
+  it('choice 选项不足或答案不在其中会报问题', () => {
+    const bad: QuestionBank = {
+      subject: 'z', version: '0.1',
+      points: [{ id: 'p', title: 't', prereq: [] }],
+      items: [{ id: 'z-1', point_id: 'p', level: 1, type: 'choice', prompt: 'q', answer: 'X', options: ['A', 'A'] }],
+    }
+    const issues = validateBank(bad).map(i => i.message).join('|')
+    expect(issues).toContain('选项少于 3')
+    expect(issues).toContain('答案不在选项里')
+    expect(issues).toContain('选项有重复')
+  })
+
+  it('oral / project rubric 需 3–5 条', () => {
+    const bad: QuestionBank = {
+      subject: 'z', version: '0.1',
+      points: [{ id: 'p', title: 't', prereq: [] }],
+      items: [{ id: 'z-2', point_id: 'p', level: 1, type: 'project', prompt: 'q', answer: '', rubric: ['a'] }],
+    }
+    expect(validateBank(bad).some(i => i.message.includes('3–5'))).toBe(true)
+  })
+
+  it('retired 的卡不进 activeCards，id 不变', () => {
+    const bank: QuestionBank = {
+      subject: 'z', version: '0.1',
+      points: [{ id: 'p', title: 't', prereq: [] }],
+      items: [
+        { id: 'z-3', point_id: 'p', level: 1, type: 'term', prompt: 'q', answer: 'a' },
+        { id: 'z-4', point_id: 'p', level: 1, type: 'term', prompt: 'q', answer: 'a', retired: true },
+      ],
+    }
+    const active = activeCards(bank)
+    expect(active.map(c => c.id)).toEqual(['z-3'])
+    const parsed = parseBank(bank)
+    expect(parsed.items.find(c => c.id === 'z-4')!.retired).toBe(true)
+  })
+
+  it('结构错误直接抛错', () => {
+    expect(() => parseBank(null)).toThrow()
+    expect(() => parseBank({ points: [], items: [] })).toThrow('subject')
+    expect(() =>
+      parseBank({ subject: 'z', items: [{ id: 'z-9', point_id: 'missing', level: 1, type: 'term', prompt: '', answer: '' }] })
+    ).toThrow('point_id')
+  })
+})
+
+describe('打包含约束：题库动态 import，layout / 首页主包不含题库', () => {
+  it('bank.ts 用动态 import，不写 CODE_QUESTION_IDS', () => {
+    const src = read('app/tongyun/subject/bank.ts')
+    expect(src).toMatch(/import\(/)
+    expect(src).not.toContain('CODE_QUESTION_IDS')
+    // 不能有静态 JSON import
+    expect(src).not.toMatch(/from\s+['"]\.\/content\/.*\.json['"]/)
+  })
+
+  it('布局只引 active-subject，不引 bank / 题库', () => {
+    const layout = read('app/layouts/yunya.vue')
+    expect(layout).toContain('@/tongyun/subject/active-subject')
+    expect(layout).not.toMatch(/subject\/bank/)
+    expect(layout).not.toMatch(/-v0\.1\.json/)
+  })
+
+  it('首页不引学科题库', () => {
+    const home = read('app/pages/index.vue')
+    expect(home).not.toMatch(/subject\/(bank|content)/)
+    expect(home).not.toMatch(/-v0\.1\.json/)
+  })
+
+  it('grade.ts 不含 CODE_QUESTION_IDS', () => {
+    expect(read('app/tongyun/subject/grade.ts')).not.toContain('CODE_QUESTION_IDS')
   })
 })

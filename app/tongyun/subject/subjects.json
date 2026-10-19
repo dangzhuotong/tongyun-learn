@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "subjects": [
+    { "id": "java", "title": "Java", "stage": "main", "file": "java-v0.1.json" },
+    { "id": "ai", "title": "AI", "stage": "main", "file": "ai-v0.1.json" }
+  ]
+}

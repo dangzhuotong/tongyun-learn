@@ -1,30 +1,58 @@
-// tongyun: 当前选中学科状态管理（english / java / ai）
+// tongyun: 当前学科。layout 只从这里取学科信息（不直接引 bank / 题库），
+// 题库仍由 registry.load() 按需动态 import。
 
-export type ActiveSubject = 'english' | 'java' | 'ai'
+import { computed, ref, type ComputedRef, type Ref } from 'vue'
+import { SUBJECTS, getSubject, isSubjectType, type SubjectType } from './registry'
+import type { Subject } from './types'
 
-const KEY = 'tongyun-active-subject'
+const STORAGE_KEY = 'tongyun-active-subject-v1'
 
-export function getActiveSubject(): ActiveSubject {
-  if (typeof localStorage === 'undefined') return 'english'
+function readStored(): SubjectType | null {
   try {
-    const raw = (localStorage.getItem(KEY) || '').toLowerCase()
-    if (raw === 'java' || raw === 'ai') return raw
+    if (typeof localStorage === 'undefined') return null
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (raw && isSubjectType(raw)) return raw
   } catch {}
-  return 'english'
+  return null
 }
 
-export function setActiveSubject(subject: ActiveSubject): void {
-  if (typeof localStorage === 'undefined') return
-  try {
-    localStorage.setItem(KEY, subject)
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('tongyun-subject-changed', { detail: subject }))
-    }
-  } catch {}
+function fallbackId(): SubjectType {
+  const first = SUBJECTS[0]
+  if (!first) throw new Error('学科注册表为空')
+  return first.id as SubjectType
 }
 
-export const SUBJECT_TITLES: Record<ActiveSubject, string> = {
-  english: '英语',
-  java: 'Java',
-  ai: 'AI',
+const activeId: Ref<SubjectType> = ref<SubjectType>(readStored() ?? fallbackId())
+
+export interface UseActiveSubject {
+  activeId: ComputedRef<SubjectType>
+  active: ComputedRef<Subject>
+  subjects: Subject[]
+  setActiveSubject(id: string): SubjectType
+}
+
+/** 切换当前学科；未知学科抛错，不静默回落。 */
+export function setActiveSubject(id: string): SubjectType {
+  const subject = getSubject(id)
+  const next = subject.id as SubjectType
+  activeId.value = next
+  try {
+    if (typeof localStorage !== 'undefined') localStorage.setItem(STORAGE_KEY, next)
+  } catch {}
+  return next
+}
+
+export function useActiveSubject(): UseActiveSubject {
+  const active = computed<Subject>(() => getSubject(activeId.value))
+  return {
+    activeId: computed(() => activeId.value),
+    active,
+    subjects: SUBJECTS,
+    setActiveSubject,
+  }
+}
+
+/** 测试用：重置内存中的当前学科。 */
+export function __resetActiveSubject(id?: SubjectType): void {
+  activeId.value = id ?? fallbackId()
 }

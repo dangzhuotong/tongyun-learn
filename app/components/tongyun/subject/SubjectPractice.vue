@@ -6,18 +6,18 @@ import {
   INTERVALS,
   buildSubjectSession,
   getKnowledgePoint,
-  getSubjectBank,
   getSubjectStats,
   gradeAnswer,
   isCodeQuestion,
+  loadBank,
   recordSubjectResult,
+  type Card,
   type QuestionBank,
-  type QuestionItem,
   type SubjectItemStat,
 } from '@/tongyun/subject'
 
 const props = defineProps<{
-  subject: 'java' | 'ai'
+  subject: string
 }>()
 
 const emit = defineEmits<{
@@ -28,7 +28,7 @@ const emit = defineEmits<{
 const ready = ref(false)
 const loading = ref(true)
 const bank = ref<QuestionBank>({ subject: '', version: '', points: [], items: [] })
-const items = ref<QuestionItem[]>([])
+const items = ref<Card[]>([])
 const index = ref(0)
 const statsMap = ref<Record<string, SubjectItemStat>>({})
 
@@ -49,7 +49,12 @@ const finished = computed(() => ready.value && !loading.value && (total.value ==
 const point = computed(() => (current.value ? getKnowledgePoint(bank.value, current.value.point_id) : undefined))
 const isCode = computed(() => (current.value ? isCodeQuestion(current.value) : false))
 
-const subjectTitle = computed(() => (props.subject === 'ai' ? 'AI' : 'Java'))
+const subjectTitle = computed(() => {
+  const s = (bank.value.subject || props.subject || '').toLowerCase()
+  if (s === 'ai') return 'AI'
+  if (s === 'java') return 'Java'
+  return props.subject || '学科'
+})
 const typeLabel = computed(() => {
   if (!current.value) return ''
   if (current.value.type === 'code') return '编码题'
@@ -71,19 +76,23 @@ function openCard() {
   focusInput()
 }
 
-function load() {
+async function load() {
   loading.value = true
-  bank.value = getSubjectBank(props.subject)
-  statsMap.value = getSubjectStats(props.subject)
-  const session = buildSubjectSession(bank.value, statsMap.value, Date.now())
-  items.value = session.items
-  index.value = 0
-  correctCount.value = 0
-  totalAnswered.value = 0
-  loading.value = false
-  ready.value = true
-  if (items.value.length) {
-    openCard()
+  ready.value = false
+  try {
+    bank.value = await loadBank(props.subject)
+    statsMap.value = getSubjectStats(props.subject)
+    const session = buildSubjectSession(bank.value, statsMap.value, Date.now())
+    items.value = session.items
+    index.value = 0
+    correctCount.value = 0
+    totalAnswered.value = 0
+    ready.value = true
+    if (items.value.length) {
+      openCard()
+    }
+  } finally {
+    loading.value = false
   }
 }
 

@@ -20,7 +20,7 @@ import {
   type WordEntry,
 } from '@/tongyun/english/wordlist'
 import SubjectPractice from '@/components/tongyun/subject/SubjectPractice.vue'
-import { getActiveSubject, setActiveSubject, type ActiveSubject } from '@/tongyun/subject'
+import { getActiveSubject, isBankSubject, setActiveSubject, type ActiveSubject } from '@/tongyun/subject'
 
 definePageMeta({
   layout: 'yunya',
@@ -38,7 +38,7 @@ const activeSubject = ref<ActiveSubject>('english')
 
 function syncSubjectFromUrl() {
   const querySub = ((route.query.subject as string) || '').toLowerCase()
-  if (querySub === 'java' || querySub === 'ai' || querySub === 'english') {
+  if (querySub === 'english' || isBankSubject(querySub)) {
     activeSubject.value = querySub as ActiveSubject
     setActiveSubject(querySub as ActiveSubject)
   } else {
@@ -348,7 +348,7 @@ onUnmounted(() => {
     </div>
 
     <SubjectPractice
-      v-if="activeSubject === 'java' || activeSubject === 'ai'"
+      v-if="isBankSubject(activeSubject)"
       :subject="activeSubject"
       @exit="router.push('/')"
       @switch-subject="setSubject"
