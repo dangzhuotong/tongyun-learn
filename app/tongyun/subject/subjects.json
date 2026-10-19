@@ -2,6 +2,11 @@
   "version": 1,
   "subjects": [
     { "id": "java", "title": "Java", "stage": "main", "file": "java-v0.1.json" },
-    { "id": "ai", "title": "AI", "stage": "main", "file": "ai-v0.1.json" }
+    { "id": "ai", "title": "AI", "stage": "main", "file": "ai-v0.1.json" },
+    { "id": "fde", "title": "FDE 客户交付", "stage": "main", "file": "fde-v0.1.json" },
+    { "id": "web", "title": "前端与部署", "stage": "maintain", "file": "web-v0.1.json" },
+    { "id": "writing", "title": "技术写作", "stage": "light", "file": "writing-v0.1.json" },
+    { "id": "ip", "title": "个人 IP", "stage": "light", "file": "ip-v0.1.json" },
+    { "id": "tools", "title": "效率工具", "stage": "light", "file": "tools-v0.1.json" }
   ]
 }

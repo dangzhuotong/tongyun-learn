@@ -4,8 +4,10 @@
 
 - `java-v0.1.json`、`ai-v0.1.json`：由 **学习-阿学** 自写的题库（生成脚本 `gen_qb.py`），
   为自有内容，随仓库分发；卡片 id 与内容不要改动，删卡只标 `retired`。
-- 后续学科（fde / web / writing / ip / tools 等）同样由学习-阿学自写，按相同结构放进本目录，
-  并在 `../subjects.json` 与 `../bank.ts` 的加载表里登记。
+- `fde-v0.1.json` / `web-v0.1.json` / `writing-v0.1.json` / `ip-v0.1.json` / `tools-v0.1.json`：
+  五科共 154 张卡，结构与 Java/AI 兼容，走同一套加载器（`../bank.ts` 动态 import），
+  已在 `../subjects.json` 登记；卡片 id 与内容不要改动，删卡只标 `retired`。
+- `map_point` 缺省或为 `null` 表示「待挂」：照常排课，但 `../map.ts` 的知识地图进度不计。
 
 要点：
 
