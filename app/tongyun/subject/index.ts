@@ -11,6 +11,7 @@ export {
 } from './active-subject'
 export * from './stats'
 export * from './session'
+export * from './schedule'
 export {
   getActiveSubject,
   setActiveSubject,

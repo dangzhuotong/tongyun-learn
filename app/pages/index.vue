@@ -2,6 +2,8 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { buildSession, type SessionPlan } from '@/tongyun/english/study'
+import { getRecords } from '@/tongyun/english/records'
+import { activeDayCount, formatDaySummary, startOfDay } from '@/tongyun/subject/schedule'
 import {
   getOptionalLevels,
   getStats,
@@ -60,6 +62,21 @@ const empty = computed(() => {
   return Boolean(plan.value) && plan.value!.items.length === 0
 })
 
+const summaryText = computed(() => {
+  // 英语今日汇总；学科题库仍用 countText
+  if (isBankSubject(activeSubject.value)) return ''
+  const p = plan.value
+  if (!p) return ''
+  const now = Date.now()
+  const records = getRecords()
+  const reviewed = records.filter(r => r.ts >= startOfDay(now)).length
+  return formatDaySummary({
+    dueToday: p.dueTotal,
+    reviewed,
+    weekDays: activeDayCount(records.map(r => r.ts), now),
+  })
+})
+
 async function load() {
   loading.value = true
   activeSubject.value = getActiveSubject()
@@ -109,7 +126,7 @@ onUnmounted(() => {
       </template>
       <template v-else>
         <p class="unit">{{ countText }}</p>
-        <p class="meta">先复习到期的，再学新词；随时可以停下。</p>
+        <p class="meta" data-testid="day-summary">{{ summaryText || '先复习到期的，再学新词；随时可以停下。' }}</p>
       </template>
       <button
         type="button"
