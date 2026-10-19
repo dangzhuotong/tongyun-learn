@@ -1,0 +1,650 @@
+{
+  "subject": "writing",
+  "version": "0.1",
+  "title": "技术写作与自媒体",
+  "note": "前两级（W1 一篇讲清一个点、W2 项目复盘文）。只练表达，不含增长指标或商业化；发不发公众号「橦云异梦」由阿橦自己决定。",
+  "points": [
+    {
+      "id": "write.structure",
+      "title": "结论先行的结构",
+      "prereq": [],
+      "level": 1,
+      "unit": "W1"
+    },
+    {
+      "id": "write.clarity",
+      "title": "讲清一个点：例子与精简",
+      "prereq": [
+        "write.structure"
+      ],
+      "level": 1,
+      "unit": "W1"
+    },
+    {
+      "id": "write.retro",
+      "title": "项目复盘文",
+      "prereq": [
+        "write.clarity"
+      ],
+      "level": 2,
+      "unit": "W2",
+      "map_point": "jf.project-pitch"
+    },
+    {
+      "id": "write.publish",
+      "title": "发布前自查与署名",
+      "prereq": [
+        "write.retro"
+      ],
+      "level": 2,
+      "unit": "W2"
+    }
+  ],
+  "items": [
+    {
+      "id": "wrt-0001",
+      "point_id": "write.structure",
+      "level": 1,
+      "type": "choice",
+      "prompt": "一篇讲技术点的短文，开头最好写什么？",
+      "answer": "一句话结论：这个点是什么、为什么重要",
+      "explain": "读者先拿到结论，再决定要不要往下读。",
+      "tags": [
+        "技术写作与自媒体"
+      ],
+      "options": [
+        "一句话结论：这个点是什么、为什么重要",
+        "自己的学习经历",
+        "技术发展史",
+        "一段客套话"
+      ],
+      "accept": [],
+      "grading": "auto"
+    },
+    {
+      "id": "wrt-0002",
+      "point_id": "write.structure",
+      "level": 1,
+      "type": "concept",
+      "prompt": "本课程里讲清一个点的四步结构：结论 → 原理 → ____ → 踩坑。空白处填什么？",
+      "answer": "例子",
+      "explain": "这和学习路径里的面试表达结构是同一套。",
+      "tags": [
+        "技术写作与自媒体"
+      ],
+      "accept": [
+        "例子",
+        "举例",
+        "示例"
+      ],
+      "grading": "auto"
+    },
+    {
+      "id": "wrt-0003",
+      "point_id": "write.structure",
+      "level": 1,
+      "type": "choice",
+      "prompt": "标题「HashMap 详解」和「为什么只重写 equals 会让 HashSet 出现重复元素」，哪个更好？",
+      "answer": "后者，具体、有问题、能看出读完得到什么",
+      "explain": "具体的问题型标题比大而全的标题更能说明内容。",
+      "tags": [
+        "技术写作与自媒体"
+      ],
+      "options": [
+        "后者，具体、有问题、能看出读完得到什么",
+        "前者，更全面",
+        "一样",
+        "都不好，标题越短越好"
+      ],
+      "accept": [],
+      "grading": "auto"
+    },
+    {
+      "id": "wrt-0004",
+      "point_id": "write.structure",
+      "level": 1,
+      "type": "choice",
+      "prompt": "一篇公众号技术短文，一般只讲几个核心点比较合适？",
+      "answer": "一个",
+      "explain": "一篇讲透一个点，比十个点都蜻蜓点水有用。",
+      "tags": [
+        "技术写作与自媒体"
+      ],
+      "options": [
+        "一个",
+        "五个以上",
+        "越多越好",
+        "不需要核心点"
+      ],
+      "accept": [],
+      "grading": "auto"
+    },
+    {
+      "id": "wrt-0005",
+      "point_id": "write.structure",
+      "level": 1,
+      "type": "choice",
+      "prompt": "小标题的作用是？",
+      "answer": "让读者扫一眼就知道每段讲什么",
+      "explain": "可以先只写小标题，检查逻辑顺不顺。",
+      "tags": [
+        "技术写作与自媒体"
+      ],
+      "options": [
+        "让读者扫一眼就知道每段讲什么",
+        "凑字数",
+        "装饰排版",
+        "增加阅读时间"
+      ],
+      "accept": [],
+      "grading": "auto"
+    },
+    {
+      "id": "wrt-0006",
+      "point_id": "write.structure",
+      "level": 1,
+      "type": "oral",
+      "prompt": "口述练习：先用 1 分钟口头讲清「equals 和 hashCode 为什么要一起重写」，再按讲的顺序列出文章小标题。",
+      "answer": "自评完成",
+      "explain": "先说清楚再写，写起来就顺。",
+      "tags": [
+        "技术写作与自媒体"
+      ],
+      "rubric": [
+        "结论先行（第一句给结论）",
+        "讲清原理或理由",
+        "有一个具体例子（最好来自自己的项目）",
+        "提到一个坑或取舍",
+        "2 分钟内讲完"
+      ],
+      "accept": [],
+      "grading": "self"
+    },
+    {
+      "id": "wrt-0007",
+      "point_id": "write.structure",
+      "level": 1,
+      "type": "project",
+      "prompt": "小项目：为本周学的一个 Java 点写提纲：标题 + 一句话结论 + 4 个小标题（结论/原理/例子/踩坑）。",
+      "answer": "自评完成",
+      "explain": "提纲过关，正文就成功了一大半。",
+      "tags": [
+        "技术写作与自媒体"
+      ],
+      "rubric": [
+        "标题是具体问题",
+        "结论一句话能独立看懂",
+        "4 个小标题顺序合理",
+        "例子来自自己写的代码",
+        "全部写在半页内"
+      ],
+      "accept": [],
+      "grading": "self"
+    },
+    {
+      "id": "wrt-0008",
+      "point_id": "write.clarity",
+      "level": 1,
+      "type": "choice",
+      "prompt": "删掉下面哪类句子最能让文章变精简？",
+      "answer": "「众所周知」「值得一提的是」这类没有信息量的过渡",
+      "explain": "每句话都应该带新信息。",
+      "tags": [
+        "技术写作与自媒体"
+      ],
+      "options": [
+        "「众所周知」「值得一提的是」这类没有信息量的过渡",
+        "代码示例",
+        "结论句",
+        "踩坑说明"
+      ],
+      "accept": [],
+      "grading": "auto"
+    },
+    {
+      "id": "wrt-0009",
+      "point_id": "write.clarity",
+      "level": 1,
+      "type": "choice",
+      "prompt": "解释一个概念，最有效的例子来自？",
+      "answer": "自己项目里真实遇到的情况",
+      "explain": "例如 tongyun-learn 里遇到的真实 bug，比抽象例子更好懂、也更可信。",
+      "tags": [
+        "技术写作与自媒体"
+      ],
+      "options": [
+        "自己项目里真实遇到的情况",
+        "网上随便找的",
+        "编一个复杂的",
+        "不需要例子"
+      ],
+      "accept": [],
+      "grading": "auto"
+    },
+    {
+      "id": "wrt-0010",
+      "point_id": "write.clarity",
+      "level": 1,
+      "type": "choice",
+      "prompt": "文章里放代码，较好的做法？",
+      "answer": "只放说明问题的最短片段，并写清运行结果",
+      "explain": "读者要能复制、能看懂、能对上结论。",
+      "tags": [
+        "技术写作与自媒体"
+      ],
+      "options": [
+        "只放说明问题的最短片段，并写清运行结果",
+        "整个文件全贴",
+        "放截图不放文本",
+        "不放代码"
+      ],
+      "accept": [],
+      "grading": "auto"
+    },
+    {
+      "id": "wrt-0011",
+      "point_id": "write.clarity",
+      "level": 1,
+      "type": "choice",
+      "prompt": "第一次出现术语（如 RAG）时应该？",
+      "answer": "给一句白话解释",
+      "explain": "读者里会有不懂这个词的人，第一次出现就要解释。",
+      "tags": [
+        "技术写作与自媒体"
+      ],
+      "options": [
+        "给一句白话解释",
+        "不解释",
+        "只写英文全称",
+        "加粗即可"
+      ],
+      "accept": [],
+      "grading": "auto"
+    },
+    {
+      "id": "wrt-0012",
+      "point_id": "write.clarity",
+      "level": 1,
+      "type": "concept",
+      "prompt": "写完后把文章念出来或讲给别人听，检查哪里讲不通。这种用「教会别人」检验自己理解的方法叫什么学习法？",
+      "answer": "费曼学习法",
+      "explain": "学习路径的核心学法，写作也一样适用。",
+      "tags": [
+        "技术写作与自媒体"
+      ],
+      "accept": [
+        "费曼",
+        "费曼学习法",
+        "费曼技巧",
+        "Feynman"
+      ],
+      "grading": "auto"
+    },
+    {
+      "id": "wrt-0013",
+      "point_id": "write.clarity",
+      "level": 1,
+      "type": "choice",
+      "prompt": "文中引用别人的观点或数据时应该？",
+      "answer": "注明出处并附链接",
+      "explain": "标明出处是基本诚信，也方便读者自己核实。",
+      "tags": [
+        "技术写作与自媒体"
+      ],
+      "options": [
+        "注明出处并附链接",
+        "当成自己的",
+        "不需要说明",
+        "只写「据说」"
+      ],
+      "accept": [],
+      "grading": "auto"
+    },
+    {
+      "id": "wrt-0014",
+      "point_id": "write.clarity",
+      "level": 1,
+      "type": "choice",
+      "prompt": "不确定的结论该怎么写？",
+      "answer": "明确说明不确定，或先查证再写",
+      "explain": "技术文章的价值在于准确。",
+      "tags": [
+        "技术写作与自媒体"
+      ],
+      "options": [
+        "明确说明不确定，或先查证再写",
+        "写成确定的",
+        "删掉出处",
+        "用夸张的词加强语气"
+      ],
+      "accept": [],
+      "grading": "auto"
+    },
+    {
+      "id": "wrt-0015",
+      "point_id": "write.clarity",
+      "level": 1,
+      "type": "project",
+      "prompt": "小项目：按上周提纲写一篇 800 字以内的短文（结论/原理/例子/踩坑），写完念一遍删掉废话。",
+      "answer": "自评完成",
+      "explain": "写完后发不发公众号「橦云异梦」由你决定，这里只练写作。",
+      "tags": [
+        "技术写作与自媒体"
+      ],
+      "rubric": [
+        "开头一句话结论",
+        "有一段自己写的可运行代码或真实例子",
+        "术语首次出现有解释",
+        "删掉了至少 3 句废话",
+        "引用都有出处"
+      ],
+      "accept": [],
+      "grading": "self"
+    },
+    {
+      "id": "wrt-0016",
+      "point_id": "write.retro",
+      "level": 2,
+      "type": "choice",
+      "prompt": "项目复盘文的核心结构是？",
+      "answer": "问题背景 → 方案与取舍 → 结果 → 下次怎么做",
+      "explain": "复盘的价值在取舍和教训，不在罗列功能。",
+      "tags": [
+        "技术写作与自媒体"
+      ],
+      "options": [
+        "问题背景 → 方案与取舍 → 结果 → 下次怎么做",
+        "功能列表",
+        "技术栈清单",
+        "致谢"
+      ],
+      "accept": [],
+      "grading": "auto"
+    },
+    {
+      "id": "wrt-0017",
+      "point_id": "write.retro",
+      "level": 2,
+      "type": "choice",
+      "prompt": "写「方案与取舍」时最该写清楚？",
+      "answer": "考虑过哪些方案，为什么选了这个，代价是什么",
+      "explain": "面试官最爱追问「为什么不用 X」，复盘文正好提前准备。",
+      "tags": [
+        "技术写作与自媒体"
+      ],
+      "options": [
+        "考虑过哪些方案，为什么选了这个，代价是什么",
+        "只写最终方案",
+        "写用了多少新技术",
+        "写花了多少钱"
+      ],
+      "accept": [],
+      "grading": "auto"
+    },
+    {
+      "id": "wrt-0018",
+      "point_id": "write.retro",
+      "level": 2,
+      "type": "choice",
+      "prompt": "复盘里写「结果」，哪种写法更好？",
+      "answer": "写可核实的事实，如「排课规则上线后能按到期复习先出题」",
+      "explain": "没有数据就写事实，绝不编数字。",
+      "tags": [
+        "技术写作与自媒体"
+      ],
+      "options": [
+        "写可核实的事实，如「排课规则上线后能按到期复习先出题」",
+        "写「效果非常好」",
+        "编一个提升百分比",
+        "不写结果"
+      ],
+      "accept": [],
+      "grading": "auto"
+    },
+    {
+      "id": "wrt-0019",
+      "point_id": "write.retro",
+      "level": 2,
+      "type": "choice",
+      "prompt": "复盘里提到失败或踩坑，会？",
+      "answer": "展示判断力和成长，是加分项",
+      "explain": "真实的坑比完美的叙事更可信。",
+      "tags": [
+        "技术写作与自媒体"
+      ],
+      "options": [
+        "展示判断力和成长，是加分项",
+        "暴露缺点，应该删掉",
+        "让人觉得不专业",
+        "没有影响"
+      ],
+      "accept": [],
+      "grading": "auto"
+    },
+    {
+      "id": "wrt-0020",
+      "point_id": "write.retro",
+      "level": 2,
+      "type": "oral",
+      "prompt": "口述练习：先口头复盘 tongyun-learn 的一个决定（例如知识点从「硬锁」改成「只推荐建议下一个」），讲清前后和理由。",
+      "answer": "自评完成",
+      "explain": "真实发生的决定，最适合练复盘。",
+      "tags": [
+        "技术写作与自媒体"
+      ],
+      "rubric": [
+        "讲清原来的做法和问题",
+        "讲清改动和理由",
+        "提到改动的代价",
+        "有一句以后怎么做",
+        "2 分钟内讲完"
+      ],
+      "accept": [],
+      "grading": "self"
+    },
+    {
+      "id": "wrt-0021",
+      "point_id": "write.retro",
+      "level": 2,
+      "type": "project",
+      "prompt": "小项目：写一篇 tongyun-learn 或橦云宇宙的项目复盘文（1500 字以内）。",
+      "answer": "自评完成",
+      "explain": "这篇也能当面试讲项目的底稿。",
+      "tags": [
+        "技术写作与自媒体"
+      ],
+      "rubric": [
+        "背景交代了真实痛点",
+        "至少比较了两个方案",
+        "写清代价",
+        "结果只写事实、没编数据",
+        "有「下次怎么做」"
+      ],
+      "accept": [],
+      "grading": "self"
+    },
+    {
+      "id": "wrt-0022",
+      "point_id": "write.retro",
+      "level": 2,
+      "type": "project",
+      "prompt": "小项目：写一篇橦云手帐（Tauri）的技术选型短文：为什么选 Tauri，取舍是什么。",
+      "answer": "自评完成",
+      "explain": "选型理由写清楚，本身就是作品集里的好内容。",
+      "tags": [
+        "技术写作与自媒体"
+      ],
+      "rubric": [
+        "说清需求（为什么要桌面端）",
+        "列了对比的其他方案",
+        "取舍有理由",
+        "不确定的事实先查证或标明",
+        "1000 字以内"
+      ],
+      "accept": [],
+      "grading": "self"
+    },
+    {
+      "id": "wrt-0023",
+      "point_id": "write.publish",
+      "level": 2,
+      "type": "choice",
+      "prompt": "发布前自查，以下哪项最重要？",
+      "answer": "截图和代码里没有密钥、令牌、内网地址和公司代码",
+      "explain": "一张截图就可能泄露令牌，发之前逐张检查。",
+      "tags": [
+        "技术写作与自媒体"
+      ],
+      "options": [
+        "截图和代码里没有密钥、令牌、内网地址和公司代码",
+        "字体够不够好看",
+        "有没有表情包",
+        "标题够不够长"
+      ],
+      "accept": [],
+      "grading": "auto"
+    },
+    {
+      "id": "wrt-0024",
+      "point_id": "write.publish",
+      "level": 2,
+      "type": "choice",
+      "prompt": "写工作中的经验时，应该？",
+      "answer": "去掉公司内部信息，只讲通用做法",
+      "explain": "保护雇主信息也是职业素养。",
+      "tags": [
+        "技术写作与自媒体"
+      ],
+      "options": [
+        "去掉公司内部信息，只讲通用做法",
+        "直接贴公司代码",
+        "写同事名字",
+        "附上内部文档"
+      ],
+      "accept": [],
+      "grading": "auto"
+    },
+    {
+      "id": "wrt-0025",
+      "point_id": "write.publish",
+      "level": 2,
+      "type": "choice",
+      "prompt": "署名「卓橦」统一使用的好处是？",
+      "answer": "读者和面试官能把不同平台的作品对应到同一个人",
+      "explain": "统一署名，作品就能互相印证。",
+      "tags": [
+        "技术写作与自媒体"
+      ],
+      "options": [
+        "读者和面试官能把不同平台的作品对应到同一个人",
+        "可以刷流量",
+        "法律要求",
+        "没有好处"
+      ],
+      "accept": [],
+      "grading": "auto"
+    },
+    {
+      "id": "wrt-0026",
+      "point_id": "write.publish",
+      "level": 2,
+      "type": "choice",
+      "prompt": "文章末尾附 GitHub 仓库链接（如 github.com/dangzhuotong 下的项目）的意义？",
+      "answer": "让读者能看到可运行的代码，验证文章内容",
+      "explain": "文章配上能跑的代码，可信度高得多。",
+      "tags": [
+        "技术写作与自媒体"
+      ],
+      "options": [
+        "让读者能看到可运行的代码，验证文章内容",
+        "增加字数",
+        "提高排名",
+        "没有意义"
+      ],
+      "accept": [],
+      "grading": "auto"
+    },
+    {
+      "id": "wrt-0027",
+      "point_id": "write.publish",
+      "level": 2,
+      "type": "oral",
+      "prompt": "口述练习：用 30 秒向朋友说明你最近一篇文章讲了什么、读者能得到什么。",
+      "answer": "自评完成",
+      "explain": "30 秒讲不清，说明文章的焦点还不够集中。",
+      "tags": [
+        "技术写作与自媒体"
+      ],
+      "rubric": [
+        "第一句说清主题",
+        "说清读者收获",
+        "没有自夸",
+        "30 秒内",
+        "对方能复述"
+      ],
+      "accept": [],
+      "grading": "self"
+    },
+    {
+      "id": "wrt-0028",
+      "point_id": "write.publish",
+      "level": 2,
+      "type": "project",
+      "prompt": "小项目：给自己写一份发布前自查清单（≤8 条），并用它检查一篇已写好的文章。",
+      "answer": "自评完成",
+      "explain": "清单写一次，以后每篇都能用。",
+      "tags": [
+        "技术写作与自媒体"
+      ],
+      "rubric": [
+        "包含密钥/内网/公司信息检查",
+        "包含事实与出处核对",
+        "包含署名与链接",
+        "实际用它查出并改了至少一处",
+        "清单存进自己的笔记"
+      ],
+      "accept": [],
+      "grading": "self"
+    },
+    {
+      "id": "wrt-0029",
+      "point_id": "write.publish",
+      "level": 2,
+      "type": "choice",
+      "prompt": "文章配图里的终端截图，较好的做法？",
+      "answer": "裁掉无关部分，遮盖令牌、主机名和路径等敏感信息",
+      "explain": "截图只留说明问题的部分。",
+      "tags": [
+        "技术写作与自媒体"
+      ],
+      "options": [
+        "裁掉无关部分，遮盖令牌、主机名和路径等敏感信息",
+        "整屏截图直接发",
+        "截图越多越好",
+        "用手机拍屏幕"
+      ],
+      "accept": [],
+      "grading": "auto"
+    },
+    {
+      "id": "wrt-0030",
+      "point_id": "write.retro",
+      "level": 2,
+      "type": "choice",
+      "prompt": "复盘文和流水账的区别是？",
+      "answer": "复盘提炼判断和教训，流水账只按时间罗列做了什么",
+      "explain": "每一段都问自己：读者能从这里学到什么。",
+      "tags": [
+        "技术写作与自媒体"
+      ],
+      "options": [
+        "复盘提炼判断和教训，流水账只按时间罗列做了什么",
+        "复盘更长",
+        "流水账更专业",
+        "没有区别"
+      ],
+      "accept": [],
+      "grading": "auto"
+    }
+  ]
+}

@@ -1,0 +1,646 @@
+{
+  "subject": "ip",
+  "version": "0.1",
+  "title": "个人 IP 与作品集",
+  "note": "前两级（P1 门面整理、P2 作品叙事）。只练表达和作品集，不含增长指标、不涉及刷量或商业化。",
+  "points": [
+    {
+      "id": "ip.github-profile",
+      "title": "GitHub 主页与置顶仓",
+      "prereq": [],
+      "level": 1,
+      "unit": "P1"
+    },
+    {
+      "id": "ip.readme",
+      "title": "作品仓 README",
+      "prereq": [
+        "ip.github-profile"
+      ],
+      "level": 1,
+      "unit": "P1",
+      "map_point": "en.write-readme"
+    },
+    {
+      "id": "ip.positioning",
+      "title": "作品一句话定位",
+      "prereq": [
+        "ip.readme"
+      ],
+      "level": 2,
+      "unit": "P2",
+      "map_point": "jf.project-pitch"
+    },
+    {
+      "id": "ip.pitch",
+      "title": "3 分钟作品讲稿",
+      "prereq": [
+        "ip.positioning"
+      ],
+      "level": 2,
+      "unit": "P2",
+      "map_point": "jf.project-pitch"
+    }
+  ],
+  "items": [
+    {
+      "id": "ip-0001",
+      "point_id": "ip.github-profile",
+      "level": 1,
+      "type": "term",
+      "prompt": "GitHub 个人主页的 README，要放在哪个仓库里？（填仓库名，以账号 dangzhuotong 为例）",
+      "answer": "dangzhuotong",
+      "explain": "新建一个与用户名同名的公开仓库，里面的 README.md 会显示在个人主页上。",
+      "tags": [
+        "个人 IP 与作品集"
+      ],
+      "accept": [
+        "dangzhuotong/dangzhuotong"
+      ],
+      "grading": "auto"
+    },
+    {
+      "id": "ip-0002",
+      "point_id": "ip.github-profile",
+      "level": 1,
+      "type": "term",
+      "prompt": "GitHub 个人主页最多可以置顶几个仓库？",
+      "answer": "6",
+      "explain": "在主页点 Customize your pins 设置，挑最能代表你的作品。",
+      "tags": [
+        "个人 IP 与作品集"
+      ],
+      "accept": [
+        "6个",
+        "六",
+        "六个"
+      ],
+      "grading": "auto"
+    },
+    {
+      "id": "ip-0003",
+      "point_id": "ip.github-profile",
+      "level": 1,
+      "type": "choice",
+      "prompt": "置顶仓库应该优先选？",
+      "answer": "有 README、能跑、和目标岗位相关的作品",
+      "explain": "目标是 Java 后端/AI FDE，置顶就该选 Java×AI 项目和 tongyun 系列。",
+      "tags": [
+        "个人 IP 与作品集"
+      ],
+      "options": [
+        "有 README、能跑、和目标岗位相关的作品",
+        "fork 来的热门仓库",
+        "教程跟写的练习",
+        "最早建的仓库"
+      ],
+      "accept": [],
+      "grading": "auto"
+    },
+    {
+      "id": "ip-0004",
+      "point_id": "ip.github-profile",
+      "level": 1,
+      "type": "choice",
+      "prompt": "主页 README 最该包含？",
+      "answer": "一句话介绍自己方向 + 代表作品链接 + 联系方式",
+      "explain": "面试官一般只看几秒，信息越直接越好。",
+      "tags": [
+        "个人 IP 与作品集"
+      ],
+      "options": [
+        "一句话介绍自己方向 + 代表作品链接 + 联系方式",
+        "大量动态徽章和动画",
+        "完整简历全文",
+        "个人生活照"
+      ],
+      "accept": [],
+      "grading": "auto"
+    },
+    {
+      "id": "ip-0005",
+      "point_id": "ip.github-profile",
+      "level": 1,
+      "type": "choice",
+      "prompt": "公开仓库里绝不能出现？",
+      "answer": "密钥、令牌、数据库密码、公司代码",
+      "explain": "作品集公开的是能力，不能把秘密一起公开。",
+      "tags": [
+        "个人 IP 与作品集"
+      ],
+      "options": [
+        "密钥、令牌、数据库密码、公司代码",
+        "MIT 许可证",
+        "README",
+        "测试代码"
+      ],
+      "accept": [],
+      "grading": "auto"
+    },
+    {
+      "id": "ip-0006",
+      "point_id": "ip.github-profile",
+      "level": 1,
+      "type": "choice",
+      "prompt": "仓库的 About（描述）一栏应该写？",
+      "answer": "一句话说清它是什么、给谁用",
+      "explain": "About 和 Topics 会显示在仓库列表和搜索结果里。",
+      "tags": [
+        "个人 IP 与作品集"
+      ],
+      "options": [
+        "一句话说清它是什么、给谁用",
+        "留空",
+        "写「my project」",
+        "写技术栈全称列表"
+      ],
+      "accept": [],
+      "grading": "auto"
+    },
+    {
+      "id": "ip-0007",
+      "point_id": "ip.github-profile",
+      "level": 1,
+      "type": "project",
+      "prompt": "小项目：创建 dangzhuotong/dangzhuotong 仓库，写主页 README（方向一句话、3 个代表作品、联系方式），并设置置顶。",
+      "answer": "自评完成",
+      "explain": "这是作品集的门面。",
+      "tags": [
+        "个人 IP 与作品集"
+      ],
+      "rubric": [
+        "方向一句话写清 Java 后端/AI FDE",
+        "3 个作品都有链接和一句话说明",
+        "置顶仓都有 README",
+        "没有暴露私密信息",
+        "中英文至少一种写清楚"
+      ],
+      "accept": [],
+      "grading": "self"
+    },
+    {
+      "id": "ip-0008",
+      "point_id": "ip.readme",
+      "level": 1,
+      "type": "choice",
+      "prompt": "作品 README 开头第一段该写？",
+      "answer": "这是什么、解决什么问题",
+      "explain": "先说明为什么，再说明怎么用。",
+      "tags": [
+        "个人 IP 与作品集"
+      ],
+      "options": [
+        "这是什么、解决什么问题",
+        "安装依赖的命令",
+        "许可证全文",
+        "致谢"
+      ],
+      "accept": [],
+      "grading": "auto"
+    },
+    {
+      "id": "ip-0009",
+      "point_id": "ip.readme",
+      "level": 1,
+      "type": "choice",
+      "prompt": "README 里哪部分能让别人真的跑起来？",
+      "answer": "Quick start：最少的步骤和命令",
+      "explain": "能在 5 分钟内跑起来的项目，别人才愿意看。",
+      "tags": [
+        "个人 IP 与作品集"
+      ],
+      "options": [
+        "Quick start：最少的步骤和命令",
+        "项目历史",
+        "作者心路",
+        "TODO 列表"
+      ],
+      "accept": [],
+      "grading": "auto"
+    },
+    {
+      "id": "ip-0010",
+      "point_id": "ip.readme",
+      "level": 1,
+      "type": "choice",
+      "prompt": "README 里放截图或 GIF 的作用？",
+      "answer": "不用运行就能看到效果",
+      "explain": "桌面端的橦云手帐尤其适合放截图。",
+      "tags": [
+        "个人 IP 与作品集"
+      ],
+      "options": [
+        "不用运行就能看到效果",
+        "凑长度",
+        "必须要有，否则不能发布",
+        "替代文字说明"
+      ],
+      "accept": [],
+      "grading": "auto"
+    },
+    {
+      "id": "ip-0011",
+      "point_id": "ip.readme",
+      "level": 1,
+      "type": "term",
+      "prompt": "开源仓库根目录说明使用授权的文件，通常叫什么？",
+      "answer": "LICENSE",
+      "explain": "没有许可证文件时，默认不授予他人使用权。",
+      "tags": [
+        "个人 IP 与作品集"
+      ],
+      "accept": [
+        "LICENSE.md",
+        "LICENSE.txt",
+        "license"
+      ],
+      "grading": "auto"
+    },
+    {
+      "id": "ip-0012",
+      "point_id": "ip.readme",
+      "level": 1,
+      "type": "choice",
+      "prompt": "作品 README 用英文写（接英语 L5）的好处？",
+      "answer": "海外同行和 X 上的人也能看懂",
+      "explain": "可以中英双语，英文部分顺便练写作。",
+      "tags": [
+        "个人 IP 与作品集"
+      ],
+      "options": [
+        "海外同行和 X 上的人也能看懂",
+        "GitHub 强制要求",
+        "中文不能显示",
+        "没有好处"
+      ],
+      "accept": [],
+      "grading": "auto"
+    },
+    {
+      "id": "ip-0013",
+      "point_id": "ip.readme",
+      "level": 1,
+      "type": "choice",
+      "prompt": "README 里写「Architecture」一节，最简单有效的形式？",
+      "answer": "一张架构图 + 每个组件一句话",
+      "explain": "架构图可以直接复用在面试讲解里。",
+      "tags": [
+        "个人 IP 与作品集"
+      ],
+      "options": [
+        "一张架构图 + 每个组件一句话",
+        "贴全部源码",
+        "列所有依赖版本",
+        "不写"
+      ],
+      "accept": [],
+      "grading": "auto"
+    },
+    {
+      "id": "ip-0014",
+      "point_id": "ip.readme",
+      "level": 1,
+      "type": "project",
+      "prompt": "小项目：给 tongyun-cli 写（或重写）README：一句话说明、Quick start、用法示例、架构简图、License。",
+      "answer": "自评完成",
+      "explain": "自己按 README 从零跑一遍，验证步骤没漏。",
+      "tags": [
+        "个人 IP 与作品集"
+      ],
+      "rubric": [
+        "第一段说清是什么、解决什么",
+        "Quick start 按步骤能跑通",
+        "有至少一个命令示例和输出",
+        "没有密钥或内网地址",
+        "有 LICENSE 说明"
+      ],
+      "accept": [],
+      "grading": "self"
+    },
+    {
+      "id": "ip-0015",
+      "point_id": "ip.readme",
+      "level": 1,
+      "type": "project",
+      "prompt": "小项目：给橦云手帐（Tauri）写 README，附 2 张截图和支持的平台说明。",
+      "answer": "自评完成",
+      "explain": "桌面应用的 README，截图最重要。",
+      "tags": [
+        "个人 IP 与作品集"
+      ],
+      "rubric": [
+        "说清用途和目标用户",
+        "有截图",
+        "写清支持平台和安装方式",
+        "写清构建所需环境",
+        "英文或双语"
+      ],
+      "accept": [],
+      "grading": "self"
+    },
+    {
+      "id": "ip-0016",
+      "point_id": "ip.positioning",
+      "level": 2,
+      "type": "concept",
+      "prompt": "作品一句话定位的公式：给【谁】，解决【什么问题】，用【什么方式】。橦云学习的「谁」是？（填两个字：自己 / 学习者 均可）",
+      "answer": "自己",
+      "explain": "先给自己用，是真实需求最好的证明。",
+      "tags": [
+        "个人 IP 与作品集"
+      ],
+      "accept": [
+        "自己",
+        "我自己",
+        "学习者",
+        "阿橦",
+        "卓橦"
+      ],
+      "grading": "auto"
+    },
+    {
+      "id": "ip-0017",
+      "point_id": "ip.positioning",
+      "level": 2,
+      "type": "choice",
+      "prompt": "下面哪个是更好的一句话定位？",
+      "answer": "tongyun-learn：给自己用的学习站，用间隔复习和敲字回忆管理 Java/AI/英语的知识点",
+      "explain": "有对象、有问题、有方式，三样都要有。",
+      "tags": [
+        "个人 IP 与作品集"
+      ],
+      "options": [
+        "tongyun-learn：给自己用的学习站，用间隔复习和敲字回忆管理 Java/AI/英语的知识点",
+        "tongyun-learn：一个很厉害的系统",
+        "tongyun-learn：基于 FastAPI 的项目",
+        "tongyun-learn：我的作品"
+      ],
+      "accept": [],
+      "grading": "auto"
+    },
+    {
+      "id": "ip-0018",
+      "point_id": "ip.positioning",
+      "level": 2,
+      "type": "choice",
+      "prompt": "介绍作品时说「用了 FastAPI、MySQL」，属于？",
+      "answer": "实现细节，应放在定位之后",
+      "explain": "先讲价值，技术栈在被问到或讲架构时再展开。",
+      "tags": [
+        "个人 IP 与作品集"
+      ],
+      "options": [
+        "实现细节，应放在定位之后",
+        "定位本身",
+        "最该先讲的",
+        "不能讲"
+      ],
+      "accept": [],
+      "grading": "auto"
+    },
+    {
+      "id": "ip-0019",
+      "point_id": "ip.positioning",
+      "level": 2,
+      "type": "choice",
+      "prompt": "几个作品之间该怎么串起来讲？",
+      "answer": "找出共同主线，例如「用 AI 和工程化工具解决自己的真实问题」",
+      "explain": "有主线，几个作品放在一起才像一个人的作品集。",
+      "tags": [
+        "个人 IP 与作品集"
+      ],
+      "options": [
+        "找出共同主线，例如「用 AI 和工程化工具解决自己的真实问题」",
+        "按创建时间罗列",
+        "只讲最大的",
+        "每个都讲同样长"
+      ],
+      "accept": [],
+      "grading": "auto"
+    },
+    {
+      "id": "ip-0020",
+      "point_id": "ip.positioning",
+      "level": 2,
+      "type": "oral",
+      "prompt": "口述练习：分别用一句话说出橦云手帐、橦云宇宙、tongyun-cli、tongyun-learn 的定位。",
+      "answer": "自评完成",
+      "explain": "讲不清的那个作品，README 也该改了。",
+      "tags": [
+        "个人 IP 与作品集"
+      ],
+      "rubric": [
+        "每句都有给谁/解决什么/怎么做",
+        "没有空泛形容词",
+        "每句 30 字左右",
+        "四个作品能看出共同主线",
+        "说的内容和 README 一致"
+      ],
+      "accept": [],
+      "grading": "self"
+    },
+    {
+      "id": "ip-0021",
+      "point_id": "ip.positioning",
+      "level": 2,
+      "type": "project",
+      "prompt": "小项目：写一份作品清单表（作品、一句话定位、技术栈、链接、我负责的部分），存进 dangzhuotong 主页或自己的笔记。",
+      "answer": "自评完成",
+      "explain": "面试前看一眼这份表就够了。",
+      "tags": [
+        "个人 IP 与作品集"
+      ],
+      "rubric": [
+        "至少 3 个作品",
+        "定位一句话符合公式",
+        "链接可访问或注明私有",
+        "标清哪些是自己写的",
+        "没有夸大"
+      ],
+      "accept": [],
+      "grading": "self"
+    },
+    {
+      "id": "ip-0022",
+      "point_id": "ip.pitch",
+      "level": 2,
+      "type": "choice",
+      "prompt": "3 分钟作品讲稿的结构建议？",
+      "answer": "业务痛点 → 方案与架构 → 效果（事实）→ 取舍与改进",
+      "explain": "和学习路径阶段三的过关标准一致。",
+      "tags": [
+        "个人 IP 与作品集"
+      ],
+      "options": [
+        "业务痛点 → 方案与架构 → 效果（事实）→ 取舍与改进",
+        "技术栈罗列 → 结束",
+        "从安装环境讲起",
+        "只讲遇到的 bug"
+      ],
+      "accept": [],
+      "grading": "auto"
+    },
+    {
+      "id": "ip-0023",
+      "point_id": "ip.pitch",
+      "level": 2,
+      "type": "concept",
+      "prompt": "面试讲项目常用的 STAR 法，S、T、A、R 中的 R 代表什么？（英文或中文）",
+      "answer": "Result",
+      "explain": "STAR：Situation 情境、Task 任务、Action 行动、Result 结果。",
+      "tags": [
+        "个人 IP 与作品集"
+      ],
+      "accept": [
+        "result",
+        "结果",
+        "Result（结果）"
+      ],
+      "grading": "auto"
+    },
+    {
+      "id": "ip-0024",
+      "point_id": "ip.pitch",
+      "level": 2,
+      "type": "choice",
+      "prompt": "讲作品时被问到你不熟的部分（例如 AI 帮你写的代码）？",
+      "answer": "如实说明哪些是自己写的、哪些借助了工具，并讲清自己的理解",
+      "explain": "诚实地说明分工，比被追问时露馅好得多。",
+      "tags": [
+        "个人 IP 与作品集"
+      ],
+      "options": [
+        "如实说明哪些是自己写的、哪些借助了工具，并讲清自己的理解",
+        "说全是自己写的",
+        "回避问题",
+        "说这部分不重要"
+      ],
+      "accept": [],
+      "grading": "auto"
+    },
+    {
+      "id": "ip-0025",
+      "point_id": "ip.pitch",
+      "level": 2,
+      "type": "choice",
+      "prompt": "作品讲稿里「效果」一段没有真实数据时？",
+      "answer": "讲可核实的事实或使用情况，不编数字",
+      "explain": "编的数字一追问就会穿帮。",
+      "tags": [
+        "个人 IP 与作品集"
+      ],
+      "options": [
+        "讲可核实的事实或使用情况，不编数字",
+        "估一个好看的百分比",
+        "跳过不讲",
+        "说效果很好"
+      ],
+      "accept": [],
+      "grading": "auto"
+    },
+    {
+      "id": "ip-0026",
+      "point_id": "ip.pitch",
+      "level": 2,
+      "type": "oral",
+      "prompt": "口述练习：用 3 分钟讲 tongyun-learn，按痛点→方案架构→效果→取舍。",
+      "answer": "自评完成",
+      "explain": "录音回听一遍，比只在脑子里过一遍有用得多。",
+      "tags": [
+        "个人 IP 与作品集"
+      ],
+      "rubric": [
+        "痛点具体真实",
+        "架构讲清 3–5 个组件",
+        "效果只讲事实",
+        "讲了一个取舍（如去掉硬锁）",
+        "3 分钟内"
+      ],
+      "accept": [],
+      "grading": "self"
+    },
+    {
+      "id": "ip-0027",
+      "point_id": "ip.pitch",
+      "level": 2,
+      "type": "oral",
+      "prompt": "口述练习：用 3 分钟讲橦云宇宙，AI 扮面试官追问 2 个「为什么」。",
+      "answer": "自评完成",
+      "explain": "追问答不上来的地方，记成卡点。",
+      "tags": [
+        "个人 IP 与作品集"
+      ],
+      "rubric": [
+        "开头一句话定位",
+        "讲清自己负责的部分",
+        "两个追问都答上来了",
+        "没有夸大",
+        "3 分钟内"
+      ],
+      "accept": [],
+      "grading": "self"
+    },
+    {
+      "id": "ip-0028",
+      "point_id": "ip.pitch",
+      "level": 2,
+      "type": "oral",
+      "prompt": "口述练习：用 1 分钟把四个作品串起来介绍自己（面试自我介绍里的作品部分）。",
+      "answer": "自评完成",
+      "explain": "自我介绍里讲作品，重点是引导面试官往你准备好的地方问。",
+      "tags": [
+        "个人 IP 与作品集"
+      ],
+      "rubric": [
+        "有一条主线",
+        "每个作品一句话",
+        "落到目标岗位 Java 后端/AI FDE",
+        "1 分钟内",
+        "结尾引出最想被追问的项目"
+      ],
+      "accept": [],
+      "grading": "self"
+    },
+    {
+      "id": "ip-0029",
+      "point_id": "ip.pitch",
+      "level": 2,
+      "type": "project",
+      "prompt": "小项目：写出 tongyun-learn 的 3 分钟讲稿（300–500 字），并按 STAR 改一版用于面试。",
+      "answer": "自评完成",
+      "explain": "讲稿也放进作品清单里。",
+      "tags": [
+        "个人 IP 与作品集"
+      ],
+      "rubric": [
+        "两版都写完",
+        "STAR 四部分齐",
+        "效果没有编数据",
+        "附一张架构图",
+        "念出来不超过 3 分钟"
+      ],
+      "accept": [],
+      "grading": "self"
+    },
+    {
+      "id": "ip-0030",
+      "point_id": "ip.pitch",
+      "level": 2,
+      "type": "choice",
+      "prompt": "面试官问「这个项目最大的难点是什么」，较好的回答方式？",
+      "answer": "讲一个具体难点、你怎么分析、最后怎么解决、学到了什么",
+      "explain": "难点题考的是分析能力，讲一个讲透就够。",
+      "tags": [
+        "个人 IP 与作品集"
+      ],
+      "options": [
+        "讲一个具体难点、你怎么分析、最后怎么解决、学到了什么",
+        "说没有难点",
+        "列出所有用到的技术",
+        "说难点都被 AI 解决了"
+      ],
+      "accept": [],
+      "grading": "auto"
+    }
+  ]
+}
