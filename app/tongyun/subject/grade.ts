@@ -1,58 +1,76 @@
-// tongyun: 学科敲字练习判分。code 题（java-0003/0015/0017、ai-0019）判对忽略空白。
-import type { QuestionItem } from './types'
+// tongyun: 学科卡片判分。
+// - code 题只看 type === 'code' 来识别，不维护卡片 id 白名单；
+// - choice 自动判（answer 必须在 options 里）；
+// - oral / project 返回 'self'，交给自评。
 
-export const CODE_QUESTION_IDS = new Set(['java-0003', 'java-0015', 'java-0017', 'ai-0019'])
+import type { Card, ItemType } from './types'
 
-export function isCodeQuestion(item: { type?: string; id?: string }): boolean {
-  if (item.type === 'code') return true
-  if (item.id && CODE_QUESTION_IDS.has(item.id)) return true
-  return false
+export type GradeResult = 'correct' | 'wrong' | 'self'
+
+export interface GradeOptions {
+  caseSensitive?: boolean
 }
 
-export function foldQuotes(input: string): string {
-  return (input || '').replace(/[’‘]/g, "'").replace(/[“”]/g, '"')
+function collapse(s: string): string {
+  return (s ?? '').replace(/\s+/g, ' ').trim()
 }
 
-export function stripWhitespace(input: string): string {
-  return foldQuotes(input).replace(/\s+/g, '')
+/** 是否是 code 卡：只看 type，不看 id 列表 */
+export function isCodeQuestion(card: Pick<Card, 'type'>): boolean {
+  return card.type === 'code'
 }
 
-export function normalizeStandard(input: string): string {
-  return foldQuotes(input).trim().toLowerCase()
+export function isSelfQuestion(type: ItemType): boolean {
+  return type === 'oral' || type === 'project'
 }
 
-/**
- * 答案判定：
- * 1. 忽略空白字符（对 code 题型生效，包含 java-0003/0015/0017、ai-0019）。
- * 2. 无论 code 题或普通题，均与 answer 和 accept 数组中的候选项逐一比对。
- * 3. 普通题去除首尾空白，不区分大小写，且兼容中文全角半角标点/引号。
- */
-export function gradeAnswer(typed: string, item: QuestionItem): boolean {
-  const t = (typed || '').trim()
-  if (!t) return false
+function equal(a: string, b: string, caseSensitive: boolean): boolean {
+  const x = collapse(a)
+  const y = collapse(b)
+  return caseSensitive ? x === y : x.toLowerCase() === y.toLowerCase()
+}
 
-  const candidates = [item.answer, ...(item.accept || [])].filter(Boolean)
-  const isCode = isCodeQuestion(item)
+function stripTrailingSemicolons(s: string): string {
+  return collapse(s).replace(/[;，；\s]+$/g, '')
+}
 
-  if (isCode) {
-    const strippedTyped = stripWhitespace(t)
-    const strippedTypedNoSemi = strippedTyped.replace(/;+$/, '')
+function codeEqual(a: string, b: string, caseSensitive: boolean): boolean {
+  const x = stripTrailingSemicolons(a)
+  const y = stripTrailingSemicolons(b)
+  return caseSensitive ? x === y : x.toLowerCase() === y.toLowerCase()
+}
 
-    for (const cand of candidates) {
-      const strippedCand = stripWhitespace(cand)
-      if (strippedCand === strippedTyped) return true
-      if (strippedCand.replace(/;+$/, '') === strippedTypedNoSemi) return true
-    }
-    return false
-  }
+/** choice：选中项与 answer 完全一致即对。 */
+export function gradeChoice(card: Pick<Card, 'answer'>, chosen: string): boolean {
+  return typeof chosen === 'string' && chosen === card.answer
+}
 
-  const normTyped = normalizeStandard(t)
-  const rawTrimmed = foldQuotes(t).trim()
+/** code：忽略多余空白与行尾分号。 */
+export function gradeCode(
+  card: Pick<Card, 'answer' | 'accept'>,
+  typed: string,
+  options: GradeOptions = {}
+): boolean {
+  const caseSensitive = options.caseSensitive ?? false
+  if (codeEqual(typed, card.answer, caseSensitive)) return true
+  return (card.accept ?? []).some(a => codeEqual(typed, a, caseSensitive))
+}
 
-  for (const cand of candidates) {
-    if (foldQuotes(cand).trim() === rawTrimmed) return true
-    if (normalizeStandard(cand) === normTyped) return true
-  }
+/** 文本题：answer 或 accept 命中即对；code 题同此，只是识别方式不同。 */
+export function gradeText(
+  card: Pick<Card, 'answer' | 'accept'>,
+  typed: string,
+  options: GradeOptions = {}
+): boolean {
+  const caseSensitive = options.caseSensitive ?? false
+  if (equal(typed, card.answer, caseSensitive)) return true
+  return (card.accept ?? []).some(a => equal(typed, a, caseSensitive))
+}
 
-  return false
+export function gradeCard(card: Card, response: string, options: GradeOptions = {}): GradeResult {
+  if (card.type === 'choice') return gradeChoice(card, response) ? 'correct' : 'wrong'
+  if (isSelfQuestion(card.type)) return 'self'
+  // code 由 type === 'code' 决定，不看 id 列表
+  if (isCodeQuestion(card)) return gradeCode(card, response, options) ? 'correct' : 'wrong'
+  return gradeText(card, response, options) ? 'correct' : 'wrong'
 }

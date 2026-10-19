@@ -1,45 +1,52 @@
 <script setup lang="ts">
-// tongyun: Java / AI 学科敲字练习组件：出题 → 敲答案 → 讲解 → 复用 1/3/7/14/30 天复习
+// tongyun: 学科练习：出题 → 交卡（敲字 / 选择 / 自评）→ 讲解 → 1/3/7/14/30 间隔
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import SelfGradePanel from '@/components/tongyun/SelfGradePanel.vue'
 import {
-  DAY,
   INTERVALS,
+  applySelfAssessment,
   buildSubjectSession,
   getKnowledgePoint,
-  getSubjectBank,
+  getSubject,
   getSubjectStats,
-  gradeAnswer,
+  gradeCard,
   isCodeQuestion,
+  isSelfQuestion,
+  loadBank,
   recordSubjectResult,
+  saveSubjectStat,
+  type ActiveSubject,
+  type Card,
+  type GradeResult,
   type QuestionBank,
-  type QuestionItem,
+  type SelfAssessment,
   type SubjectItemStat,
 } from '@/tongyun/subject'
 
 const props = defineProps<{
-  subject: 'java' | 'ai'
+  subject: string
 }>()
 
 const emit = defineEmits<{
   (e: 'exit'): void
-  (e: 'switch-subject', subject: 'english' | 'java' | 'ai'): void
+  (e: 'switch-subject', subject: ActiveSubject): void
 }>()
 
 const ready = ref(false)
 const loading = ref(true)
 const bank = ref<QuestionBank>({ subject: '', version: '', points: [], items: [] })
-const items = ref<QuestionItem[]>([])
+const items = ref<Card[]>([])
 const index = ref(0)
 const statsMap = ref<Record<string, SubjectItemStat>>({})
 
-// 当前题目状态
 const typed = ref('')
+const chosen = ref('')
+const selfGrade = ref<SelfAssessment | null>(null)
 const answered = ref(false)
-const isCorrect = ref(false)
+const gradeResult = ref<GradeResult | null>(null)
 const lastSavedStat = ref<SubjectItemStat | null>(null)
 const inputRef = ref<HTMLInputElement | HTMLTextAreaElement | null>(null)
 
-// 统计
 const correctCount = ref(0)
 const totalAnswered = ref(0)
 
@@ -48,13 +55,40 @@ const total = computed(() => items.value.length)
 const finished = computed(() => ready.value && !loading.value && (total.value === 0 || index.value >= total.value))
 const point = computed(() => (current.value ? getKnowledgePoint(bank.value, current.value.point_id) : undefined))
 const isCode = computed(() => (current.value ? isCodeQuestion(current.value) : false))
+const isChoice = computed(() => current.value?.type === 'choice')
+const isSelf = computed(() => (current.value ? isSelfQuestion(current.value.type) : false))
+const isCorrect = computed(() => gradeResult.value === 'correct' || gradeResult.value === 'self')
 
-const subjectTitle = computed(() => (props.subject === 'ai' ? 'AI' : 'Java'))
+const subjectTitle = computed(() => {
+  try {
+    return getSubject(props.subject).title
+  } catch {
+    const s = (bank.value.subject || props.subject || '').toLowerCase()
+    if (s === 'ai') return 'AI'
+    if (s === 'java') return 'Java'
+    return props.subject || '学科'
+  }
+})
+
 const typeLabel = computed(() => {
   if (!current.value) return ''
-  if (current.value.type === 'code') return '编码题'
-  if (current.value.type === 'concept') return '概念题'
+  const t = current.value.type
+  if (t === 'code') return '编码题'
+  if (t === 'concept') return '概念题'
+  if (t === 'choice') return '选择题'
+  if (t === 'oral') return '口述题'
+  if (t === 'project') return '项目题'
   return '术语题'
+})
+
+const intervalHint = computed(() => {
+  if (!lastSavedStat.value || !gradeResult.value) return ''
+  if (gradeResult.value === 'wrong') return '答错已重置：1 天后复习'
+  if (gradeResult.value === 'self') {
+    const days = INTERVALS[lastSavedStat.value.box] ?? 1
+    return `自评已记：下次约 ${days} 天后`
+  }
+  return `下次复习：${INTERVALS[lastSavedStat.value.box]} 天后`
 })
 
 function focusInput() {
@@ -65,65 +99,120 @@ function focusInput() {
 
 function openCard() {
   typed.value = ''
+  chosen.value = ''
+  selfGrade.value = null
   answered.value = false
-  isCorrect.value = false
+  gradeResult.value = null
   lastSavedStat.value = null
-  focusInput()
+  if (!isChoice.value && !isSelf.value) focusInput()
 }
 
-function load() {
+async function load() {
   loading.value = true
-  bank.value = getSubjectBank(props.subject)
-  statsMap.value = getSubjectStats(props.subject)
-  const session = buildSubjectSession(bank.value, statsMap.value, Date.now())
-  items.value = session.items
-  index.value = 0
-  correctCount.value = 0
-  totalAnswered.value = 0
-  loading.value = false
-  ready.value = true
-  if (items.value.length) {
-    openCard()
+  ready.value = false
+  try {
+    bank.value = await loadBank(props.subject)
+    statsMap.value = getSubjectStats(props.subject)
+    const session = buildSubjectSession(bank.value, statsMap.value, Date.now())
+    items.value = session.items
+    index.value = 0
+    correctCount.value = 0
+    totalAnswered.value = 0
+    ready.value = true
+    if (items.value.length) openCard()
+  } finally {
+    loading.value = false
   }
 }
 
-function submit() {
-  if (answered.value || !current.value) return
-  const t = typed.value.trim()
-  if (!t) return
-
-  const item = current.value
-  const correct = gradeAnswer(typed.value, item)
-  isCorrect.value = correct
-  answered.value = true
-  totalAnswered.value += 1
-  if (correct) correctCount.value += 1
-
-  const saved = recordSubjectResult(props.subject, item.id, correct, Date.now())
+function persistAuto(item: Card, correct: boolean, now = Date.now()) {
+  const saved = recordSubjectResult(props.subject, item.id, correct, now)
   lastSavedStat.value = saved
   statsMap.value[item.id] = saved
+  return saved
+}
+
+function persistSelf(item: Card, assessment: SelfAssessment, now = Date.now()) {
+  const prev = statsMap.value[item.id]
+  const scheduled = applySelfAssessment(assessment, {
+    box: prev?.box ?? 0,
+    intervals: INTERVALS,
+    now,
+  })
+  const saved: SubjectItemStat = {
+    right: (prev?.right ?? 0) + (assessment === 'self_ok' ? 1 : 0),
+    wrong: (prev?.wrong ?? 0) + (assessment === 'self_fail' ? 1 : 0),
+    last: now,
+    box: scheduled.box,
+    due: scheduled.due,
+    first: prev?.first || now,
+  }
+  saveSubjectStat(props.subject, item.id, saved)
+  lastSavedStat.value = saved
+  statsMap.value[item.id] = saved
+  return saved
+}
+
+function finishAnswer(result: GradeResult, assessment?: SelfAssessment) {
+  gradeResult.value = result
+  answered.value = true
+  totalAnswered.value += 1
+  if (result === 'correct') correctCount.value += 1
+  if (result === 'self' && assessment && assessment !== 'self_fail') correctCount.value += 1
+}
+
+/** 敲字题交卡 */
+function submitTyped() {
+  if (answered.value || !current.value || isChoice.value || isSelf.value) return
+  const t = typed.value.trim()
+  if (!t) return
+  const item = current.value
+  const result = gradeCard(item, typed.value)
+  if (result === 'self') {
+    // 不应出现在敲字路径
+    return
+  }
+  finishAnswer(result)
+  persistAuto(item, result === 'correct')
+}
+
+/** 选择题点选项即交卡 */
+function submitChoice(option: string) {
+  if (answered.value || !current.value || !isChoice.value) return
+  chosen.value = option
+  typed.value = option
+  const item = current.value
+  const result = gradeCard(item, option)
+  finishAnswer(result === 'self' ? 'wrong' : result)
+  persistAuto(item, result === 'correct')
+}
+
+/** oral / project：选完自评三档才落库 */
+function onSelfAssess(assessment: SelfAssessment) {
+  if (answered.value || !current.value || !isSelf.value) return
+  selfGrade.value = assessment
+  const item = current.value
+  persistSelf(item, assessment)
+  finishAnswer('self', assessment)
+}
+
+function submit() {
+  if (isChoice.value || isSelf.value) return
+  submitTyped()
 }
 
 function next() {
   if (!answered.value) return
   index.value += 1
-  if (index.value < items.value.length) {
-    openCard()
-  }
+  if (index.value < items.value.length) openCard()
 }
 
 function onInputKey(event: KeyboardEvent) {
   if (event.key === 'Enter') {
-    if (isCode.value && event.shiftKey) {
-      // Shift+Enter 允许换行
-      return
-    }
+    if (isCode.value && event.shiftKey) return
     event.preventDefault()
-    if (answered.value) {
-      next()
-    } else {
-      submit()
-    }
+    if (answered.value) next()
+    else submitTyped()
   }
 }
 
@@ -132,19 +221,14 @@ function onWindowKey(event: KeyboardEvent) {
   if (!answered.value || finished.value) return
   if (event.key === ' ' || event.key === 'Enter') {
     if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) {
-      if (event.key === ' ') return // 输入框内空格不跳题
+      if (event.key === ' ') return
     }
     event.preventDefault()
     next()
   }
 }
 
-watch(
-  () => props.subject,
-  () => {
-    load()
-  }
-)
+watch(() => props.subject, () => { load() })
 
 onMounted(() => {
   window.addEventListener('keydown', onWindowKey)
@@ -185,7 +269,7 @@ onUnmounted(() => {
           </div>
         </div>
         <div class="unit">
-          <span>{{ subjectTitle }} · 敲字练习</span>
+          <span>{{ subjectTitle }} · 练习</span>
         </div>
       </header>
 
@@ -198,12 +282,36 @@ onUnmounted(() => {
           <span v-for="tag in current.tags || []" :key="tag" class="chip">{{ tag }}</span>
         </div>
 
-        <!-- 出题 -->
         <h1 class="prompt" data-testid="subject-prompt">{{ current.prompt }}</h1>
 
-        <!-- 敲答案 -->
-        <div class="typing-box">
-          <label class="typebox" :class="{ ok: answered && isCorrect, bad: answered && !isCorrect }">
+        <!-- choice：选项交卡 -->
+        <div v-if="isChoice" class="choice-box" data-testid="subject-choice">
+          <button
+            v-for="(opt, i) in current.options || []"
+            :key="i"
+            type="button"
+            class="yy-btn choice-btn"
+            :class="{ on: chosen === opt, ok: answered && opt === current.answer, bad: answered && chosen === opt && opt !== current.answer }"
+            :data-testid="`subject-choice-${i}`"
+            :disabled="answered"
+            @click="submitChoice(opt)"
+          >
+            {{ opt }}
+          </button>
+        </div>
+
+        <!-- oral / project：自评面板 -->
+        <div v-else-if="isSelf" class="self-box" data-testid="subject-self">
+          <SelfGradePanel
+            :card="current"
+            :model-value="selfGrade"
+            @update:model-value="onSelfAssess"
+          />
+        </div>
+
+        <!-- 敲字 -->
+        <div v-else class="typing-box">
+          <label class="typebox" :class="{ ok: answered && gradeResult === 'correct', bad: answered && gradeResult === 'wrong' }">
             <template v-if="isCode">
               <textarea
                 ref="inputRef"
@@ -246,34 +354,44 @@ onUnmounted(() => {
               class="yy-btn"
               data-testid="subject-submit"
               :disabled="!typed.trim()"
-              @click="submit"
+              @click="submitTyped"
             >
               交卡
             </button>
           </div>
         </div>
 
-        <!-- 讲解 -->
+        <!-- 讲解（自评也出讲解 + 间隔） -->
         <div v-if="answered" class="explain-card" data-testid="subject-explain-card">
-          <div class="result-banner" :class="{ correct: isCorrect, wrong: !isCorrect }">
-            <span class="result-icon">{{ isCorrect ? '✓' : '✕' }}</span>
-            <span class="result-text" data-testid="subject-result">{{ isCorrect ? '回答正确！' : '回答有误' }}</span>
+          <div
+            class="result-banner"
+            :class="{
+              correct: gradeResult === 'correct' || gradeResult === 'self',
+              wrong: gradeResult === 'wrong',
+            }"
+          >
+            <span class="result-icon">{{ gradeResult === 'wrong' ? '✕' : '✓' }}</span>
+            <span class="result-text" data-testid="subject-result">
+              <template v-if="gradeResult === 'self'">自评已记录</template>
+              <template v-else-if="gradeResult === 'correct'">回答正确！</template>
+              <template v-else>回答有误</template>
+            </span>
             <span v-if="lastSavedStat" class="interval-badge" data-testid="subject-interval">
-              {{ isCorrect ? `下次复习：${INTERVALS[lastSavedStat.box]} 天后` : '答错已重置：1 天后复习' }}
+              {{ intervalHint }}
             </span>
           </div>
 
-          <div class="answer-row">
+          <div v-if="!isSelf" class="answer-row">
             <span class="label">标准答案：</span>
             <code class="ans-code" data-testid="subject-answer">{{ current.answer }}</code>
           </div>
 
-          <div v-if="!isCorrect" class="typed-row">
+          <div v-if="gradeResult === 'wrong'" class="typed-row">
             <span class="label">你的输入：</span>
-            <span class="user-typed" data-testid="subject-user-typed">{{ typed }}</span>
+            <span class="user-typed" data-testid="subject-user-typed">{{ typed || chosen }}</span>
           </div>
 
-          <div class="explain-body">
+          <div v-if="current.explain" class="explain-body">
             <p class="explain-title">讲解：</p>
             <p class="explain-text" data-testid="subject-explain">{{ current.explain }}</p>
           </div>
@@ -616,4 +734,28 @@ onUnmounted(() => {
   font-size: 12px;
   color: var(--yy-ink-soft);
 }
+
+.choice-box {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 16px 0;
+}
+
+.choice-btn.on {
+  outline: 2px solid var(--yy-matcha-deep, #6b8f4e);
+}
+
+.choice-btn.ok {
+  background: color-mix(in srgb, var(--yy-matcha, #a4c48c) 35%, transparent);
+}
+
+.choice-btn.bad {
+  background: color-mix(in srgb, #e07070 25%, transparent);
+}
+
+.self-box {
+  margin: 16px 0;
+}
+
 </style>

@@ -20,7 +20,7 @@ import {
   type WordEntry,
 } from '@/tongyun/english/wordlist'
 import SubjectPractice from '@/components/tongyun/subject/SubjectPractice.vue'
-import { getActiveSubject, setActiveSubject, type ActiveSubject } from '@/tongyun/subject'
+import { UI_SUBJECTS, getActiveSubject, isBankSubject, setActiveSubject, type ActiveSubject } from '@/tongyun/subject'
 
 definePageMeta({
   layout: 'yunya',
@@ -36,9 +36,21 @@ const markSrc = withAppBaseURL('/yunya-mark.svg')
 
 const activeSubject = ref<ActiveSubject>('english')
 
+const subjectTabs = computed(() => UI_SUBJECTS)
+
+
+function onSubjectChanged(ev: Event) {
+  const detail = (ev as CustomEvent).detail
+  const next = (typeof detail === 'string' ? detail : getActiveSubject()) as ActiveSubject
+  activeSubject.value = next
+  if (route.query.subject !== next) {
+    router.replace({ query: { ...route.query, subject: next } })
+  }
+}
+
 function syncSubjectFromUrl() {
   const querySub = ((route.query.subject as string) || '').toLowerCase()
-  if (querySub === 'java' || querySub === 'ai' || querySub === 'english') {
+  if (querySub === 'english' || isBankSubject(querySub)) {
     activeSubject.value = querySub as ActiveSubject
     setActiveSubject(querySub as ActiveSubject)
   } else {
@@ -301,6 +313,7 @@ watch(
 
 onMounted(() => {
   syncSubjectFromUrl()
+  window.addEventListener('tongyun-subject-changed', onSubjectChanged)
   prefs.value = getEnglishPrefs()
   ready.value = true
   window.addEventListener('keydown', onWindowKey)
@@ -310,6 +323,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  window.removeEventListener('tongyun-subject-changed', onSubjectChanged)
   window.removeEventListener('keydown', onWindowKey)
   if (typeof speechSynthesis !== 'undefined') speechSynthesis.cancel()
 })
@@ -319,36 +333,20 @@ onUnmounted(() => {
   <div class="practice-container">
     <div class="subject-bar" data-testid="subject-switcher">
       <button
+        v-for="tab in subjectTabs"
+        :key="tab.id"
         type="button"
         class="tab-btn"
-        :class="{ active: activeSubject === 'english' }"
-        data-testid="subject-tab-english"
-        @click="setSubject('english')"
+        :class="{ active: activeSubject === tab.id }"
+        :data-testid="`subject-tab-${tab.id}`"
+        @click="setSubject(tab.id)"
       >
-        英语
-      </button>
-      <button
-        type="button"
-        class="tab-btn"
-        :class="{ active: activeSubject === 'java' }"
-        data-testid="subject-tab-java"
-        @click="setSubject('java')"
-      >
-        Java
-      </button>
-      <button
-        type="button"
-        class="tab-btn"
-        :class="{ active: activeSubject === 'ai' }"
-        data-testid="subject-tab-ai"
-        @click="setSubject('ai')"
-      >
-        AI
+        {{ tab.title }}
       </button>
     </div>
 
     <SubjectPractice
-      v-if="activeSubject === 'java' || activeSubject === 'ai'"
+      v-if="isBankSubject(activeSubject)"
       :subject="activeSubject"
       @exit="router.push('/')"
       @switch-subject="setSubject"

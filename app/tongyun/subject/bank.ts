@@ -1,52 +1,29 @@
-// tongyun: 题库加载（Java / AI 学科题库 v0.1，随包放在 content/）
-import javaBankRaw from './content/java-v0.1.json'
-import aiBankRaw from './content/ai-v0.1.json'
-import type { KnowledgePoint, QuestionBank, QuestionItem } from './types'
+// tongyun: 题库按学科动态 import —— 每个 load 都是 () => import(...)，
+// 打包时切成独立 chunk，layout / 首页的主包不会包含题库内容。
+// 注意：不要建把 bank 再全量导出的桶文件，否则会把题库拉回主包。
 
-export function parseQuestionBank(raw: any): QuestionBank {
-  if (!raw || typeof raw !== 'object') {
-    return { subject: '', version: '', points: [], items: [] }
-  }
-  const points: KnowledgePoint[] = Array.isArray(raw.points)
-    ? raw.points.map((p: any) => ({
-        id: String(p.id || ''),
-        title: String(p.title || ''),
-        prereq: Array.isArray(p.prereq) ? p.prereq.map(String) : [],
-      }))
-    : []
+import { parseBank } from './parse'
+import type { QuestionBank } from './types'
 
-  const items: QuestionItem[] = Array.isArray(raw.items)
-    ? raw.items.map((it: any) => ({
-        id: String(it.id || ''),
-        point_id: String(it.point_id || ''),
-        level: Number(it.level || 1),
-        type: String(it.type || 'term'),
-        prompt: String(it.prompt || ''),
-        answer: String(it.answer || ''),
-        accept: Array.isArray(it.accept) ? it.accept.map(String) : [],
-        explain: String(it.explain || ''),
-        code: it.code ? String(it.code) : undefined,
-        tags: Array.isArray(it.tags) ? it.tags.map(String) : [],
-      }))
-    : []
+const LOADERS = {
+  java: () => import('./content/java-v0.1.json').then(m => m.default ?? m),
+  ai: () => import('./content/ai-v0.1.json').then(m => m.default ?? m),
+} as const
 
-  return {
-    subject: String(raw.subject || ''),
-    version: String(raw.version || ''),
-    points,
-    items,
-  }
+/** 学科 id 的联合类型，由题库注册表推导 */
+export type SubjectType = keyof typeof LOADERS
+
+export const BANK_IDS = Object.keys(LOADERS) as SubjectType[]
+
+export function hasBank(id: string): id is SubjectType {
+  return Object.prototype.hasOwnProperty.call(LOADERS, id)
 }
 
-export const JAVA_BANK: QuestionBank = parseQuestionBank(javaBankRaw)
-export const AI_BANK: QuestionBank = parseQuestionBank(aiBankRaw)
-
-export function getSubjectBank(subject: string): QuestionBank {
-  const s = (subject || '').trim().toLowerCase()
-  if (s === 'ai') return AI_BANK
-  return JAVA_BANK
-}
-
-export function getKnowledgePoint(bank: QuestionBank, pointId: string): KnowledgePoint | undefined {
-  return bank.points.find(p => p.id === pointId)
+/**
+ * 加载某学科题库。未知学科直接抛错，不静默回落到 Java。
+ */
+export async function loadBank(id: string): Promise<QuestionBank> {
+  if (!hasBank(id)) throw new Error(`未知学科：${id}`)
+  const raw = await LOADERS[id]()
+  return parseBank(raw, id)
 }
