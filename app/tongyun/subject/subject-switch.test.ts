@@ -13,8 +13,10 @@ describe('学科切换组件', () => {
   it('渲染出注册表里的全部学科选项', async () => {
     const html = await render(SubjectSwitch)
     expect(html).toContain('data-testid="subject-switch"')
+    expect(html).toContain('value="english"')
     expect(html).toContain('value="java"')
     expect(html).toContain('value="ai"')
+    expect(html).toContain('英语')
     expect(html).toContain('Java')
     expect(html).toContain('AI')
   })

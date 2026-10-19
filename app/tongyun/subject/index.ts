@@ -5,24 +5,17 @@ export * from './parse'
 export * from './registry'
 export * from './grade'
 export * from './self-assessment'
-export {
-  useActiveSubject,
-  __resetActiveSubject,
-} from './active-subject'
 export * from './stats'
 export * from './session'
 export {
+  STORAGE_KEY,
+  UI_SUBJECTS,
   getActiveSubject,
   setActiveSubject,
+  useActiveSubject,
+  __resetActiveSubject,
   isBankSubject,
   type ActiveSubject,
+  type UiSubject,
+  type UseActiveSubject,
 } from './ui-subject'
-
-import { gradeCard, type GradeResult } from './grade'
-import type { Card } from './types'
-
-/** 练习层兼容：把 GradeResult 收成 boolean（self 视为未自动判对） */
-export function gradeAnswer(typed: string, item: Card): boolean {
-  const r: GradeResult = gradeCard(item, typed)
-  return r === 'correct'
-}
