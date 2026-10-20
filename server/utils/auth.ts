@@ -26,23 +26,83 @@ export function getSessionSecret(): string {
   return secret
 }
 
+/**
+ * Constant-time string comparison to prevent timing attacks.
+ */
+export function constantTimeCompare(a: string, b: string): boolean {
+  if (typeof a !== 'string' || typeof b !== 'string') return false
+  const bufA = Buffer.from(a)
+  const bufB = Buffer.from(b)
+  if (bufA.length !== bufB.length) return false
+  return crypto.timingSafeEqual(bufA, bufB)
+}
+
+function hmac(payloadPart: string, secret: string, encoding: 'hex' | 'base64' | 'base64url'): string {
+  return crypto.createHmac('sha256', secret).update(payloadPart).digest(encoding)
+}
+
+/** One session codec. exp is always milliseconds. Signature is base64url; verification also accepts hex and standard base64. */
+function encodeSession(claims: SessionPayload, secret: string): string {
+  const payloadStr = Buffer.from(JSON.stringify(claims)).toString('base64url')
+  return `${payloadStr}.${hmac(payloadStr, secret, 'base64url')}`
+}
+
+function expiryMs(exp: number): number {
+  return exp > 1e11 ? exp : exp * 1000
+}
+
+function decodeSession(token: string, secret: string): SessionPayload | null {
+  const dotIdx = token.lastIndexOf('.')
+  if (dotIdx <= 0 || dotIdx === token.length - 1) return null
+
+  const payloadPart = token.slice(0, dotIdx)
+  const signaturePart = token.slice(dotIdx + 1)
+  const valid =
+    constantTimeCompare(signaturePart, hmac(payloadPart, secret, 'base64url')) ||
+    constantTimeCompare(signaturePart, hmac(payloadPart, secret, 'hex')) ||
+    constantTimeCompare(signaturePart, hmac(payloadPart, secret, 'base64'))
+  if (!valid) return null
+
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(Buffer.from(payloadPart, 'base64url').toString('utf8'))
+  } catch {
+    return null
+  }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null
+
+  const record = parsed as Record<string, unknown>
+  const userId = record.u || record.user_id || record.userId || record.sub || record.username
+  if (typeof userId !== 'string' || !userId || typeof record.exp !== 'number') return null
+  if (expiryMs(record.exp) < Date.now()) return null
+
+  return {
+    u: userId,
+    iat: typeof record.iat === 'number' ? record.iat : Date.now(),
+    exp: record.exp,
+  }
+}
+
+function sessionUserId(payload: string | { user_id?: string; u?: string; userId?: string; [key: string]: any }): string {
+  if (typeof payload === 'string') return payload
+  const userId = payload.user_id || payload.u || payload.userId
+  return typeof userId === 'string' ? userId : ''
+}
+
 export function signSessionToken(
   userId: string,
   secret = getSessionSecret(),
   maxAgeSec = DEFAULT_SESSION_MAX_AGE
 ): string {
   const now = Date.now()
-  const payload: SessionPayload = {
-    u: userId,
-    iat: now,
-    exp: now + maxAgeSec * 1000,
-  }
-  const payloadStr = Buffer.from(JSON.stringify(payload)).toString('base64url')
-  const signature = crypto
-    .createHmac('sha256', secret)
-    .update(payloadStr)
-    .digest('base64url')
-  return `${payloadStr}.${signature}`
+  return encodeSession(
+    {
+      u: userId,
+      iat: now,
+      exp: now + maxAgeSec * 1000,
+    },
+    secret
+  )
 }
 
 export function verifySessionToken(
@@ -52,30 +112,88 @@ export function verifySessionToken(
   if (!token || typeof token !== 'string') return null
   const signingSecret = secret || process.env.WORDS_SESSION_SECRET
   if (!signingSecret) return null
-  const parts = token.split('.')
-  if (parts.length !== 2) return null
+  const claims = decodeSession(token, signingSecret)
+  return claims ? { userId: claims.u } : null
+}
 
-  const [payloadStr, signature] = parts
-  const expectedSignature = crypto
-    .createHmac('sha256', signingSecret)
-    .update(payloadStr)
-    .digest('base64url')
+/**
+ * Sign a session payload with the same codec as signSessionToken.
+ * A numeric exp at or below 1e11 is seconds and is stored as milliseconds.
+ */
+export function signSession(
+  payload: string | { user_id: string; [key: string]: any },
+  secret: string = process.env.WORDS_SESSION_SECRET || ''
+): string {
+  if (!secret) {
+    throw new Error('WORDS_SESSION_SECRET is required to sign session')
+  }
+  const userId = sessionUserId(payload)
+  if (!userId) {
+    throw new Error('session user_id is required')
+  }
+  const providedExp = typeof payload === 'object' && payload && typeof payload.exp === 'number' ? payload.exp : undefined
+  const now = Date.now()
+  return encodeSession(
+    {
+      u: userId,
+      iat: now,
+      exp: providedExp === undefined ? now + DEFAULT_SESSION_MAX_AGE * 1000 : expiryMs(providedExp),
+    },
+    secret
+  )
+}
 
-  const sigBuffer = Buffer.from(signature)
-  const expectedBuffer = Buffer.from(expectedSignature)
-  if (sigBuffer.length !== expectedBuffer.length) return null
-  if (!crypto.timingSafeEqual(sigBuffer, expectedBuffer)) return null
+export function verifySessionCookie(
+  cookieStr: string | null | undefined,
+  secretOverride?: string
+): { user_id: string; [key: string]: any } | null {
+  if (!cookieStr || typeof cookieStr !== 'string') return null
+
+  let token = cookieStr.trim()
+  if (token.includes(';')) {
+    const found = token
+      .split(';')
+      .map(part => part.trim())
+      .find(part => part.startsWith('tw_sess='))
+    if (found) token = found.slice('tw_sess='.length).trim()
+  } else if (token.startsWith('tw_sess=')) {
+    token = token.slice('tw_sess='.length).trim()
+  }
 
   try {
-    const jsonStr = Buffer.from(payloadStr, 'base64url').toString('utf8')
-    const payload = JSON.parse(jsonStr) as SessionPayload
-    if (!payload.u || !payload.exp) return null
-    if (payload.exp < Date.now()) return null
-    return { userId: payload.u }
+    token = decodeURIComponent(token)
   } catch {
-    return null
+    // keep the raw token
+  }
+  if (token.startsWith('s:')) token = token.slice(2)
+
+  const secret = secretOverride ?? process.env.WORDS_SESSION_SECRET
+  if (!secret) return null
+  const claims = decodeSession(token, secret)
+  if (!claims) return null
+  return {
+    user_id: claims.u,
+    u: claims.u,
+    iat: claims.iat,
+    exp: claims.exp,
   }
 }
+
+export const verifySession = verifySessionCookie
+
+export function createSessionCookie(
+  payload: string | { user_id: string; [key: string]: any },
+  secret: string = process.env.WORDS_SESSION_SECRET || '',
+  options: { maxAge?: number } = {}
+): string {
+  const maxAge = options.maxAge ?? DEFAULT_SESSION_MAX_AGE
+  const base = typeof payload === 'string' ? { user_id: payload } : { ...payload }
+  const exp = typeof base.exp === 'number' ? base.exp : Math.floor(Date.now() / 1000) + maxAge
+  const token = signSession({ ...base, exp }, secret)
+  return `tw_sess=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}`
+}
+
+export const signSessionCookie = createSessionCookie
 
 export function comparePassword(password: string, hash: string): boolean {
   if (!password || !hash) return false
@@ -86,7 +204,6 @@ export function comparePassword(password: string, hash: string): boolean {
   }
 }
 
-// 内存限流：限 5 次/分钟/IP
 interface RateLimitBucket {
   count: number
   resetAt: number
@@ -168,187 +285,11 @@ export function requireAuth(event: H3Event): { userId: string } {
   return user
 }
 
-export function requireStatsAuth(event: H3Event): { role: 'boss' | 'stats_reader'; userId?: string } {
-  const user = getUserFromSession(event)
-  if (user) {
-    return { role: 'boss', userId: user.userId }
-  }
-
-  const authHeader = getHeader(event, 'authorization')
-  if (authHeader && authHeader.startsWith('Bearer ')) {
-    const token = authHeader.slice(7).trim()
-    const statsToken = process.env.WORDS_STATS_TOKEN || ''
-    if (verifyStatsToken(token, statsToken)) {
-      return { role: 'stats_reader' }
-    }
-  }
-
-  throw createError({
-    statusCode: 401,
-    statusMessage: 'Unauthorized',
-    message: 'Valid session or stats token required',
-  })
-}
-
-/**
- * Constant-time string comparison to prevent timing attacks.
- */
-export function constantTimeCompare(a: string, b: string): boolean {
-  if (typeof a !== 'string' || typeof b !== 'string') return false
-  const bufA = Buffer.from(a)
-  const bufB = Buffer.from(b)
-  if (bufA.length !== bufB.length) return false
-  return crypto.timingSafeEqual(bufA, bufB)
-}
-
-/**
- * Sign a session payload with HMAC-SHA256 using WORDS_SESSION_SECRET.
- * Produces `<base64url-payload>.<hmac-hex>`.
- */
-export function signSession(
-  payload: string | { user_id: string; [key: string]: any },
-  secret: string = process.env.WORDS_SESSION_SECRET || ''
-): string {
-  if (!secret) {
-    throw new Error('WORDS_SESSION_SECRET is required to sign session')
-  }
-  const data = typeof payload === 'string' ? { user_id: payload } : { ...payload }
-  if (typeof data.exp !== 'number') {
-    data.exp = Math.floor(Date.now() / 1000) + DEFAULT_SESSION_MAX_AGE
-  }
-  const jsonStr = JSON.stringify(data)
-  const payloadB64 = Buffer.from(jsonStr, 'utf8').toString('base64url')
-  const hmac = crypto.createHmac('sha256', secret).update(payloadB64).digest('hex')
-  return `${payloadB64}.${hmac}`
-}
-
-/**
- * Create a Set-Cookie string for tw_sess.
- */
-export function createSessionCookie(
-  payload: string | { user_id: string; [key: string]: any },
-  secret: string = process.env.WORDS_SESSION_SECRET || '',
-  options: { maxAge?: number } = {}
-): string {
-  const maxAge = options.maxAge ?? DEFAULT_SESSION_MAX_AGE
-  const token = signSession(
-    typeof payload === 'string' ? { user_id: payload, exp: Math.floor(Date.now() / 1000) + maxAge } : { ...payload, exp: payload.exp ?? Math.floor(Date.now() / 1000) + maxAge },
-    secret
-  )
-  return `tw_sess=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}`
-}
-
-export const signSessionCookie = createSessionCookie
-
-/**
- * Verify a session cookie/token with HMAC signature.
- * Returns decoded session object { user_id } or null if invalid, tampered, or expired.
- * Accepts the hex signature used by signSession and the base64url signature used by signSessionToken.
- */
-export function verifySessionCookie(
-  cookieStr: string | null | undefined,
-  secretOverride?: string
-): { user_id: string; [key: string]: any } | null {
-  if (!cookieStr || typeof cookieStr !== 'string') {
-    return null
-  }
-
-  let token = cookieStr.trim()
-  if (token.includes(';')) {
-    const parts = token.split(';')
-    const found = parts.map(p => p.trim()).find(p => p.startsWith('tw_sess='))
-    if (found) {
-      token = found.slice('tw_sess='.length).trim()
-    }
-  } else if (token.startsWith('tw_sess=')) {
-    token = token.slice('tw_sess='.length).trim()
-  }
-
-  try {
-    token = decodeURIComponent(token)
-  } catch {
-    // keep the raw token
-  }
-
-  if (token.startsWith('s:')) {
-    token = token.slice(2)
-  }
-
-  const dotIdx = token.lastIndexOf('.')
-  if (dotIdx === -1) {
-    return null
-  }
-
-  const payloadPart = token.slice(0, dotIdx)
-  const signaturePart = token.slice(dotIdx + 1)
-  if (!payloadPart || !signaturePart) {
-    return null
-  }
-
-  const secret = secretOverride ?? process.env.WORDS_SESSION_SECRET
-  if (!secret) {
-    return null
-  }
-
-  const expectedHex = crypto.createHmac('sha256', secret).update(payloadPart).digest('hex')
-  const expectedB64 = crypto.createHmac('sha256', secret).update(payloadPart).digest('base64')
-  const expectedB64Url = crypto.createHmac('sha256', secret).update(payloadPart).digest('base64url')
-
-  const valid =
-    constantTimeCompare(signaturePart, expectedHex) ||
-    constantTimeCompare(signaturePart, expectedB64) ||
-    constantTimeCompare(signaturePart, expectedB64Url)
-
-  if (!valid) {
-    return null
-  }
-
-  let parsed: any = null
-  try {
-    parsed = JSON.parse(Buffer.from(payloadPart, 'base64url').toString('utf8'))
-  } catch {
-    parsed = null
-  }
-
-  if (!parsed) {
-    try {
-      parsed = JSON.parse(Buffer.from(payloadPart, 'base64').toString('utf8'))
-    } catch {
-      parsed = null
-    }
-  }
-
-  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-    return null
-  }
-
-  const userId = parsed.user_id || parsed.userId || parsed.u || parsed.sub || parsed.username
-  if (!userId || typeof parsed.exp !== 'number') {
-    return null
-  }
-  parsed.user_id = String(userId)
-
-  const nowSec = Math.floor(Date.now() / 1000)
-  const expSec = parsed.exp > 1e11 ? Math.floor(parsed.exp / 1000) : parsed.exp
-  if (expSec < nowSec) {
-    return null
-  }
-
-  return parsed
-}
-
-export const verifySession = verifySessionCookie
-
-/**
- * Verify read-only stats token against WORDS_STATS_TOKEN using constant-time comparison.
- */
 export function verifyStatsToken(
   token: string | null | undefined,
   expectedToken: string = process.env.WORDS_STATS_TOKEN || ''
 ): boolean {
-  if (!token || typeof token !== 'string' || !expectedToken) {
-    return false
-  }
+  if (!token || typeof token !== 'string' || !expectedToken) return false
   return constantTimeCompare(token.trim(), expectedToken.trim())
 }
 
@@ -357,6 +298,22 @@ export interface AuthStatsResult {
   user_id: string | null
   readOnly: boolean
   error?: string
+}
+
+function headerValue(eventOrReq: any, name: 'authorization' | 'cookie'): string | undefined {
+  const lower = name
+  if (typeof eventOrReq?.headers?.[lower] === 'string') return eventOrReq.headers[lower]
+  if (typeof eventOrReq?.getHeader === 'function') {
+    const value = eventOrReq.getHeader(lower)
+    if (typeof value === 'string') return value
+  }
+  if (typeof eventOrReq?.node?.req?.headers?.[lower] === 'string') return eventOrReq.node.req.headers[lower]
+  if (typeof eventOrReq?.req?.headers?.[lower] === 'string') return eventOrReq.req.headers[lower]
+  try {
+    return getHeader(eventOrReq, lower)
+  } catch {
+    return undefined
+  }
 }
 
 /**
@@ -369,33 +326,12 @@ export function authenticateStatsRequest(
   const secret = options.sessionSecret ?? process.env.WORDS_SESSION_SECRET ?? ''
   const statsToken = options.statsToken ?? process.env.WORDS_STATS_TOKEN ?? ''
 
-  let authHeader: string | undefined
-  if (eventOrReq?.headers?.authorization) {
-    authHeader = eventOrReq.headers.authorization
-  } else if (typeof eventOrReq?.getHeader === 'function') {
-    authHeader = eventOrReq.getHeader('authorization')
-  } else if (eventOrReq?.node?.req?.headers?.authorization) {
-    authHeader = eventOrReq.node.req.headers.authorization
-  } else if (eventOrReq?.req?.headers?.authorization) {
-    authHeader = eventOrReq.req.headers.authorization
-  } else {
-    try {
-      authHeader = getHeader(eventOrReq, 'authorization')
-    } catch {
-      authHeader = undefined
-    }
-  }
-
-  if (authHeader && typeof authHeader === 'string') {
+  const authHeader = typeof eventOrReq === 'string' ? undefined : headerValue(eventOrReq, 'authorization')
+  if (authHeader) {
     const match = authHeader.match(/^Bearer\s+(.+)$/i)
     if (match) {
-      const bearerToken = match[1].trim()
-      if (statsToken && verifyStatsToken(bearerToken, statsToken)) {
-        return {
-          authenticated: true,
-          user_id: 'boss',
-          readOnly: true,
-        }
+      if (statsToken && verifyStatsToken(match[1].trim(), statsToken)) {
+        return { authenticated: true, user_id: 'boss', readOnly: true }
       }
       return {
         authenticated: false,
@@ -406,18 +342,8 @@ export function authenticateStatsRequest(
     }
   }
 
-  let cookieHeader: string | undefined
-  if (eventOrReq?.headers?.cookie) {
-    cookieHeader = eventOrReq.headers.cookie
-  } else if (typeof eventOrReq?.getHeader === 'function') {
-    cookieHeader = eventOrReq.getHeader('cookie')
-  } else if (eventOrReq?.node?.req?.headers?.cookie) {
-    cookieHeader = eventOrReq.node.req.headers.cookie
-  } else if (eventOrReq?.req?.headers?.cookie) {
-    cookieHeader = eventOrReq.req.headers.cookie
-  } else if (typeof eventOrReq === 'string') {
-    cookieHeader = eventOrReq
-  } else {
+  let cookieHeader = typeof eventOrReq === 'string' ? eventOrReq : headerValue(eventOrReq, 'cookie')
+  if (!cookieHeader && eventOrReq && typeof eventOrReq !== 'string') {
     try {
       const cookie = getCookie(eventOrReq, SESSION_COOKIE_NAME)
       if (cookie) cookieHeader = `${SESSION_COOKIE_NAME}=${cookie}`
@@ -428,12 +354,8 @@ export function authenticateStatsRequest(
 
   if (cookieHeader) {
     const session = verifySessionCookie(cookieHeader, secret)
-    if (session && session.user_id) {
-      return {
-        authenticated: true,
-        user_id: session.user_id,
-        readOnly: false,
-      }
+    if (session?.user_id) {
+      return { authenticated: true, user_id: session.user_id, readOnly: false }
     }
   }
 
@@ -446,3 +368,16 @@ export function authenticateStatsRequest(
 }
 
 export const authStats = authenticateStatsRequest
+
+export function requireStatsAuth(event: H3Event): { role: 'boss' | 'stats_reader'; userId?: string } {
+  const auth = authenticateStatsRequest(event)
+  if (!auth.authenticated) {
+    throw createError({
+      statusCode: 401,
+      statusMessage: 'Unauthorized',
+      message: 'Valid session or stats token required',
+    })
+  }
+  if (auth.readOnly) return { role: 'stats_reader' }
+  return { role: 'boss', userId: auth.user_id || undefined }
+}

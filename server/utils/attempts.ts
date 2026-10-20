@@ -55,11 +55,20 @@ export function formatDateTime(isoStr: string): string {
   return d.toISOString().replace('T', ' ').replace('Z', '')
 }
 
+/** mysql2 turns on CLIENT_FOUND_ROWS, so a duplicate insert must be detected from the error, not affectedRows. */
+const ER_DUP_ENTRY = 1062
+
+export function isDuplicateKeyError(err: unknown): boolean {
+  if (!err || typeof err !== 'object') return false
+  const error = err as { code?: unknown; errno?: unknown }
+  return error.errno === ER_DUP_ENTRY || error.code === 'ER_DUP_ENTRY'
+}
+
 export interface ProcessAttemptsOptions {
   /**
-   * Test seam. Runs after the pre-check and before INSERT IGNORE, so a
+   * Test seam. Runs after the pre-check and before the attempt insert, so a
    * concurrent commit can land the same client_event_id. Card state is updated
-   * only when that insert reports affectedRows === 1.
+   * only when that insert does not raise ER_DUP_ENTRY.
    */
   afterPrecheck?: () => Promise<void>
 }
@@ -127,37 +136,42 @@ export async function processAttemptsBatch(
       await options.afterPrecheck()
     }
 
-    // answered_at order so a later event in this batch cannot be overwritten by an earlier one.
+    // Same client_event_id order in every transaction, so concurrent batches
+    // lock uk_client_event and the card-state primary key without deadlocking.
+    // A later answered_at still wins: the card-state upsert compares timestamps.
     const toTry = validEvents
       .filter(e => !existingIdSet.has(e.client_event_id))
-      .sort((a, b) => new Date(a.answered_at).getTime() - new Date(b.answered_at).getTime())
+      .sort((a, b) => (a.client_event_id < b.client_event_id ? -1 : a.client_event_id > b.client_event_id ? 1 : 0))
 
     for (const e of toTry) {
       const answeredAtStr = formatDateTime(e.answered_at)
-      // Per-row INSERT IGNORE: affectedRows === 1 only when this transaction inserted the row.
-      // A duplicate unique key is a no-op (affectedRows === 0) and must not touch card state.
-      const [header] = await conn.query<any>(
-        `INSERT IGNORE INTO words_attempts
-          (client_event_id, user_id, word, point_id, level, mode, correct, duration_ms, answer_text, answered_at, interval_days, next_review_on, wordlist_ver, client_ua)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          e.client_event_id,
-          userId,
-          e.word,
-          e.point_id || null,
-          e.level || null,
-          e.mode || 'recall',
-          e.correct ? 1 : 0,
-          e.duration_ms,
-          e.answer_text || null,
-          answeredAtStr,
-          e.interval_days,
-          e.next_review_on,
-          e.wordlist_ver || null,
-          e.client_ua || clientUaFallback || null,
-        ]
-      )
-      if (Number(header?.affectedRows ?? 0) !== 1) {
+      // Plain INSERT. ER_DUP_ENTRY (1062) is the duplicate; every other error
+      // leaves this catch and the transaction rolls back. Card state runs only
+      // after the attempt row is actually inserted.
+      try {
+        await conn.query(
+          `INSERT INTO words_attempts
+            (client_event_id, user_id, word, point_id, level, mode, correct, duration_ms, answer_text, answered_at, interval_days, next_review_on, wordlist_ver, client_ua)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            e.client_event_id,
+            userId,
+            e.word,
+            e.point_id || null,
+            e.level || null,
+            e.mode || 'recall',
+            e.correct ? 1 : 0,
+            e.duration_ms,
+            e.answer_text || null,
+            answeredAtStr,
+            e.interval_days,
+            e.next_review_on,
+            e.wordlist_ver || null,
+            e.client_ua || clientUaFallback || null,
+          ]
+        )
+      } catch (err) {
+        if (!isDuplicateKeyError(err)) throw err
         duplicateCount += 1
         continue
       }
