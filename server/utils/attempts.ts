@@ -57,7 +57,7 @@ export function formatDateTime(isoStr: string): string {
 
 export interface ProcessAttemptsOptions {
   /**
-   * Test seam. Runs after the pre-check and before INSERT IGNORE, so a
+   * Test seam. Runs after the pre-check and before the attempt insert, so a
    * concurrent commit can land the same client_event_id. Card state is updated
    * only when that insert reports affectedRows === 1.
    */
@@ -127,19 +127,24 @@ export async function processAttemptsBatch(
       await options.afterPrecheck()
     }
 
-    // answered_at order so a later event in this batch cannot be overwritten by an earlier one.
+    // Same client_event_id order in every transaction, so concurrent batches
+    // lock uk_client_event and the card-state primary key without deadlocking.
+    // A later answered_at still wins: the card-state upsert compares timestamps.
     const toTry = validEvents
       .filter(e => !existingIdSet.has(e.client_event_id))
-      .sort((a, b) => new Date(a.answered_at).getTime() - new Date(b.answered_at).getTime())
+      .sort((a, b) => (a.client_event_id < b.client_event_id ? -1 : a.client_event_id > b.client_event_id ? 1 : 0))
 
     for (const e of toTry) {
       const answeredAtStr = formatDateTime(e.answered_at)
-      // Per-row INSERT IGNORE: affectedRows === 1 only when this transaction inserted the row.
-      // A duplicate unique key is a no-op (affectedRows === 0) and must not touch card state.
+      // id=id is a no-op on uk_client_event. affectedRows === 1 only when this
+      // statement inserted the row. A duplicate reports 0 (unchanged) or 2
+      // (touched) and must not touch card state. Other errors — truncation,
+      // check constraints — throw instead of being counted as duplicates.
       const [header] = await conn.query<any>(
-        `INSERT IGNORE INTO words_attempts
+        `INSERT INTO words_attempts
           (client_event_id, user_id, word, point_id, level, mode, correct, duration_ms, answer_text, answered_at, interval_days, next_review_on, wordlist_ver, client_ua)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE id = id`,
         [
           e.client_event_id,
           userId,

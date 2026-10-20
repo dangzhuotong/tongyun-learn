@@ -1,5 +1,4 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { fetchStatsSummary } from './utils/stats'
 import { getLast7Dates, getShanghaiDate, getStatsSummary } from './services/stats'
 import { resetDbPool, setMockDbPool } from './utils/db'
 
@@ -83,23 +82,24 @@ describe('stats miscount: date window vs timezone', () => {
         sqls.push(sql.replace(/\s+/g, ' '))
         paramsSeen.push(params)
         // GROUP BY is the 7-day query. It also has answered_at >=, so it must be matched first.
-        if (sql.includes('GROUP BY day')) {
+        if (/GROUP BY/i.test(sql)) {
           return [[
-            { day: '2026-10-17', total: 20, correct: 18 },
-            { day: '2026-10-18', total: 46, correct: 39 },
+            { date: '2026-10-17', day: '2026-10-17', total: 20, correct: 18 },
+            { date: '2026-10-18', day: '2026-10-18', total: 46, correct: 39 },
           ]]
         }
         if (sql.includes('COUNT(*) AS total') && sql.includes('answered_at >=')) {
           return [[{ total: 46, correct: 39 }]]
         }
-        if (sql.includes('COUNT(*) AS count FROM words_card_state')) {
-          return [[{ count: 18 }]]
+        if (sql.includes('words_card_state')) {
+          return [[{ count: 18, due_count: 18 }]]
         }
         return [[]]
       }),
     }
 
-    const summary = await fetchStatsSummary(mockPool, 'boss')
+    setMockDbPool(mockPool)
+    const summary = await getStatsSummary('boss')
     const last7Sql = sqls.find(sql => sql.includes('GROUP BY'))
     const collapsed = Boolean(last7Sql && whereClause(last7Sql).includes('DATE(CONVERT_TZ(answered_at'))
     for (const sql of sqls.filter(item => item.includes('words_attempts'))) {
@@ -180,7 +180,6 @@ describe('stats miscount: date window vs timezone', () => {
     const pool = semanticPool(attempts)
     setMockDbPool(pool)
 
-    const sparse = await fetchStatsSummary(pool, 'boss', BOUNDARY)
     const dense = await getStatsSummary('boss', BOUNDARY)
     const attemptSql = pool.query.mock.calls
       .map(call => String(call[0]))
@@ -190,12 +189,9 @@ describe('stats miscount: date window vs timezone', () => {
       assertSargableRange(sql)
     }
 
-    expect(sparse.today.date, `expected Shanghai today, ${tzContext()}`).toBe(SHANGHAI_TODAY)
     expect(dense.today.date, `expected Shanghai today, ${tzContext()}`).toBe(SHANGHAI_TODAY)
-    expect(sparse.today.total, `UTC today would be 66; Shanghai today is 46. ${tzContext()}`).toBe(46)
     expect(dense.today.total, `UTC today would be 66; Shanghai today is 46. ${tzContext()}`).toBe(46)
     // 1 + 20 + 46. The 5 before 2026-10-12 and the 3 on 2026-10-19 stay outside.
-    expect(sparse.last7d.total, tzContext()).toBe(67)
     expect(dense.last7d.total, tzContext()).toBe(67)
     expect(dense.last7d.daily.map(day => day.date), tzContext()).toEqual([
       '2026-10-12',
@@ -209,7 +205,6 @@ describe('stats miscount: date window vs timezone', () => {
     expect(dense.last7d.daily[0].total, tzContext()).toBe(1)
     expect(dense.last7d.daily[5].total, tzContext()).toBe(20)
     expect(dense.last7d.daily[6].total, tzContext()).toBe(46)
-    expect(sparse.due_today, tzContext()).toBe(18)
     expect(dense.due_today, tzContext()).toBe(18)
   })
 })

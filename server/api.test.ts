@@ -19,7 +19,7 @@ import {
   processAttemptsBatch,
 } from './utils/attempts'
 import { fetchCardStates } from './utils/state'
-import { fetchStatsSummary, fetchStatsMistakes, getShanghaiDate } from './utils/stats'
+import { getShanghaiDate, getStatsMistakes, getStatsSummary } from './services/stats'
 import { getHealthStatus } from './utils/health'
 
 describe('server/utils/auth', () => {
@@ -261,7 +261,7 @@ describe('server/utils/attempts processing (idempotency & DB logic)', () => {
     expect(result.rejected.length).toBe(0)
   })
 
-  it('pre-check empty but INSERT IGNORE hits the unique key: duplicate, no card-state write', async () => {
+  it('pre-check empty but duplicate key is a no-op: duplicate, no card-state write', async () => {
     const cardStateSql: string[] = []
     const mockConn = {
       beginTransaction: vi.fn().mockResolvedValue(undefined),
@@ -272,7 +272,7 @@ describe('server/utils/attempts processing (idempotency & DB logic)', () => {
         if (sql.includes('SELECT client_event_id FROM words_attempts')) {
           return [[]]
         }
-        if (sql.includes('INSERT IGNORE INTO words_attempts')) {
+        if (sql.includes('INSERT INTO words_attempts') && sql.includes('ON DUPLICATE KEY UPDATE id = id')) {
           return [{ affectedRows: 0 }]
         }
         if (sql.includes('words_card_state')) {
@@ -303,6 +303,92 @@ describe('server/utils/attempts processing (idempotency & DB logic)', () => {
     expect(cardStateSql).toEqual([])
     expect(mockConn.commit).toHaveBeenCalled()
     expect(mockConn.rollback).not.toHaveBeenCalled()
+  })
+
+  it('throws non-duplicate insert errors and does not count them as duplicates', async () => {
+    const cardStateSql: string[] = []
+    const mockConn = {
+      beginTransaction: vi.fn().mockResolvedValue(undefined),
+      commit: vi.fn().mockResolvedValue(undefined),
+      rollback: vi.fn().mockResolvedValue(undefined),
+      release: vi.fn(),
+      query: vi.fn().mockImplementation((sql: string) => {
+        if (sql.includes('SELECT client_event_id FROM words_attempts')) {
+          return [[]]
+        }
+        if (sql.includes('INSERT INTO words_attempts')) {
+          const err = new Error('Data too long for column \'word\'') as Error & { code: string; errno: number }
+          err.code = 'ER_DATA_TOO_LONG'
+          err.errno = 1406
+          throw err
+        }
+        if (sql.includes('words_card_state')) {
+          cardStateSql.push(sql)
+        }
+        return [{ affectedRows: 1 }]
+      }),
+    }
+    const mockPool: any = {
+      getConnection: vi.fn().mockResolvedValue(mockConn),
+    }
+    const event = {
+      client_event_id: 'trunc-uuid',
+      word: 'apple',
+      correct: true,
+      duration_ms: 1200,
+      answered_at: '2026-10-17T10:00:00.000Z',
+      interval_days: 1,
+      next_review_on: '2026-10-18',
+    }
+
+    await expect(processAttemptsBatch(mockPool, 'boss', [event])).rejects.toThrow(/Data too long/)
+    expect(cardStateSql).toEqual([])
+    expect(mockConn.commit).not.toHaveBeenCalled()
+    expect(mockConn.rollback).toHaveBeenCalled()
+    expect(mockConn.release).toHaveBeenCalled()
+  })
+
+  it('writes the batch in client_event_id order', async () => {
+    const inserted: string[] = []
+    const mockConn = {
+      beginTransaction: vi.fn().mockResolvedValue(undefined),
+      commit: vi.fn().mockResolvedValue(undefined),
+      rollback: vi.fn().mockResolvedValue(undefined),
+      release: vi.fn(),
+      query: vi.fn().mockImplementation((sql: string, params: unknown[]) => {
+        if (sql.includes('SELECT client_event_id FROM words_attempts')) {
+          return [[]]
+        }
+        if (sql.includes('INSERT INTO words_attempts')) {
+          expect(sql).toContain('ON DUPLICATE KEY UPDATE id = id')
+          expect(sql).not.toContain('IGNORE')
+          inserted.push(String(params[0]))
+        }
+        return [{ affectedRows: 1 }]
+      }),
+    }
+    const mockPool: any = {
+      getConnection: vi.fn().mockResolvedValue(mockConn),
+    }
+    const row = (client_event_id: string, answered_at: string) => ({
+      client_event_id,
+      word: `w-${client_event_id}`,
+      correct: true,
+      duration_ms: 1000,
+      answered_at,
+      interval_days: 1,
+      next_review_on: '2026-10-18',
+    })
+
+    const result = await processAttemptsBatch(mockPool, 'boss', [
+      row('c-id', '2026-10-17T08:00:00.000Z'),
+      row('a-id', '2026-10-17T12:00:00.000Z'),
+      row('b-id', '2026-10-17T10:00:00.000Z'),
+    ])
+
+    expect(inserted).toEqual(['a-id', 'b-id', 'c-id'])
+    expect(result.accepted).toBe(3)
+    expect(result.duplicate).toBe(0)
   })
 })
 
@@ -339,7 +425,11 @@ describe('server/utils/state', () => {
   })
 })
 
-describe('server/utils/stats', () => {
+describe('server/services/stats', () => {
+  afterEach(() => {
+    resetDbPool()
+  })
+
   it('formats shanghai date as YYYY-MM-DD', () => {
     const d = getShanghaiDate(new Date('2026-10-17T20:00:00Z'))
     expect(d).toMatch(/^\d{4}-\d{2}-\d{2}$/)
@@ -348,32 +438,35 @@ describe('server/utils/stats', () => {
   it('calculates summary metrics and daily breakdown', async () => {
     const mockPool: any = {
       query: vi.fn().mockImplementation((sql: string) => {
-        if (sql.includes('GROUP BY day')) {
+        if (/GROUP BY/i.test(sql)) {
           return [
             [
-              { day: '2026-10-16', total: 20, correct: 18 },
-              { day: '2026-10-17', total: 46, correct: 39 },
+              { date: '2026-10-16', total: 20, correct: 18 },
+              { date: '2026-10-17', total: 46, correct: 39 },
             ],
           ]
         }
         if (sql.includes('COUNT(*) AS total') && sql.includes('answered_at >=')) {
           return [[{ total: 46, correct: 39 }]]
         }
-        if (sql.includes('COUNT(*) AS count FROM words_card_state')) {
-          return [[{ count: 18 }]]
+        if (sql.includes('words_card_state')) {
+          return [[{ due_count: 18 }]]
         }
         return [[]]
       }),
     }
+    setDbPool(mockPool)
 
-    const summary = await fetchStatsSummary(mockPool, 'boss')
+    const summary = await getStatsSummary('boss', new Date('2026-10-17T12:00:00+08:00'))
     expect(summary.tz).toBe('Asia/Shanghai')
     expect(summary.today.total).toBe(46)
     expect(summary.today.correct).toBe(39)
     expect(summary.today.accuracy).toBe(0.848)
     expect(summary.last7d.total).toBe(66)
     expect(summary.due_today).toBe(18)
-    expect(summary.last7d.daily.length).toBe(2)
+    expect(summary.last7d.daily).toHaveLength(7)
+    expect(summary.last7d.daily.find(day => day.date === '2026-10-16')).toMatchObject({ total: 20, correct: 18 })
+    expect(summary.last7d.daily.find(day => day.date === '2026-10-17')).toMatchObject({ total: 46, correct: 39 })
   })
 
   it('fetches top mistakes with attempts >= 2', async () => {
@@ -389,11 +482,11 @@ describe('server/utils/stats', () => {
       },
     ]
 
-    const mockPool: any = {
+    setDbPool({
       query: vi.fn().mockResolvedValue([mockRows]),
-    }
+    })
 
-    const mistakes = await fetchStatsMistakes(mockPool, 'boss', 30, 20)
+    const mistakes = await getStatsMistakes('boss', { days: 30, limit: 20 })
     expect(mistakes.days).toBe(30)
     expect(mistakes.items.length).toBe(1)
     expect(mistakes.items[0].word).toBe('idempotent')
