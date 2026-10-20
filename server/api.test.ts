@@ -261,7 +261,7 @@ describe('server/utils/attempts processing (idempotency & DB logic)', () => {
     expect(result.rejected.length).toBe(0)
   })
 
-  it('pre-check empty but duplicate key is a no-op: duplicate, no card-state write', async () => {
+  it('pre-check empty but insert raises ER_DUP_ENTRY: duplicate, no card-state write', async () => {
     const cardStateSql: string[] = []
     const mockConn = {
       beginTransaction: vi.fn().mockResolvedValue(undefined),
@@ -272,8 +272,15 @@ describe('server/utils/attempts processing (idempotency & DB logic)', () => {
         if (sql.includes('SELECT client_event_id FROM words_attempts')) {
           return [[]]
         }
-        if (sql.includes('INSERT INTO words_attempts') && sql.includes('ON DUPLICATE KEY UPDATE id = id')) {
-          return [{ affectedRows: 0 }]
+        if (sql.includes('INSERT INTO words_attempts')) {
+          expect(sql).not.toMatch(/ON DUPLICATE KEY UPDATE|IGNORE/)
+          const err = new Error("Duplicate entry 'race-uuid' for key 'words_attempts.uk_client_event'") as Error & {
+            code: string
+            errno: number
+          }
+          err.code = 'ER_DUP_ENTRY'
+          err.errno = 1062
+          throw err
         }
         if (sql.includes('words_card_state')) {
           cardStateSql.push(sql)
@@ -360,8 +367,7 @@ describe('server/utils/attempts processing (idempotency & DB logic)', () => {
           return [[]]
         }
         if (sql.includes('INSERT INTO words_attempts')) {
-          expect(sql).toContain('ON DUPLICATE KEY UPDATE id = id')
-          expect(sql).not.toContain('IGNORE')
+          expect(sql).not.toMatch(/ON DUPLICATE KEY UPDATE|IGNORE/)
           inserted.push(String(params[0]))
         }
         return [{ affectedRows: 1 }]
