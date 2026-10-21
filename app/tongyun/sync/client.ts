@@ -3,7 +3,20 @@
 
 import { withAppBaseURL } from '@/core/utils/base-url'
 import { importEnglishHistory } from './history'
-import { ackAttempts, listPending, parkAttempts, type SyncAttempt } from './queue'
+import {
+  ackAttempts,
+  ANONYMOUS_OWNER,
+  clearActiveUser,
+  detachForeign,
+  getActiveUser,
+  listPending,
+  normalizeOwner,
+  parkAttempts,
+  setActiveUser,
+  syncBacklog,
+  unclaimedCount,
+  type SyncAttempt,
+} from './queue'
 
 /** Nitro 挂在站点 base 下。/learn/ 时是 /learn/api/v1，避免打到会 302 的根路径。 */
 export function syncApiPrefix(baseURL?: string): string {
@@ -32,9 +45,17 @@ export interface FlushResult {
   duplicate: number
   rejected: number
   pending: number
+  parked: number
+  full: boolean
+  unclaimed: number
   needsLogin: boolean
   offline: boolean
   status?: number
+}
+
+export function wireAttempt(event: SyncAttempt): Omit<SyncAttempt, 'owner'> {
+  const { owner: _owner, ...rest } = event
+  return rest
 }
 
 function resolveFetch(fetchImpl?: SyncFetch): SyncFetch | null {
@@ -68,7 +89,8 @@ export async function loginSync(username: string, password: string, fetchImpl?: 
     })
     if (res.ok) {
       const data = await res.json().catch(() => ({}))
-      const usernameBack = data?.user?.username || name
+      const usernameBack = data?.user?.username || data?.user?.user_id || name
+      setActiveUser(String(usernameBack))
       return { ok: true, username: String(usernameBack) }
     }
     if (res.status === 401 || res.status === 403) {
@@ -86,16 +108,18 @@ export async function loginSync(username: string, password: string, fetchImpl?: 
 
 export async function logoutSync(fetchImpl?: SyncFetch): Promise<void> {
   const fetcher = resolveFetch(fetchImpl)
-  if (!fetcher) return
-  try {
-    await fetcher(`${syncApiPrefix()}/auth/logout`, {
-      method: 'POST',
-      credentials: 'include',
-      headers: { Accept: 'application/json' },
-    })
-  } catch {
-    // 本地队列还在，下次登录再传
+  if (fetcher) {
+    try {
+      await fetcher(`${syncApiPrefix()}/auth/logout`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { Accept: 'application/json' },
+      })
+    } catch {
+      // 网络失败也清掉本机的当前账号，队列按原账号冻结，不会跟着下一次登录走
+    }
   }
+  clearActiveUser()
 }
 
 export async function currentSyncUser(fetchImpl?: SyncFetch): Promise<string | null> {
@@ -107,32 +131,102 @@ export async function currentSyncUser(fetchImpl?: SyncFetch): Promise<string | n
       credentials: 'include',
       headers: { Accept: 'application/json' },
     })
-    if (!res.ok) return null
-    const data = await res.json()
+    if (res.status === 401 || res.status === 403) {
+      clearActiveUser()
+      return null
+    }
+    if (!res.ok) return getActiveUser()
+    const data = await res.json().catch(() => null)
+    if (!data || typeof data !== 'object') return getActiveUser()
     const name = data?.user?.username || data?.user?.user_id
-    return typeof name === 'string' && name ? name : null
+    if (typeof name !== 'string' || !name) {
+      clearActiveUser()
+      return null
+    }
+    setActiveUser(name)
+    return name
   } catch {
-    return null
+    return getActiveUser()
   }
+}
+
+interface SessionLook {
+  username: string | null
+  offline: boolean
+}
+
+async function readSession(fetchImpl?: SyncFetch): Promise<SessionLook> {
+  const fetcher = resolveFetch(fetchImpl)
+  if (!fetcher) return { username: null, offline: true }
+  try {
+    const res = await fetcher(`${syncApiPrefix()}/auth/me`, {
+      method: 'GET',
+      credentials: 'include',
+      headers: { Accept: 'application/json' },
+    })
+    if (res.status === 401 || res.status === 403) {
+      clearActiveUser()
+      return { username: null, offline: false }
+    }
+    if (!res.ok) return { username: null, offline: true }
+    const data = await res.json().catch(() => null)
+    if (!data || typeof data !== 'object') return { username: null, offline: true }
+    const name = data?.user?.username || data?.user?.user_id
+    if (typeof name !== 'string' || !name) {
+      clearActiveUser()
+      return { username: null, offline: false }
+    }
+    return { username: name, offline: false }
+  } catch {
+    return { username: null, offline: true }
+  }
+}
+
+function flushState(partial: Partial<FlushResult> & Pick<FlushResult, 'ok' | 'needsLogin' | 'offline'>): FlushResult {
+  const owner = getActiveUser()
+  const backlog = syncBacklog(owner || ANONYMOUS_OWNER)
+  return {
+    accepted: 0,
+    duplicate: 0,
+    rejected: 0,
+    pending: backlog.pending,
+    parked: backlog.parked,
+    full: backlog.full,
+    unclaimed: unclaimedCount(),
+    status: partial.status,
+    ...partial,
+  }
+}
+
+function accountedBatch(
+  data: unknown,
+  batchLength: number
+): { ok: true; accepted: number; duplicate: number; rejected: Array<{ client_event_id?: string }> } | { ok: false } {
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return { ok: false }
+  const body = data as { accepted?: unknown; duplicate?: unknown; rejected?: unknown }
+  if (typeof body.accepted !== 'number' || typeof body.duplicate !== 'number' || !Array.isArray(body.rejected)) {
+    return { ok: false }
+  }
+  const rejected = body.rejected as Array<{ client_event_id?: string }>
+  if (rejected.some(row => !row || typeof row.client_event_id !== 'string' || !row.client_event_id)) return { ok: false }
+  if (body.accepted + body.duplicate + rejected.length !== batchLength) return { ok: false }
+  return { ok: true, accepted: body.accepted, duplicate: body.duplicate, rejected }
 }
 
 export async function flushSyncQueue(fetchImpl?: SyncFetch): Promise<FlushResult> {
   importEnglishHistory()
+  const session = await readSession(fetchImpl)
+  if (session.offline) return flushState({ ok: false, needsLogin: false, offline: true })
+  if (!session.username) return flushState({ ok: false, needsLogin: true, offline: false })
+
+  const me = normalizeOwner(session.username)
+  setActiveUser(me)
+  detachForeign(me)
+  const snapshot = listPending(me).filter(item => normalizeOwner(item.owner || me) === me)
+  if (!snapshot.length) return flushState({ ok: true, needsLogin: false, offline: false })
+
   const fetcher = resolveFetch(fetchImpl)
-  const empty = (): FlushResult => ({
-    ok: true,
-    accepted: 0,
-    duplicate: 0,
-    rejected: 0,
-    pending: listPending().length,
-    needsLogin: false,
-    offline: false,
-  })
-  const snapshot = listPending()
-  if (!snapshot.length) return empty()
-  if (!fetcher) {
-    return { ...empty(), ok: false, offline: true, pending: snapshot.length }
-  }
+  if (!fetcher) return flushState({ ok: false, needsLogin: false, offline: true })
 
   let accepted = 0
   let duplicate = 0
@@ -145,38 +239,39 @@ export async function flushSyncQueue(fetchImpl?: SyncFetch): Promise<FlushResult
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify({ events: batch }),
+        body: JSON.stringify({ events: batch.map(wireAttempt) }),
       })
     } catch {
-      return { ok: false, accepted, duplicate, rejected, pending: listPending().length, needsLogin: false, offline: true }
+      return flushState({ ok: false, accepted, duplicate, rejected, needsLogin: false, offline: true })
     }
     if (res.status === 401 || res.status === 403) {
-      return { ok: false, accepted, duplicate, rejected, pending: listPending().length, needsLogin: true, offline: false, status: res.status }
+      return flushState({ ok: false, accepted, duplicate, rejected, needsLogin: true, offline: false, status: res.status })
     }
     if (!res.ok) {
-      return {
+      return flushState({
         ok: false,
         accepted,
         duplicate,
         rejected,
-        pending: listPending().length,
         needsLogin: false,
         offline: false,
         status: res.status,
-      }
+      })
     }
-    const data = await res.json().catch(() => ({}))
-    const rejectedRows: Array<{ client_event_id?: string }> = Array.isArray(data?.rejected) ? data.rejected : []
-    const rejectedIds = new Set(rejectedRows.map(row => row.client_event_id).filter((id): id is string => !!id))
+    const accounted = accountedBatch(await res.json().catch(() => null), batch.length)
+    if (!accounted.ok) {
+      return flushState({ ok: false, accepted, duplicate, rejected, needsLogin: false, offline: false, status: res.status })
+    }
+    const rejectedIds = new Set(accounted.rejected.map(row => row.client_event_id).filter((id): id is string => !!id))
     const parked = batch.filter(item => rejectedIds.has(item.client_event_id))
     const done = batch.filter(item => !rejectedIds.has(item.client_event_id)).map(item => item.client_event_id)
-    ackAttempts(done)
-    parkAttempts(parked)
-    accepted += Number(data?.accepted) || 0
-    duplicate += Number(data?.duplicate) || 0
-    rejected += rejectedRows.length
+    ackAttempts(done, me)
+    parkAttempts(parked, me)
+    accepted += accounted.accepted
+    duplicate += accounted.duplicate
+    rejected += accounted.rejected.length
   }
-  return { ok: true, accepted, duplicate, rejected, pending: listPending().length, needsLogin: false, offline: false }
+  return flushState({ ok: true, accepted, duplicate, rejected, needsLogin: false, offline: false })
 }
 
 let flushing = false

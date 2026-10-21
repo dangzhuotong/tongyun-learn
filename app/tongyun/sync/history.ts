@@ -3,7 +3,7 @@
 import { getRecords, type AnswerRecord } from '../english/records'
 import { getStats, INTERVALS } from '../english/wordlist'
 import { buildSyncAttempt, stableEventId } from './event'
-import { enqueueAttempts, type SyncAttempt } from './queue'
+import { ANONYMOUS_OWNER, enqueueAttempts, type SyncAttempt } from './queue'
 
 export function historyEventId(record: Pick<AnswerRecord, 'word' | 'mode' | 'ts' | 'correct'>): string {
   return stableEventId(`en:${record.word}:${record.mode}:${record.ts}:${record.correct ? 1 : 0}`)
@@ -39,7 +39,10 @@ export function attemptsFromHistory(
   return events
 }
 
-/** 读本地英语作答记录，把还没进队列的补进去。返回新入队条数。 */
+/**
+ * 本地英语历史没有账号，一律进 anonymous。
+ * 队列满了就停，不截掉已经在队列里的记录；腾出空位后再次导入会续上。
+ */
 export function importEnglishHistory(): number {
-  return enqueueAttempts(attemptsFromHistory(getRecords(), getStats()))
+  return enqueueAttempts(attemptsFromHistory(getRecords(), getStats()), ANONYMOUS_OWNER).added
 }

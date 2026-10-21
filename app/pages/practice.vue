@@ -6,6 +6,7 @@ import { gradePrefsOf, gradeTyped } from '@/tongyun/english/grade'
 import { getEnglishPrefs } from '@/tongyun/english/prefs'
 import { recordAnswer, type AnswerMode } from '@/tongyun/english/records'
 import { captureAnswer } from '@/tongyun/sync/capture'
+import { historyEventId } from '@/tongyun/sync/history'
 import { hintText, randomHint, type HintMask } from '@/tongyun/english/hint'
 import { typeableSentence } from '@/tongyun/english/local-queue'
 import { buildMeaningChoices, buildSession, buildWordChoices, handleChoiceTransition, resolveChoice, resolveSpell, type StudyItem } from '@/tongyun/english/study'
@@ -186,6 +187,7 @@ function noteEnglish(word: WordEntry, mode: AnswerMode, correct: boolean, now: n
     intervalDays: INTERVALS[stat.box] ?? 1,
     dueAt: stat.due,
     wordlistVer: 'v1.0',
+    eventId: historyEventId({ word: word.word, mode, ts: now, correct }),
   })
 }
 
