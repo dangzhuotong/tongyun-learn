@@ -1,10 +1,14 @@
 // tongyun: 学习同步客户端。登录打 Nitro /api/v1/auth/login（会话 cookie），
 // 练习队列打 /api/v1/attempts，写入现有 words_attempts / words_card_state。不迁 TiDB。
 
+import { withAppBaseURL } from '@/core/utils/base-url'
 import { importEnglishHistory } from './history'
 import { ackAttempts, listPending, parkAttempts, type SyncAttempt } from './queue'
 
-export const SYNC_API_PREFIX = '/api/v1'
+/** Nitro 挂在站点 base 下。/learn/ 时是 /learn/api/v1，避免打到会 302 的根路径。 */
+export function syncApiPrefix(baseURL?: string): string {
+  return withAppBaseURL('/api/v1', baseURL).replace(/\/$/, '')
+}
 
 export type SyncFetch = (input: string, init?: RequestInit) => Promise<Response>
 
@@ -56,7 +60,7 @@ export async function loginSync(username: string, password: string, fetchImpl?: 
   const fetcher = resolveFetch(fetchImpl)
   if (!fetcher) return { ok: false, status: 0, message: '连不上同步服务，练习先留在这台浏览器', offline: true }
   try {
-    const res = await fetcher(`${SYNC_API_PREFIX}/auth/login`, {
+    const res = await fetcher(`${syncApiPrefix()}/auth/login`, {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
@@ -84,7 +88,7 @@ export async function logoutSync(fetchImpl?: SyncFetch): Promise<void> {
   const fetcher = resolveFetch(fetchImpl)
   if (!fetcher) return
   try {
-    await fetcher(`${SYNC_API_PREFIX}/auth/logout`, {
+    await fetcher(`${syncApiPrefix()}/auth/logout`, {
       method: 'POST',
       credentials: 'include',
       headers: { Accept: 'application/json' },
@@ -98,7 +102,7 @@ export async function currentSyncUser(fetchImpl?: SyncFetch): Promise<string | n
   const fetcher = resolveFetch(fetchImpl)
   if (!fetcher) return null
   try {
-    const res = await fetcher(`${SYNC_API_PREFIX}/auth/me`, {
+    const res = await fetcher(`${syncApiPrefix()}/auth/me`, {
       method: 'GET',
       credentials: 'include',
       headers: { Accept: 'application/json' },
@@ -137,7 +141,7 @@ export async function flushSyncQueue(fetchImpl?: SyncFetch): Promise<FlushResult
     const batch = snapshot.slice(offset, offset + 200)
     let res: Response
     try {
-      res = await fetcher(`${SYNC_API_PREFIX}/attempts`, {
+      res = await fetcher(`${syncApiPrefix()}/attempts`, {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },

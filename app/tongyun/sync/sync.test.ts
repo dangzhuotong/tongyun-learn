@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { recordAnswer } from '../english/records'
 import { saveStat, teachStat } from '../english/wordlist'
 import { captureAnswer } from './capture'
-import { currentSyncUser, flushSyncQueue, loginSync, SYNC_API_PREFIX } from './client'
+import { currentSyncUser, flushSyncQueue, loginSync, syncApiPrefix } from './client'
 import { historyEventId, importEnglishHistory } from './history'
 import { shanghaiDay, stableEventId } from './event'
 import { listPending, SYNC_ACKED_KEY, SYNC_QUEUE_KEY } from './queue'
@@ -23,6 +23,13 @@ function jsonResponse(body: unknown, status = 200): Response {
     headers: { 'Content-Type': 'application/json' },
   })
 }
+
+describe('sync api prefix', () => {
+  it('keeps the Nitro routes under the site base', () => {
+    expect(syncApiPrefix('/')).toBe('/api/v1')
+    expect(syncApiPrefix('/learn/')).toBe('/learn/api/v1')
+  })
+})
 
 describe('sync attempt ids and dates', () => {
   it('builds a stable 36-char id', () => {
@@ -61,7 +68,7 @@ describe('offline queue and history upload', () => {
     expect(listPending()).toHaveLength(1)
 
     const fetchImpl = vi.fn(async (url: string, init?: RequestInit) => {
-      expect(url).toBe(`${SYNC_API_PREFIX}/attempts`)
+      expect(url).toBe(`${syncApiPrefix()}/attempts`)
       expect(init?.credentials).toBe('include')
       const body = JSON.parse(String(init?.body))
       expect(body.events).toHaveLength(1)
@@ -122,7 +129,7 @@ describe('offline queue and history upload', () => {
 
   it('logs in with the session cookie and does not keep the password', async () => {
     const fetchImpl = vi.fn(async (url: string, init?: RequestInit) => {
-      expect(url).toBe(`${SYNC_API_PREFIX}/auth/login`)
+      expect(url).toBe(`${syncApiPrefix()}/auth/login`)
       expect(init?.credentials).toBe('include')
       expect(JSON.parse(String(init?.body))).toEqual({ username: 'boss', password: 'from-the-form' })
       return jsonResponse({ ok: true, user: { username: 'boss' } })
