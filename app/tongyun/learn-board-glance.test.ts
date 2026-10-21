@@ -101,6 +101,24 @@ describe('map status summary', () => {
     expect(mapProgressLine(done)).toBe('全部阶段已通过 · 掌握 2 / 共 4')
   })
 
+  it('counts a locked point as available', () => {
+    const summary = summarizeMap({
+      subject: { id: JAVA_SUBJECT_ID, title: 'Java' },
+      stages: [
+        {
+          id: 's1',
+          title: '语法',
+          ord: 1,
+          passed: false,
+          points: [{ id: 'p1', title: '变量', prereqs: [{ id: 'later', kind: 'hard' }], stats: { state: 'locked' } }],
+        },
+      ],
+    })
+    expect(summary.counts.map(item => item.key)).not.toContain('locked')
+    expect(summary.counts.find(item => item.key === 'available')?.count).toBe(1)
+    expect(summary.totalPoints).toBe(1)
+  })
+
   it('handles a subject with no stages', () => {
     const empty = summarizeMap({ subject: { id: 'english', title: '英语' }, stages: [] })
     expect(mapStatusLine(empty)).toBe('这科还没有阶段')

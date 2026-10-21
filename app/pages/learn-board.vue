@@ -4,7 +4,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { BasePage } from '@/base'
 import { getLearnConfig } from '@/tongyun/learn-client'
-import type { Subject, NextResp, ReviewDueResp, Blocker } from '@/tongyun/learn-board-api'
+import type { Subject, SubjectMap, NextResp, ReviewDueResp, Blocker } from '@/tongyun/learn-board-api'
 import {
   fetchSubjects,
   fetchNext,
@@ -28,6 +28,7 @@ import {
   mapStatusLine,
   type MapStatusSummary,
 } from '@/tongyun/learn-board-glance'
+import { displayPointState, recommendAdjacent } from '@/tongyun/learn-board-linear'
 
 useSeoMeta({
   title: '学习看板',
@@ -78,6 +79,8 @@ const retentionLoaded = ref<Record<string, boolean>>({})
 
 const javaMapState = ref<BlockState>('loading')
 const englishMapState = ref<BlockState>('loading')
+const javaMap = ref<SubjectMap | null>(null)
+const englishMap = ref<SubjectMap | null>(null)
 const javaSummary = ref<MapStatusSummary | null>(null)
 const englishSummary = ref<MapStatusSummary | null>(null)
 const javaSubjectId = ref(JAVA_SUBJECT_ID)
@@ -134,6 +137,8 @@ async function loadOneMap(subject: Subject | null, slot: 'java' | 'english') {
   }
 
   if (!subject) {
+    if (isJava) javaMap.value = null
+    else englishMap.value = null
     setSummary(null)
     setMissing(isJava ? '学科列表里没有 Java（java-fde）' : '学科列表里没有英语')
     if (isJava) {
@@ -158,19 +163,44 @@ async function loadOneMap(subject: Subject | null, slot: 'java' | 'english') {
 
   const res = await fetchMap(subject.id)
   if (res.ok && res.data) {
+    if (isJava) javaMap.value = res.data
+    else englishMap.value = res.data
     setSummary(summarizeMap(res.data))
     setState('ok')
   } else if (res.kind === 'bad_token' || res.kind === 'no_token') {
+    if (isJava) javaMap.value = null
+    else englishMap.value = null
     setSummary(null)
     setState('bad_token')
   } else if (res.kind === 'not_found') {
+    if (isJava) javaMap.value = null
+    else englishMap.value = null
     setSummary(null)
     setMissing(isJava ? '还没有 Java（java-fde）的地图' : '还没有英语地图')
     setState('ok')
   } else {
+    if (isJava) javaMap.value = null
+    else englishMap.value = null
     setSummary(null)
     setState('unreachable')
   }
+}
+
+function applyLinearToday() {
+  const packs = []
+  if (javaMap.value) packs.push({ map: javaMap.value, subjectId: javaSubjectId.value || javaMap.value.subject?.id })
+  if (englishMap.value) packs.push({ map: englishMap.value, subjectId: englishSubjectId.value || englishMap.value.subject?.id })
+  if (!packs.length) return
+  const next = recommendAdjacent(packs, 5)
+  todayData.value = {
+    recheck: todayData.value.recheck || [],
+    next,
+    new_point_quota: todayData.value.new_point_quota || {
+      global_left: next.filter(item => item.opens_today).length,
+      by_subject_left: {},
+    },
+  }
+  todayState.value = 'ok'
 }
 
 function goToSetting() {
@@ -200,8 +230,11 @@ async function loadAll(initial = true) {
   // 1. 今天学什么
   if (nextSettled.status === 'fulfilled') {
     const res = nextSettled.value
-    if (res.ok) {
-      todayData.value = res.data
+    if (res.ok && res.data) {
+      todayData.value = {
+        ...res.data,
+        next: (res.data.next || []).map(item => ({ ...item, state: displayPointState(item.state) })),
+      }
       todayState.value = 'ok'
     } else if (res.kind === 'bad_token' || res.kind === 'no_token') {
       todayState.value = 'bad_token'
@@ -253,6 +286,7 @@ async function loadAll(initial = true) {
       subjectsData.value = resolved.ordered
       subjectsState.value = 'ok'
       await Promise.all([loadOneMap(resolved.java, 'java'), loadOneMap(resolved.english, 'english')])
+      applyLinearToday()
 
       // 并行拉 progress
       const currentSubjects = resolved.ordered

@@ -5,6 +5,7 @@ import { useRouter } from 'vue-router'
 import type { Subject, SubjectMap, MapStage, MapPoint } from '@/tongyun/learn-board-api'
 import { fetchMap, POINT_STATES, stateLabel, stateColor } from '@/tongyun/learn-board-api'
 import { resolveBoardSubjects } from '@/tongyun/learn-board-glance'
+import { displayPointState, unitNeighbors } from '@/tongyun/learn-board-linear'
 
 interface Props {
   subjects: Subject[]
@@ -27,17 +28,6 @@ const currentMap = computed<SubjectMap | null>(() => {
 const sortedStages = computed<MapStage[]>(() => {
   if (!currentMap.value?.stages) return []
   return currentMap.value.stages.slice().sort((a, b) => a.ord - b.ord)
-})
-
-const pointLookup = computed(() => {
-  const map = new Map<string, MapPoint>()
-  if (!currentMap.value?.stages) return map
-  for (const st of currentMap.value.stages) {
-    for (const pt of st.points || []) {
-      map.set(pt.id, pt)
-    }
-  }
-  return map
 })
 
 function initDefaultStages(map: SubjectMap) {
@@ -103,7 +93,7 @@ function togglePoint(pointId: string) {
 function getStageStateCounts(stage: MapStage) {
   const counts: Record<string, number> = {}
   for (const p of stage.points || []) {
-    const st = p.stats?.state || 'locked'
+    const st = displayPointState(p.stats?.state)
     counts[st] = (counts[st] || 0) + 1
   }
   return POINT_STATES.map(s => ({ key: s.key, color: s.color, count: counts[s.key] || 0 })).filter(s => s.count > 0)
@@ -111,6 +101,10 @@ function getStageStateCounts(stage: MapStage) {
 
 function goToSetting() {
   router.push('/setting?index=0')
+}
+
+function neighborsOf(stage: MapStage, point: MapPoint) {
+  return unitNeighbors(stage, point.id)
 }
 
 function preferredSubjectId(subs: Subject[]): string {
@@ -215,44 +209,55 @@ onMounted(() => {
                 @click="togglePoint(point.id)"
               >
                 <div class="lb-point-left">
-                  <span class="lb-point-dot" :style="{ backgroundColor: stateColor(point.stats?.state) }" />
+                  <span class="lb-point-dot" :style="{ backgroundColor: stateColor(displayPointState(point.stats?.state)) }" />
                   <span class="lb-point-title">{{ point.title }}</span>
                 </div>
                 <div class="lb-point-right">
-                  <span class="lb-point-state-text" :style="{ color: stateColor(point.stats?.state) }">
-                    {{ stateLabel(point.stats?.state) }}
+                  <span class="lb-point-state-text" :style="{ color: stateColor(displayPointState(point.stats?.state)) }">
+                    {{ stateLabel(displayPointState(point.stats?.state)) }}
                   </span>
                   <span class="lb-expand-indicator">
-                    {{ expandedPointId === point.id ? '收起' : '前置' }}
+                    {{ expandedPointId === point.id ? '收起' : '相邻' }}
                   </span>
                 </div>
               </button>
 
-              <!-- 点击展开的前置详情 -->
+              <!-- 同一单元里的上一个 / 下一个，不画前置网 -->
               <div v-if="expandedPointId === point.id" class="lb-prereqs-box">
-                <div v-if="!point.prereqs || point.prereqs.length === 0" class="lb-prereq-empty">没有前置</div>
-
+                <div
+                  v-if="!neighborsOf(stage, point).prev && !neighborsOf(stage, point).next"
+                  class="lb-prereq-empty"
+                >
+                  这个单元只有这一个知识点
+                </div>
                 <div v-else class="lb-prereq-list">
-                  <div v-for="pr in point.prereqs" :key="pr.id" class="lb-prereq-row">
+                  <div v-if="neighborsOf(stage, point).prev" class="lb-prereq-row">
                     <div class="lb-prereq-left">
-                      <span class="lb-prereq-kind-badge" :class="pr.kind === 'hard' ? 'kind-hard' : 'kind-soft'">
-                        {{ pr.kind === 'hard' ? '硬前置' : '软前置' }}
-                      </span>
-                      <span class="lb-prereq-title">
-                        {{ pointLookup.get(pr.id)?.title || pr.id }}
-                      </span>
+                      <span class="lb-prereq-kind-badge kind-soft">上一个</span>
+                      <span class="lb-prereq-title">{{ neighborsOf(stage, point).prev?.title }}</span>
                     </div>
-
                     <div class="lb-prereq-right">
                       <span
                         class="lb-prereq-state-dot"
-                        :style="{ backgroundColor: stateColor(pointLookup.get(pr.id)?.stats?.state) }"
+                        :style="{ backgroundColor: stateColor(displayPointState(neighborsOf(stage, point).prev?.stats?.state)) }"
                       />
+                      <span class="lb-prereq-state-text">
+                        {{ stateLabel(displayPointState(neighborsOf(stage, point).prev?.stats?.state)) }}
+                      </span>
+                    </div>
+                  </div>
+                  <div v-if="neighborsOf(stage, point).next" class="lb-prereq-row">
+                    <div class="lb-prereq-left">
+                      <span class="lb-prereq-kind-badge kind-soft">下一个</span>
+                      <span class="lb-prereq-title">{{ neighborsOf(stage, point).next?.title }}</span>
+                    </div>
+                    <div class="lb-prereq-right">
                       <span
-                        class="lb-prereq-state-text"
-                        :style="{ color: stateColor(pointLookup.get(pr.id)?.stats?.state) }"
-                      >
-                        {{ stateLabel(pointLookup.get(pr.id)?.stats?.state) }}
+                        class="lb-prereq-state-dot"
+                        :style="{ backgroundColor: stateColor(displayPointState(neighborsOf(stage, point).next?.stats?.state)) }"
+                      />
+                      <span class="lb-prereq-state-text">
+                        {{ stateLabel(displayPointState(neighborsOf(stage, point).next?.stats?.state)) }}
                       </span>
                     </div>
                   </div>
