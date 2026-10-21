@@ -194,7 +194,6 @@ export function fetchOpenBlockers(): Promise<BoardResult<Blocker[]>> {
 }
 
 export const POINT_STATES = [
-  { key: 'locked', label: '未解锁', color: '#9ca3af' },
   { key: 'available', label: '可学', color: '#3b82f6' },
   { key: 'learning', label: '学习中', color: '#f59e0b' },
   { key: 'learned', label: '学过', color: '#14b8a6' },
@@ -206,14 +205,22 @@ const STATE_MAP = new Map<string, { label: string; color: string }>(
   POINT_STATES.map(s => [s.key, { label: s.label, color: s.color }])
 )
 
+function shownState(s?: string | null): string | null {
+  if (!s) return null
+  if (s === 'locked') return 'available'
+  return s
+}
+
 export function stateLabel(s?: string | null): string {
-  if (!s) return '未知'
-  return STATE_MAP.get(s)?.label || '未知'
+  const key = shownState(s)
+  if (!key) return '未知'
+  return STATE_MAP.get(key)?.label || '未知'
 }
 
 export function stateColor(s?: string | null): string {
-  if (!s) return '#9ca3af'
-  return STATE_MAP.get(s)?.color || '#9ca3af'
+  const key = shownState(s)
+  if (!key) return '#9ca3af'
+  return STATE_MAP.get(key)?.color || '#9ca3af'
 }
 
 export function formatRetention(v: number | null | undefined): string {

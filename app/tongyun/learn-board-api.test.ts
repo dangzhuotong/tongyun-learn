@@ -14,15 +14,16 @@ import {
 describe('learn-board-api utilities', () => {
   describe('POINT_STATES metadata', () => {
     it('defines standard learning point states', () => {
-      expect(POINT_STATES).toHaveLength(6)
+      expect(POINT_STATES).toHaveLength(5)
       const keys = POINT_STATES.map(s => s.key)
-      expect(keys).toEqual(['locked', 'available', 'learning', 'learned', 'mastered', 'rusty'])
+      expect(keys).toEqual(['available', 'learning', 'learned', 'mastered', 'rusty'])
+      expect(keys).not.toContain('locked')
     })
   })
 
   describe('stateLabel', () => {
     it('maps known state keys to Chinese labels', () => {
-      expect(stateLabel('locked')).toBe('未解锁')
+      expect(stateLabel('locked')).toBe('可学')
       expect(stateLabel('available')).toBe('可学')
       expect(stateLabel('learning')).toBe('学习中')
       expect(stateLabel('learned')).toBe('学过')
@@ -40,7 +41,7 @@ describe('learn-board-api utilities', () => {
 
   describe('stateColor', () => {
     it('maps known state keys to hexadecimal colors', () => {
-      expect(stateColor('locked')).toBe('#9ca3af')
+      expect(stateColor('locked')).toBe('#3b82f6')
       expect(stateColor('available')).toBe('#3b82f6')
       expect(stateColor('learning')).toBe('#f59e0b')
       expect(stateColor('learned')).toBe('#14b8a6')

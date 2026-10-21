@@ -2,6 +2,7 @@
 <script setup lang="ts">
 import type { Subject } from '@/tongyun/learn-board-api'
 import { POINT_STATES, formatRetention } from '@/tongyun/learn-board-api'
+import { foldPointCounts } from '@/tongyun/learn-board-linear'
 
 interface Props {
   subjects: Subject[]
@@ -11,19 +12,23 @@ interface Props {
 
 const props = defineProps<Props>()
 
+function countsOf(sub: Subject): Record<string, number> {
+  return foldPointCounts(sub.points_by_state)
+}
+
 function getTotalPoints(sub: Subject): number {
-  if (!sub.points_by_state) return 0
-  return Object.values(sub.points_by_state).reduce((sum, val) => sum + (Number(val) || 0), 0)
+  return Object.values(countsOf(sub)).reduce((sum, val) => sum + (Number(val) || 0), 0)
 }
 
 function getMasteredPoints(sub: Subject): number {
-  return sub.points_by_state?.['mastered'] || 0
+  return countsOf(sub).mastered || 0
 }
 
 function getSegments(sub: Subject) {
+  const counts = countsOf(sub)
   const total = getTotalPoints(sub)
   return POINT_STATES.map(s => {
-    const count = sub.points_by_state?.[s.key] || 0
+    const count = counts[s.key] || 0
     const pct = total > 0 ? (count / total) * 100 : 0
     return {
       key: s.key,

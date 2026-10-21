@@ -1,5 +1,6 @@
 // tongyun: 学习看板首屏怎么认出 Java / 英语，以及地图状态怎么一句话讲清
 import { POINT_STATES, type SubjectMap } from './learn-board-api'
+import { displayPointState } from './learn-board-linear'
 
 export const JAVA_SUBJECT_ID = 'java-fde'
 
@@ -84,7 +85,7 @@ export function summarizeMap(map: SubjectMap | null | undefined): MapStatusSumma
   for (const st of stages) {
     for (const p of st.points || []) {
       totalPoints += 1
-      const key = p.stats?.state || 'locked'
+      const key = displayPointState(p.stats?.state)
       countsMap[key] = (countsMap[key] || 0) + 1
     }
   }
