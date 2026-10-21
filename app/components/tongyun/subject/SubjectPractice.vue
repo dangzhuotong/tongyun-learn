@@ -22,6 +22,7 @@ import {
   type SelfAssessment,
   type SubjectItemStat,
 } from '@/tongyun/subject'
+import { captureAnswer } from '@/tongyun/sync/capture'
 
 const props = defineProps<{
   subject: string
@@ -34,6 +35,7 @@ const emit = defineEmits<{
 
 const ready = ref(false)
 const loading = ref(true)
+const openedAt = ref(0)
 const bank = ref<QuestionBank>({ subject: '', version: '', points: [], items: [] })
 const items = ref<Card[]>([])
 const index = ref(0)
@@ -98,6 +100,7 @@ function focusInput() {
 }
 
 function openCard() {
+  openedAt.value = Date.now()
   typed.value = ''
   chosen.value = ''
   selfGrade.value = null
@@ -125,10 +128,28 @@ async function load() {
   }
 }
 
-function persistAuto(item: Card, correct: boolean, now = Date.now()) {
+function noteSubject(item: Card, correct: boolean, now: number, stat: SubjectItemStat, answerText?: string) {
+  const kp = getKnowledgePoint(bank.value, item.point_id)
+  captureAnswer({
+    word: `${props.subject}:${item.id}`.slice(0, 128),
+    mode: item.type,
+    correct,
+    answeredAt: now,
+    durationMs: openedAt.value ? Math.max(0, now - openedAt.value) : 0,
+    answerText: answerText || null,
+    pointId: item.point_id || null,
+    level: kp?.level != null ? String(kp.level) : String(item.level),
+    intervalDays: stat.due > now ? Math.round((stat.due - now) / 86400000) : (INTERVALS[stat.box] ?? 1),
+    dueAt: stat.due,
+    wordlistVer: bank.value.version || null,
+  })
+}
+
+function persistAuto(item: Card, correct: boolean, now = Date.now(), answerText?: string) {
   const saved = recordSubjectResult(props.subject, item.id, correct, now)
   lastSavedStat.value = saved
   statsMap.value[item.id] = saved
+  noteSubject(item, correct, now, saved, answerText)
   return saved
 }
 
@@ -150,6 +171,7 @@ function persistSelf(item: Card, assessment: SelfAssessment, now = Date.now()) {
   saveSubjectStat(props.subject, item.id, saved)
   lastSavedStat.value = saved
   statsMap.value[item.id] = saved
+  noteSubject(item, assessment === 'self_ok', now, saved)
   return saved
 }
 
@@ -173,7 +195,7 @@ function submitTyped() {
     return
   }
   finishAnswer(result)
-  persistAuto(item, result === 'correct')
+  persistAuto(item, result === 'correct', Date.now(), typed.value)
 }
 
 /** 选择题点选项即交卡 */
@@ -184,7 +206,7 @@ function submitChoice(option: string) {
   const item = current.value
   const result = gradeCard(item, option)
   finishAnswer(result === 'self' ? 'wrong' : result)
-  persistAuto(item, result === 'correct')
+  persistAuto(item, result === 'correct', Date.now(), option)
 }
 
 /** oral / project：选完自评三档才落库 */
