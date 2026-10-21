@@ -5,12 +5,15 @@ import { withAppBaseURL } from '@/core/utils/base-url'
 import { gradePrefsOf, gradeTyped } from '@/tongyun/english/grade'
 import { getEnglishPrefs } from '@/tongyun/english/prefs'
 import { recordAnswer, type AnswerMode } from '@/tongyun/english/records'
+import { captureAnswer } from '@/tongyun/sync/capture'
+import { historyEventId } from '@/tongyun/sync/history'
 import { hintText, randomHint, type HintMask } from '@/tongyun/english/hint'
 import { typeableSentence } from '@/tongyun/english/local-queue'
 import { buildMeaningChoices, buildSession, buildWordChoices, handleChoiceTransition, resolveChoice, resolveSpell, type StudyItem } from '@/tongyun/english/study'
 import {
   getOptionalLevels,
   getStats,
+  INTERVALS,
   loadWordlist,
   relearnStat,
   saveStat,
@@ -66,6 +69,7 @@ function setSubject(sub: ActiveSubject) {
 
 const ready = ref(false)
 const loading = ref(true)
+const openedAt = ref(0)
 const list = ref<WordEntry[]>([])
 const items = ref<StudyItem[]>([])
 const index = ref(0)
@@ -131,6 +135,7 @@ function focusWord() {
 function openCard() {
   const current = item.value
   if (!current) return
+  openedAt.value = Date.now()
   typed.value = ''
   chosen.value = ''
   choiceResult.value = 'idle'
@@ -169,6 +174,23 @@ function next() {
   if (index.value < items.value.length) openCard()
 }
 
+function noteEnglish(word: WordEntry, mode: AnswerMode, correct: boolean, now: number, stat: { box: number; due: number }, answerText?: string) {
+  captureAnswer({
+    word: word.word,
+    mode,
+    correct,
+    answeredAt: now,
+    durationMs: openedAt.value ? Math.max(0, now - openedAt.value) : 0,
+    answerText: answerText || null,
+    pointId: word.point_id || null,
+    level: `L${word.level}`,
+    intervalDays: INTERVALS[stat.box] ?? 1,
+    dueAt: stat.due,
+    wordlistVer: 'v1.0',
+    eventId: historyEventId({ word: word.word, mode, ts: now, correct }),
+  })
+}
+
 async function load() {
   loading.value = true
   list.value = await loadWordlist()
@@ -193,6 +215,7 @@ function finishTeach() {
   const stat = stats[w.word] ? relearnStat(stats[w.word]!, now) : teachStat(w.word, now)
   saveStat(w.word, stat)
   recordAnswer(w.word, 'teach', true, now)
+  noteEnglish(w, 'teach', true, now, stat)
   next()
 }
 
@@ -220,6 +243,10 @@ function choose(option: string) {
     const prev = getStats()[w.word] || teachStat(w.word, now)
     const { stat } = resolveChoice(prev, false, now)
     saveStat(w.word, stat)
+    noteEnglish(w, 'choice', false, now, stat, option)
+  } else {
+    const stat = getStats()[w.word] || teachStat(w.word, now)
+    noteEnglish(w, 'choice', true, now, stat, option)
   }
 }
 
@@ -248,13 +275,18 @@ function submitSpell() {
     const prev = getStats()[w.word] || teachStat(w.word, now)
     const { stat } = resolveSpell(prev, true, 0, now)
     saveStat(w.word, stat)
+    noteEnglish(w, spellAnswerMode(), true, now, stat, typed.value)
     answered.value = true
     feedback.value = '答对了'
     return
   }
-  recordAnswer(w.word, spellAnswerMode(), false, now)
+  const spellMode = spellAnswerMode()
+  const typedText = typed.value
+  recordAnswer(w.word, spellMode, false, now)
   wrongCount.value += 1
   if (wrongCount.value < 2) {
+    const stat = getStats()[w.word] || teachStat(w.word, now)
+    noteEnglish(w, spellMode, false, now, stat, typedText)
     typed.value = ''
     hintMask.value = randomHint(w.word)
     hintShown.value = true
@@ -267,6 +299,7 @@ function submitSpell() {
   const prev = getStats()[w.word] || teachStat(w.word, now)
   const { stat } = resolveSpell(prev, false, 1, now)
   saveStat(w.word, stat)
+  noteEnglish(w, spellMode, false, now, stat, typedText)
   const reteach: StudyItem = { id: `teach-${w.word}`, word: w, mode: 'teach', reason: 'relearn', reviewIndex: 0 }
   items.value.splice(index.value + 1, 0, reteach)
   feedback.value = '再错一次了，重新教一遍'

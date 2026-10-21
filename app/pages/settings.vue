@@ -3,6 +3,8 @@
 import { onMounted, ref } from 'vue'
 import { ECDICT_ATTRIBUTION, NGSL_ATTRIBUTION } from '@/tongyun/english/wordlist'
 import { getEnglishPrefs, saveEnglishPrefs, type EnglishPrefs } from '@/tongyun/english/prefs'
+import { currentSyncUser, flushSyncQueue, loginSync, logoutSync } from '@/tongyun/sync/client'
+import { ANONYMOUS_OWNER, claimAnonymous, requeueParked, syncBacklog, unclaimedCount } from '@/tongyun/sync/queue'
 
 definePageMeta({
   layout: 'yunya',
@@ -14,11 +16,101 @@ useSeoMeta({
 
 const prefs = ref<EnglishPrefs>(getEnglishPrefs())
 const ready = ref(false)
+const syncUser = ref('')
+const syncPass = ref('')
+const syncBusy = ref(false)
+const signedIn = ref('')
+const syncStatus = ref('')
+const pendingCount = ref(0)
+const parkedCount = ref(0)
+const queueFull = ref(false)
+const unclaimed = ref(0)
+const anonymousPending = ref(0)
+const anonymousFull = ref(false)
 
-onMounted(() => {
+function refreshQueue() {
+  const backlog = syncBacklog(signedIn.value || undefined)
+  pendingCount.value = backlog.pending
+  parkedCount.value = backlog.parked
+  queueFull.value = backlog.full
+  unclaimed.value = unclaimedCount()
+  const anonymous = syncBacklog(ANONYMOUS_OWNER)
+  anonymousPending.value = anonymous.pending
+  anonymousFull.value = anonymous.full
+}
+
+function applyFlush(flushed: Awaited<ReturnType<typeof flushSyncQueue>>) {
+  syncStatus.value = uploadStatus(flushed)
+  if (flushed.needsLogin) signedIn.value = ''
+  refreshQueue()
+}
+
+onMounted(async () => {
   prefs.value = getEnglishPrefs()
   ready.value = true
+  signedIn.value = (await currentSyncUser()) || ''
+  refreshQueue()
 })
+
+function uploadStatus(flushed: Awaited<ReturnType<typeof flushSyncQueue>>): string {
+  if (flushed.needsLogin) return signedIn.value ? '登录未保持，请再试一次' : '先登录学习库，再上传练习记录'
+  if (flushed.offline) return '连不上同步服务，练习先留在这台浏览器'
+  if (!flushed.ok) return '上传结果对不上，记录还留在这台浏览器'
+  const cap = flushed.full ? `待传 ${flushed.pending} 条，已达上限` : `还剩 ${flushed.pending} 条`
+  const claimed = flushed.unclaimed ? `。有 ${flushed.unclaimed} 条未归属记录，认领后才会上传` : ''
+  return `已上传，新写入 ${flushed.accepted} 条，重复 ${flushed.duplicate} 条，${cap}${claimed}`
+}
+
+async function submitSync() {
+  if (syncBusy.value) return
+  syncBusy.value = true
+  syncStatus.value = ''
+  const password = syncPass.value
+  syncPass.value = ''
+  const loggedIn = await loginSync(syncUser.value, password)
+  if (!loggedIn.ok) {
+    syncStatus.value = loggedIn.message
+    syncBusy.value = false
+    return
+  }
+  signedIn.value = loggedIn.username
+  const flushed = await flushSyncQueue()
+  applyFlush(flushed)
+  syncBusy.value = false
+}
+
+async function uploadOnly() {
+  if (syncBusy.value) return
+  syncBusy.value = true
+  const flushed = await flushSyncQueue()
+  applyFlush(flushed)
+  syncBusy.value = false
+}
+
+async function claimAndUpload() {
+  if (syncBusy.value || !signedIn.value) return
+  syncBusy.value = true
+  claimAnonymous(signedIn.value)
+  const flushed = await flushSyncQueue()
+  applyFlush(flushed)
+  syncBusy.value = false
+}
+
+async function retryRejected() {
+  if (syncBusy.value || !signedIn.value) return
+  syncBusy.value = true
+  requeueParked(signedIn.value)
+  const flushed = await flushSyncQueue()
+  applyFlush(flushed)
+  syncBusy.value = false
+}
+
+async function signOutSync() {
+  await logoutSync()
+  signedIn.value = ''
+  refreshQueue()
+  syncStatus.value = '已退出同步。这个账号的待传记录留在这台浏览器，不会记到下一个账号。'
+}
 
 function toggle(key: keyof EnglishPrefs, value: boolean) {
   prefs.value = saveEnglishPrefs({ [key]: value })
@@ -56,6 +148,51 @@ function toggle(key: keyof EnglishPrefs, value: boolean) {
       </div>
       <p class="hint">敲句那一屏的中文提示会留着，不然整句没有可看的题目。上面的中文开关管词义和例句译文。</p>
     </div>
+
+    <div v-if="ready" class="yy-card panel">
+      <h2>学习同步</h2>
+      <p class="hint">练习先记在这台浏览器。登录后上传到学习库，沿用现有的作答表。密码只用于这一次登录，不会写进页面或本地记录。</p>
+      <p v-if="signedIn" class="notice">已登录 {{ signedIn }}</p>
+      <p class="hint" data-testid="sync-backlog">
+        <template v-if="signedIn">
+          {{ queueFull ? `待传 ${pendingCount} 条，已达上限` : `待传 ${pendingCount} 条` }}
+          <template v-if="parkedCount">。被拒绝 {{ parkedCount }} 条</template>
+        </template>
+        <template v-else>
+          {{
+            unclaimed
+              ? `未归属 ${unclaimed} 条。登录后确认，才会记到这个账号。`
+              : '登录后才会上传这个账号的练习记录。'
+          }}
+        </template>
+      </p>
+      <p v-if="signedIn && unclaimed" class="notice" data-testid="sync-unclaimed">
+        有 {{ unclaimed }} 条未归属的练习记录。认领到当前账号后才会上传。
+      </p>
+      <p v-if="anonymousFull" class="notice" data-testid="sync-cap">待传 {{ anonymousPending }} 条，已达上限</p>
+      <form class="sync-form" @submit.prevent="submitSync">
+        <label>
+          账号
+          <input v-model="syncUser" autocomplete="username" data-testid="sync-user" />
+        </label>
+        <label>
+          密码
+          <input v-model="syncPass" type="password" autocomplete="current-password" data-testid="sync-pass" />
+        </label>
+        <div class="actions">
+          <button type="submit" data-testid="sync-login" :disabled="syncBusy">登录并上传</button>
+          <button type="button" data-testid="sync-upload" :disabled="syncBusy" @click="uploadOnly">只上传</button>
+          <button v-if="signedIn && unclaimed" type="button" data-testid="sync-claim" :disabled="syncBusy" @click="claimAndUpload">
+            认领到当前账号
+          </button>
+          <button v-if="signedIn && parkedCount" type="button" data-testid="sync-retry" :disabled="syncBusy" @click="retryRejected">
+            重新上传
+          </button>
+          <button v-if="signedIn" type="button" :disabled="syncBusy" @click="signOutSync">退出同步</button>
+        </div>
+      </form>
+      <p v-if="syncStatus" class="notice" data-testid="sync-status">{{ syncStatus }}</p>
+    </div>
     <p class="hint credit" data-testid="ngsl-credit">词表：{{ NGSL_ATTRIBUTION }} {{ ECDICT_ATTRIBUTION }}</p>
   </section>
 </template>
@@ -75,6 +212,12 @@ function toggle(key: keyof EnglishPrefs, value: boolean) {
 h1 {
   margin: 8px 0 0;
   font-size: 40px;
+  font-weight: 650;
+}
+
+h2 {
+  margin: 0;
+  font-size: 22px;
   font-weight: 650;
 }
 
@@ -128,5 +271,40 @@ h1 {
 
 .prefs {
   margin-top: 8px;
+}
+
+.sync-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sync-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 14px;
+}
+
+.sync-form input {
+  padding: 10px 12px;
+  border: 1px solid var(--color-item-border, #ddd);
+  border-radius: 10px;
+  font-size: 16px;
+}
+
+.sync-form button {
+  padding: 10px 14px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--yy-matcha, #a4c48c);
+  color: #fff;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.sync-form button:disabled {
+  opacity: 0.6;
+  cursor: default;
 }
 </style>
