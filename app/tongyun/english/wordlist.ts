@@ -33,6 +33,46 @@ export const LEVELS: { level: number; title: string; optional?: boolean }[] = [
   { level: 6, title: 'L6 面试表达', optional: true },
 ]
 
+/** 技术英语（tech-english，对应 legacy/maps/english.yaml）28 个知识点 */
+export const TECH_ENGLISH_POINT_IDS = [
+  // s1 词汇与句子
+  'en.vocab-general',
+  'en.vocab-java',
+  'en.vocab-ai',
+  'en.abbreviations',
+  'en.long-sentence',
+  'en.spec-words',
+  // s2 读技术文档
+  'en.doc-navigation',
+  'en.read-readme',
+  'en.read-javadoc',
+  'en.read-changelog',
+  'en.read-errors',
+  'en.read-ai-docs',
+  // s3 写作
+  'en.commit-message',
+  'en.write-issue',
+  'en.write-readme',
+  'en.write-pr-review',
+  'en.ask-for-help',
+  // s4 听力
+  'en.listen-numbers',
+  'en.listen-signposts',
+  'en.listen-shadowing',
+  'en.listen-talk-summary',
+  'en.listen-tutorial-follow',
+  // s5 面试与表达
+  'en.self-intro',
+  'en.explain-concept',
+  'en.project-pitch-en',
+  'en.behavioral-star',
+  'en.clarify-and-confirm',
+  'en.handle-unknown',
+] as const
+
+/** 词表注释例外：L2（X/社区用语）与 L5 发推（tweet）使用 en.x-community */
+export const COMMUNITY_POINT_ID_EXCEPTION = 'en.x-community'
+
 export const TAG_LABEL: Record<string, string> = {
   ai: 'AI', community: 'X 社区', java: 'Java', spring: 'Spring', db: '数据库', web: 'Web', cloud: '部署',
   general: '通用', tweet: '发推', readme: 'README', issue: 'issue', pr: 'PR', interview: '面试', work: '工作',
