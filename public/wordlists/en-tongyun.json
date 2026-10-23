@@ -13468,7 +13468,7 @@
       "level": 5,
       "phonetic": "/kəˈmɪt ˈmesɪdʒ/",
       "phonetic_note": "由 ECDICT 词根/单词音标推导拼合，未经词典核对",
-      "point_id": "en.write-pr-review",
+      "point_id": "en.commit-message",
       "source": "自编"
     },
     {
@@ -13546,7 +13546,7 @@
       "level": 5,
       "phonetic": "/maɪˈɡreɪʃən ɡaɪd/",
       "phonetic_note": "由 ECDICT 词根/单词音标推导拼合，未经词典核对",
-      "point_id": "en.write-pr-review",
+      "point_id": "en.read-changelog",
       "source": "自编"
     },
     {
@@ -13559,7 +13559,7 @@
       "level": 5,
       "phonetic": "/sɪˈmæntɪk ˈvɜːʃnɪŋ/",
       "phonetic_note": "由 ECDICT 词根/单词音标推导拼合，未经词典核对",
-      "point_id": "en.write-pr-review",
+      "point_id": "en.read-changelog",
       "source": "自编"
     },
     {
@@ -13624,7 +13624,7 @@
       "level": 6,
       "phonetic": "/tel miː əˈbaʊt jʊəˈself/",
       "phonetic_note": "由 ECDICT 词根/单词音标推导拼合，未经词典核对",
-      "point_id": "en.explain-concept",
+      "point_id": "en.self-intro",
       "source": "自编"
     },
     {
@@ -13637,7 +13637,7 @@
       "level": 6,
       "phonetic": "/aɪm eɪ ˈbækend ˌendʒɪˈnɪə/",
       "phonetic_note": "由 ECDICT 词根/单词音标推导拼合，未经词典核对",
-      "point_id": "en.explain-concept",
+      "point_id": "en.self-intro",
       "source": "自编"
     },
     {
@@ -13650,7 +13650,7 @@
       "level": 6,
       "phonetic": "/aɪ ˈspeʃəlaɪz ɪn/",
       "phonetic_note": "由 ECDICT 词根/单词音标推导拼合，未经词典核对",
-      "point_id": "en.explain-concept",
+      "point_id": "en.self-intro",
       "source": "自编"
     },
     {
@@ -13663,7 +13663,7 @@
       "level": 6,
       "phonetic": "/maɪ meɪn ˈfəʊkəs/",
       "phonetic_note": "由 ECDICT 词根/单词音标推导拼合，未经词典核对",
-      "point_id": "en.explain-concept",
+      "point_id": "en.self-intro",
       "source": "自编"
     },
     {
@@ -13676,7 +13676,7 @@
       "level": 6,
       "phonetic": "/hænds ɒn ɪkˈspɪərɪəns/",
       "phonetic_note": "由 ECDICT 词根/单词音标推导拼合，未经词典核对",
-      "point_id": "en.explain-concept",
+      "point_id": "en.self-intro",
       "source": "自编"
     },
     {
@@ -13689,7 +13689,7 @@
       "level": 6,
       "phonetic": "/aɪ wɒz rɪˈspɒnsəbl fɔː/",
       "phonetic_note": "由 ECDICT 词根/单词音标推导拼合，未经词典核对",
-      "point_id": "en.explain-concept",
+      "point_id": "en.self-intro",
       "source": "自编"
     },
     {
@@ -13702,7 +13702,7 @@
       "level": 6,
       "phonetic": "/aɪ led/",
       "phonetic_note": "由 ECDICT 词根/单词音标推导拼合，未经词典核对",
-      "point_id": "en.explain-concept",
+      "point_id": "en.self-intro",
       "source": "自编"
     },
     {
@@ -13715,7 +13715,7 @@
       "level": 6,
       "phonetic": "/ðə ˈkɒntekst wɒz/",
       "phonetic_note": "由 ECDICT 词根/单词音标推导拼合，未经词典核对",
-      "point_id": "en.explain-concept",
+      "point_id": "en.behavioral-star",
       "source": "自编"
     },
     {
@@ -13728,7 +13728,7 @@
       "level": 6,
       "phonetic": "/ðə ˈtʃælɪndʒ wɒz/",
       "phonetic_note": "由 ECDICT 词根/单词音标推导拼合，未经词典核对",
-      "point_id": "en.explain-concept",
+      "point_id": "en.behavioral-star",
       "source": "自编"
     },
     {
@@ -13741,7 +13741,7 @@
       "level": 6,
       "phonetic": "/maɪ rəʊl wɒz/",
       "phonetic_note": "由 ECDICT 词根/单词音标推导拼合，未经词典核对",
-      "point_id": "en.explain-concept",
+      "point_id": "en.behavioral-star",
       "source": "自编"
     },
     {
@@ -13754,7 +13754,7 @@
       "level": 6,
       "phonetic": "/ðə rɪˈzʌlt wɒz/",
       "phonetic_note": "由 ECDICT 词根/单词音标推导拼合，未经词典核对",
-      "point_id": "en.explain-concept",
+      "point_id": "en.behavioral-star",
       "source": "自编"
     },
     {
@@ -13767,7 +13767,7 @@
       "level": 6,
       "phonetic": "/æz eɪ rɪˈzʌlt/",
       "phonetic_note": "由 ECDICT 词根/单词音标推导拼合，未经词典核对",
-      "point_id": "en.explain-concept",
+      "point_id": "en.behavioral-star",
       "source": "自编"
     },
     {
@@ -13780,7 +13780,7 @@
       "level": 6,
       "phonetic": "/aɪ lɜːnd ðæt/",
       "phonetic_note": "动词过去式读 /lɜːnd/，非形容词 /ˈlɜːnɪd/",
-      "point_id": "en.explain-concept",
+      "point_id": "en.behavioral-star",
       "source": "自编"
     },
     {
@@ -13793,7 +13793,7 @@
       "level": 6,
       "phonetic": "/ˈlʊkɪŋ bæk/",
       "phonetic_note": "由 ECDICT 词根/单词音标推导拼合，未经词典核对",
-      "point_id": "en.explain-concept",
+      "point_id": "en.behavioral-star",
       "source": "自编"
     },
     {
@@ -13806,7 +13806,7 @@
       "level": 6,
       "phonetic": "/ɪf aɪ dɪd ɪt əˈɡeɪn/",
       "phonetic_note": "由 ECDICT 词根/单词音标推导拼合，未经词典核对",
-      "point_id": "en.explain-concept",
+      "point_id": "en.behavioral-star",
       "source": "自编"
     },
     {
@@ -13819,7 +13819,7 @@
       "level": 6,
       "phonetic": "/let miː θɪŋk əˈbaʊt ðæt/",
       "phonetic_note": "由 ECDICT 词根/单词音标推导拼合，未经词典核对",
-      "point_id": "en.explain-concept",
+      "point_id": "en.handle-unknown",
       "source": "自编"
     },
     {
@@ -13832,7 +13832,7 @@
       "level": 6,
       "phonetic": "/ðæts eɪ ɡreɪt ˈkwestʃən/",
       "phonetic_note": "由 ECDICT 词根/单词音标推导拼合，未经词典核对",
-      "point_id": "en.explain-concept",
+      "point_id": "en.handle-unknown",
       "source": "自编"
     },
     {
@@ -13845,7 +13845,7 @@
       "level": 6,
       "phonetic": "/let miː meɪk ʃʊə aɪ ˌʌndəˈstænd/",
       "phonetic_note": "由 ECDICT 词根/单词音标推导拼合，未经词典核对",
-      "point_id": "en.explain-concept",
+      "point_id": "en.clarify-and-confirm",
       "source": "自编"
     },
     {
@@ -13858,7 +13858,7 @@
       "level": 6,
       "phonetic": "/dʒʌst tuː ˈklærɪfaɪ/",
       "phonetic_note": "由 ECDICT 词根/单词音标推导拼合，未经词典核对",
-      "point_id": "en.explain-concept",
+      "point_id": "en.clarify-and-confirm",
       "source": "自编"
     },
     {
@@ -13871,7 +13871,7 @@
       "level": 6,
       "phonetic": "/duː juː miːn/",
       "phonetic_note": "由 ECDICT 词根/单词音标推导拼合，未经词典核对",
-      "point_id": "en.explain-concept",
+      "point_id": "en.clarify-and-confirm",
       "source": "自编"
     },
     {
@@ -13884,7 +13884,7 @@
       "level": 6,
       "phonetic": "/wɒts ðə ɪkˈspektɪd skeɪl/",
       "phonetic_note": "由 ECDICT 词根/单词音标推导拼合，未经词典核对",
-      "point_id": "en.explain-concept",
+      "point_id": "en.clarify-and-confirm",
       "source": "自编"
     },
     {
@@ -13897,7 +13897,7 @@
       "level": 6,
       "phonetic": "/kæn aɪ əˈsjuːm/",
       "phonetic_note": "由 ECDICT 词根/单词音标推导拼合，未经词典核对",
-      "point_id": "en.explain-concept",
+      "point_id": "en.clarify-and-confirm",
       "source": "自编"
     },
     {
@@ -13910,7 +13910,7 @@
       "level": 6,
       "phonetic": "/aɪd stɑːt baɪ/",
       "phonetic_note": "由 ECDICT 词根/单词音标推导拼合，未经词典核对",
-      "point_id": "en.explain-concept",
+      "point_id": "en.handle-unknown",
       "source": "自编"
     },
     {
@@ -13923,7 +13923,7 @@
       "level": 6,
       "phonetic": "/ðə fɜːst θɪŋ aɪd duː/",
       "phonetic_note": "由 ECDICT 词根/单词音标推导拼合，未经词典核对",
-      "point_id": "en.explain-concept",
+      "point_id": "en.handle-unknown",
       "source": "自编"
     },
     {
@@ -14118,7 +14118,7 @@
       "level": 6,
       "phonetic": "/aɪm nɒt ə ˈhʌndrəd pəˈsent ʃʊə(r)/",
       "phonetic_note": "由 ECDICT 词根/单词音标推导拼合，未经词典核对",
-      "point_id": "en.explain-concept",
+      "point_id": "en.handle-unknown",
       "source": "自编"
     },
     {
@@ -14131,7 +14131,7 @@
       "level": 6,
       "phonetic": "/aɪ ˈhævnt ˈjuːzd ɪt ɪn prəˈdʌkʃən/",
       "phonetic_note": "由 ECDICT 词根/单词音标推导拼合，动词 used 读 /juːzd/",
-      "point_id": "en.explain-concept",
+      "point_id": "en.handle-unknown",
       "source": "自编"
     },
     {
@@ -14144,7 +14144,7 @@
       "level": 6,
       "phonetic": "/maɪ ˌʌndəˈstændɪŋ ɪz/",
       "phonetic_note": "由 ECDICT 词根/单词音标推导拼合，未经词典核对",
-      "point_id": "en.explain-concept",
+      "point_id": "en.handle-unknown",
       "source": "自编"
     },
     {
@@ -14157,7 +14157,7 @@
       "level": 6,
       "phonetic": "/aɪd lʊk ɪt ʌp/",
       "phonetic_note": "由 ECDICT 词根/单词音标推导拼合，未经词典核对",
-      "point_id": "en.explain-concept",
+      "point_id": "en.handle-unknown",
       "source": "自编"
     },
     {
@@ -14170,7 +14170,7 @@
       "level": 6,
       "phonetic": "/aɪd əˈprəʊtʃ ɪt baɪ/",
       "phonetic_note": "由 ECDICT 词根/单词音标推导拼合，未经词典核对",
-      "point_id": "en.explain-concept",
+      "point_id": "en.handle-unknown",
       "source": "自编"
     },
     {
@@ -14183,7 +14183,7 @@
       "level": 6,
       "phonetic": "/wɔːk θruː ðə kəʊd/",
       "phonetic_note": "由 ECDICT 词根/单词音标推导拼合，未经词典核对",
-      "point_id": "en.explain-concept",
+      "point_id": "en.project-pitch-en",
       "source": "自编"
     },
     {
@@ -14261,7 +14261,7 @@
       "level": 6,
       "phonetic": "/ˈsɪŋɡl pɔɪnt ɒv ˈfeɪljə/",
       "phonetic_note": "由 ECDICT 词根/单词音标推导拼合，未经词典核对",
-      "point_id": "en.explain-concept",
+      "point_id": "en.project-pitch-en",
       "source": "自编"
     },
     {
@@ -14274,7 +14274,7 @@
       "level": 6,
       "phonetic": "/hændl ˈfeɪljə/",
       "phonetic_note": "由 ECDICT 词根/单词音标推导拼合，未经词典核对",
-      "point_id": "en.explain-concept",
+      "point_id": "en.project-pitch-en",
       "source": "自编"
     },
     {
@@ -14287,7 +14287,7 @@
       "level": 6,
       "phonetic": "/ˈbɪznɪs ˈɪmpækt/",
       "phonetic_note": "由 ECDICT 词根/单词音标推导拼合，未经词典核对",
-      "point_id": "en.explain-concept",
+      "point_id": "en.clarify-and-confirm",
       "source": "自编"
     },
     {
@@ -14300,7 +14300,7 @@
       "level": 6,
       "phonetic": "/ˈkʌstəmə ˈfeɪsɪŋ/",
       "phonetic_note": "由 ECDICT 词根/单词音标推导拼合，未经词典核对",
-      "point_id": "en.explain-concept",
+      "point_id": "en.clarify-and-confirm",
       "source": "自编"
     },
     {
@@ -14313,7 +14313,7 @@
       "level": 6,
       "phonetic": "/ˈɡæðə rɪˈkwaɪəmənts/",
       "phonetic_note": "由 ECDICT 词根/单词音标推导拼合，未经词典核对",
-      "point_id": "en.explain-concept",
+      "point_id": "en.clarify-and-confirm",
       "source": "自编"
     },
     {
@@ -14326,7 +14326,7 @@
       "level": 6,
       "phonetic": "/ˈmænɪdʒ ekspekˈteɪʃnz/",
       "phonetic_note": "由 ECDICT 词根/单词音标推导拼合，未经词典核对",
-      "point_id": "en.explain-concept",
+      "point_id": "en.clarify-and-confirm",
       "source": "自编"
     },
     {
@@ -14339,7 +14339,7 @@
       "level": 6,
       "phonetic": "/pʊʃ bæk/",
       "phonetic_note": "由 ECDICT 词根/单词音标推导拼合，未经词典核对",
-      "point_id": "en.explain-concept",
+      "point_id": "en.clarify-and-confirm",
       "source": "自编"
     },
     {
@@ -14352,7 +14352,7 @@
       "level": 6,
       "phonetic": "/əˈlaɪn wɪð/",
       "phonetic_note": "由 ECDICT 词根/单词音标推导拼合，未经词典核对",
-      "point_id": "en.explain-concept",
+      "point_id": "en.clarify-and-confirm",
       "source": "自编"
     },
     {
@@ -14365,7 +14365,7 @@
       "level": 6,
       "phonetic": "/nɒn ˈteknɪkl ˈsteɪkhəʊldəz/",
       "phonetic_note": "由 ECDICT 词根/单词音标推导拼合，未经词典核对",
-      "point_id": "en.explain-concept",
+      "point_id": "en.clarify-and-confirm",
       "source": "自编"
     },
     {
@@ -14378,7 +14378,7 @@
       "level": 6,
       "phonetic": "/ˈpraɪərɪtaɪz/",
       "phonetic_note": "",
-      "point_id": "en.explain-concept",
+      "point_id": "en.clarify-and-confirm",
       "source": "自编"
     },
     {
@@ -14391,7 +14391,7 @@
       "level": 6,
       "phonetic": "/taɪt ˈdedlaɪn/",
       "phonetic_note": "由 ECDICT 词根/单词音标推导拼合，未经词典核对",
-      "point_id": "en.explain-concept",
+      "point_id": "en.clarify-and-confirm",
       "source": "自编"
     },
     {
@@ -14404,7 +14404,7 @@
       "level": 6,
       "phonetic": "/ˌdɪsəˈɡriːmənt/",
       "phonetic_note": "",
-      "point_id": "en.explain-concept",
+      "point_id": "en.behavioral-star",
       "source": "自编"
     },
     {
@@ -14417,7 +14417,7 @@
       "level": 6,
       "phonetic": "/rɪˈzɒlv eɪ ˈkɒnflɪkt/",
       "phonetic_note": "由 ECDICT 词根/单词音标推导拼合，未经词典核对",
-      "point_id": "en.explain-concept",
+      "point_id": "en.behavioral-star",
       "source": "自编"
     },
     {
@@ -14430,7 +14430,7 @@
       "level": 6,
       "phonetic": "/teɪk ðə ɪˈnɪʃɪətɪv/",
       "phonetic_note": "由 ECDICT 词根/单词音标推导拼合，未经词典核对",
-      "point_id": "en.explain-concept",
+      "point_id": "en.behavioral-star",
       "source": "自编"
     },
     {
@@ -14443,7 +14443,7 @@
       "level": 6,
       "phonetic": "/ɡəʊ ðə ˈekstrə maɪl/",
       "phonetic_note": "由 ECDICT 词根/单词音标推导拼合，未经词典核对",
-      "point_id": "en.explain-concept",
+      "point_id": "en.behavioral-star",
       "source": "自编"
     },
     {
@@ -14456,7 +14456,7 @@
       "level": 6,
       "phonetic": "/lɜːn frɒm mɪsˈteɪks/",
       "phonetic_note": "由 ECDICT 词根/单词音标推导拼合，未经词典核对",
-      "point_id": "en.explain-concept",
+      "point_id": "en.behavioral-star",
       "source": "自编"
     },
     {
@@ -14469,7 +14469,7 @@
       "level": 6,
       "phonetic": "/ˈbɪɡɪst ˈwiːknəs/",
       "phonetic_note": "自写/人工修正，未经词典核对",
-      "point_id": "en.explain-concept",
+      "point_id": "en.behavioral-star",
       "source": "自编"
     },
     {
@@ -14482,7 +14482,7 @@
       "level": 6,
       "phonetic": "/waɪ ðɪs ˈkʌmpəni/",
       "phonetic_note": "由 ECDICT 词根/单词音标推导拼合，修正 this 为 /ðɪs/",
-      "point_id": "en.explain-concept",
+      "point_id": "en.self-intro",
       "source": "自编"
     },
     {
@@ -14495,7 +14495,7 @@
       "level": 6,
       "phonetic": "/kəˈrɪə ɡəʊl/",
       "phonetic_note": "",
-      "point_id": "en.explain-concept",
+      "point_id": "en.self-intro",
       "source": "自编"
     },
     {
@@ -14508,7 +14508,7 @@
       "level": 6,
       "phonetic": "/ˈpæʃənɪt əˈbaʊt/",
       "phonetic_note": "由 ECDICT 词根/单词音标推导拼合，未经词典核对",
-      "point_id": "en.explain-concept",
+      "point_id": "en.self-intro",
       "source": "自编"
     },
     {
@@ -14521,7 +14521,7 @@
       "level": 6,
       "phonetic": "/aɪm ɪkˈsaɪtɪd əˈbaʊt/",
       "phonetic_note": "由 ECDICT 词根/单词音标推导拼合，未经词典核对",
-      "point_id": "en.explain-concept",
+      "point_id": "en.self-intro",
       "source": "自编"
     },
     {
@@ -14534,7 +14534,7 @@
       "level": 6,
       "phonetic": "/tiːm ˈpleɪə/",
       "phonetic_note": "",
-      "point_id": "en.explain-concept",
+      "point_id": "en.self-intro",
       "source": "自编"
     },
     {
@@ -14547,7 +14547,7 @@
       "level": 6,
       "phonetic": "/end tuː end/",
       "phonetic_note": "由 ECDICT 词根/单词音标推导拼合，未经词典核对",
-      "point_id": "en.explain-concept",
+      "point_id": "en.behavioral-star",
       "source": "自编"
     },
     {
@@ -14560,7 +14560,7 @@
       "level": 6,
       "phonetic": "/ˈəʊnəʃɪp ˈmaɪndset/",
       "phonetic_note": "自写/人工修正，未经词典核对",
-      "point_id": "en.explain-concept",
+      "point_id": "en.behavioral-star",
       "source": "自编"
     },
     {
@@ -14573,7 +14573,7 @@
       "level": 6,
       "phonetic": "/ˈeni ˈkwestʃənz fɔːr ʌs/",
       "phonetic_note": "由 ECDICT 词根/单词音标推导拼合，未经词典核对",
-      "point_id": "en.explain-concept",
+      "point_id": "en.clarify-and-confirm",
       "source": "自编"
     },
     {
@@ -14586,7 +14586,7 @@
       "level": 6,
       "phonetic": "/wɒt dəz səkˈses lʊk laɪk/, /wɒt dʌz səkˈses lʊk laɪk/",
       "phonetic_note": "由 ECDICT 词根/单词音标推导拼合，弱读在前",
-      "point_id": "en.explain-concept",
+      "point_id": "en.clarify-and-confirm",
       "source": "自编"
     },
     {
@@ -14599,7 +14599,7 @@
       "level": 6,
       "phonetic": "/tiːm ˈstrʌktʃə/",
       "phonetic_note": "由 ECDICT 词根/单词音标推导拼合，未经词典核对",
-      "point_id": "en.explain-concept",
+      "point_id": "en.clarify-and-confirm",
       "source": "自编"
     },
     {
@@ -14612,7 +14612,7 @@
       "level": 6,
       "phonetic": "/deɪ tuː deɪ/",
       "phonetic_note": "由 ECDICT 词根/单词音标推导拼合，未经词典核对",
-      "point_id": "en.explain-concept",
+      "point_id": "en.clarify-and-confirm",
       "source": "自编"
     },
     {
@@ -14625,7 +14625,7 @@
       "level": 6,
       "phonetic": "/ˈnekst steps/",
       "phonetic_note": "由 ECDICT 词根/单词音标推导拼合，未经词典核对",
-      "point_id": "en.explain-concept",
+      "point_id": "en.clarify-and-confirm",
       "source": "自编"
     },
     {
@@ -14638,7 +14638,7 @@
       "level": 6,
       "phonetic": "/θæŋk juː fɔː jʊə taɪm/",
       "phonetic_note": "由 ECDICT 词根/单词音标推导拼合，未经词典核对",
-      "point_id": "en.explain-concept",
+      "point_id": "en.clarify-and-confirm",
       "source": "自编"
     },
     {
@@ -14651,7 +14651,7 @@
       "level": 6,
       "phonetic": "/ˈfɒləʊ ʌp ˈiːˈmeɪl/",
       "phonetic_note": "由 ECDICT 词根/单词音标推导拼合，未经词典核对",
-      "point_id": "en.explain-concept",
+      "point_id": "en.clarify-and-confirm",
       "source": "自编"
     },
     {
@@ -14664,7 +14664,7 @@
       "level": 6,
       "phonetic": "/aɪd biː ˈhæpi tuː/",
       "phonetic_note": "由 ECDICT 词根/单词音标推导拼合，未经词典核对",
-      "point_id": "en.explain-concept",
+      "point_id": "en.clarify-and-confirm",
       "source": "自编"
     },
     {
@@ -14677,7 +14677,7 @@
       "level": 6,
       "phonetic": "/kʊd juː rɪˈpiːt ðæt/",
       "phonetic_note": "由 ECDICT 词根/单词音标推导拼合，未经词典核对",
-      "point_id": "en.explain-concept",
+      "point_id": "en.clarify-and-confirm",
       "source": "自编"
     },
     {
@@ -14690,7 +14690,7 @@
       "level": 6,
       "phonetic": "/kʊd juː spiːk mɔː ˈsləʊli/",
       "phonetic_note": "由 ECDICT 词根/单词音标推导拼合，未经词典核对",
-      "point_id": "en.explain-concept",
+      "point_id": "en.clarify-and-confirm",
       "source": "自编"
     },
     {
@@ -14703,7 +14703,7 @@
       "level": 6,
       "phonetic": "/let miː riːˈfreɪz/",
       "phonetic_note": "由 ECDICT 词根/单词音标推导拼合，未经词典核对",
-      "point_id": "en.explain-concept",
+      "point_id": "en.clarify-and-confirm",
       "source": "自编"
     },
     {
@@ -14716,7 +14716,7 @@
       "level": 6,
       "phonetic": "/dʌz ðæt meɪk sens/, /dəz ðæt meɪk sens/",
       "phonetic_note": "由 ECDICT 词根/单词音标推导拼合，未经词典核对",
-      "point_id": "en.explain-concept",
+      "point_id": "en.clarify-and-confirm",
       "source": "自编"
     },
     {
@@ -14729,7 +14729,7 @@
       "level": 6,
       "phonetic": "/aɪd laɪk tuː æd/",
       "phonetic_note": "由 ECDICT 词根/单词音标推导拼合，未经词典核对",
-      "point_id": "en.explain-concept",
+      "point_id": "en.clarify-and-confirm",
       "source": "自编"
     },
     {
@@ -14755,7 +14755,7 @@
       "level": 6,
       "phonetic": "/ɪn prəˈdʌkʃən wiː/",
       "phonetic_note": "由 ECDICT 词根/单词音标推导拼合，未经词典核对",
-      "point_id": "en.explain-concept",
+      "point_id": "en.project-pitch-en",
       "source": "自编"
     },
     {
@@ -14768,7 +14768,7 @@
       "level": 6,
       "phonetic": "/wiː ˈmeʒəd/",
       "phonetic_note": "由 ECDICT 词根/单词音标推导拼合，未经词典核对",
-      "point_id": "en.explain-concept",
+      "point_id": "en.project-pitch-en",
       "source": "自编"
     },
     {
@@ -14781,7 +14781,7 @@
       "level": 6,
       "phonetic": "/ˈbɒlˌpɑːk/",
       "phonetic_note": "",
-      "point_id": "en.explain-concept",
+      "point_id": "en.project-pitch-en",
       "source": "自编"
     },
     {
@@ -14794,7 +14794,7 @@
       "level": 6,
       "phonetic": "/bæk ɒv ðə ˈenvələʊp/",
       "phonetic_note": "由 ECDICT 词根/单词音标推导拼合，未经词典核对",
-      "point_id": "en.explain-concept",
+      "point_id": "en.project-pitch-en",
       "source": "自编"
     },
     {
@@ -14807,7 +14807,7 @@
       "level": 6,
       "phonetic": "/ˈwaɪtbɔːd/",
       "phonetic_note": "",
-      "point_id": "en.explain-concept",
+      "point_id": "en.project-pitch-en",
       "source": "自编"
     }
   ]

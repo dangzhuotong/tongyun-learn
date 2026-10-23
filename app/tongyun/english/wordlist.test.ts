@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { ECDICT_ATTRIBUTION, LEVELS, REGISTER_VALUES, WORDLIST_FILES, entriesFromWordlist, type WordEntry } from './wordlist'
+import { COMMUNITY_POINT_ID_EXCEPTION, ECDICT_ATTRIBUTION, LEVELS, REGISTER_VALUES, TECH_ENGLISH_POINT_IDS, WORDLIST_FILES, entriesFromWordlist, type WordEntry } from './wordlist'
 
 const REGISTERS = ['technical', 'neutral', 'informal', 'slang', 'formal']
 
@@ -35,9 +35,39 @@ describe('v1.0 english wordlists', () => {
     for (const w of words) expect(REGISTERS).toContain(w.register)
 
     expect(new Set(words.map(w => w.level))).toEqual(new Set([1, 2, 3, 4, 5, 6]))
-    expect(words.filter(w => w.level === 2).every(w => w.point_id === 'en.x-community')).toBe(true)
+    expect(words.filter(w => w.level === 2).every(w => w.point_id === COMMUNITY_POINT_ID_EXCEPTION)).toBe(true)
+    expect(words.filter(w => w.level === 5 && w.tag === 'tweet').every(w => w.point_id === COMMUNITY_POINT_ID_EXCEPTION)).toBe(true)
     expect(words.some(w => w.point_id === '待定')).toBe(false)
     expect(ECDICT_ATTRIBUTION).toContain('ECDICT')
     expect(ECDICT_ATTRIBUTION).toContain('MIT')
+  })
+
+  it('aligns all word point_ids with tech-english 28 knowledge points plus documented community exception', () => {
+    expect(TECH_ENGLISH_POINT_IDS).toHaveLength(28)
+    expect(new Set(TECH_ENGLISH_POINT_IDS).size).toBe(28)
+
+    const allowedPointIds = new Set<string>([...TECH_ENGLISH_POINT_IDS, COMMUNITY_POINT_ID_EXCEPTION])
+
+    const ngsl = readList(WORDLIST_FILES[0]!)
+    const tongyun = readList(WORDLIST_FILES[1]!)
+    const allWords = [...entriesFromWordlist(ngsl), ...entriesFromWordlist(tongyun)]
+
+    for (const w of allWords) {
+      expect(w.point_id).toBeTruthy()
+      expect(typeof w.point_id).toBe('string')
+      expect(w.point_id?.trim()).toBe(w.point_id)
+      expect(allowedPointIds.has(w.point_id!)).toBe(true)
+    }
+
+    // Verify L6 interview words properly cover the six Stage 5 interview knowledge points
+    const l6Points = new Set(tongyun.words.filter(w => w.level === 6).map(w => w.point_id))
+    expect(l6Points).toEqual(new Set([
+      'en.self-intro',
+      'en.explain-concept',
+      'en.project-pitch-en',
+      'en.behavioral-star',
+      'en.clarify-and-confirm',
+      'en.handle-unknown',
+    ]))
   })
 })
