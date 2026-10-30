@@ -46,13 +46,13 @@ const emit = defineEmits<{
   saveAndNext: [val: Article]
 }>()
 
-let networkTranslateEngine = $ref('baidu')
+let networkTranslateEngine = $ref('proxy')
 let progress = $ref(0)
 let failCount = $ref(0)
 let resultRef = $ref<HTMLDivElement>()
 const TranslateEngineOptions = [
   // {value: 'youdao', label: '有道'},
-  { value: 'baidu', label: '百度' },
+  { value: 'proxy', label: '百度' },
 ]
 
 let editArticle = $ref<Article>(getDefaultArticle())

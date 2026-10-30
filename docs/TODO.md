@@ -1,9 +1,11 @@
 # 待办
 
-## 百度翻译：服务端代理
+## 已完成
 
-文章页的百度网络翻译目前停用。未配置时的行为保持不变：打一条警告，进度回调设为 100，然后返回，不报错。
+### 百度翻译：服务端代理
 
-不要把 appid 或 key 放进前端。`runtimeConfig.public` 会在 `nuxt generate` 时写进静态 `index.html` 的 `__NUXT__` 配置，访客看源码就能拿到密钥。浏览器里自己算 `md5(appid + q + salt + key)` 也解决不了：key 必须留在服务端。
+在 `/learn/api/translate` 增加服务端翻译代理：由服务端保管密钥、计算 MD5 签名并转发百度官方翻译接口（`https://api.fanyi.baidu.com/api/trans/vip/translate`）。支持内存缓存与按客户端 IP 内存限流。前端文章页翻译仅调用该代理，密钥完全不进入前端或静态构建产物。未配置环境变量时优雅降级（打印警告、进度 100、不报错）。
 
-以后在 `/learn/api` 加一个翻译代理：由服务端保管 appid/key、计算签名、转发百度接口。前端只调这个代理，不接触密钥。
+环境变量配置（只在服务端读取，不要写进前端）：
+- `BAIDU_TRANSLATE_APPID`: 百度翻译开放平台 App ID
+- `BAIDU_TRANSLATE_KEY`: 百度翻译开放平台密钥 (Key)
