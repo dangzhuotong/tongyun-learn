@@ -30,7 +30,9 @@
 pnpm install --frozen-lockfile   # 安装依赖
 pnpm dev                         # 本地开发，默认 http://localhost:5567/learn/
 pnpm test                        # 单元测试（Vitest）
-pnpm build                       # 构建产物
+pnpm run audit                   # 依赖安全审计（高危告警为 0）
+pnpm build                       # 构建服务端产物
+pnpm generate                    # 静态全量生成（产物在 .output/public）
 ```
 
 静态生成用 `pnpm generate`，默认 base `/learn/`，产物在 `.output/public`。要换子路径就在命令前加 `NUXT_APP_BASE_URL`，例如 `NUXT_APP_BASE_URL=/preview/ pnpm generate`。
@@ -47,8 +49,15 @@ cp .env.example .env
 
 - `NUXT_APP_BASE_URL`：静态站子路径，默认 `/learn/`。
 - `WORDS_DATABASE_URL`、`WORDS_SESSION_SECRET`、`WORDS_STATS_TOKEN`、`WORDS_BOSS_USER`、`WORDS_BOSS_PASS_HASH`：Nitro / 背单词接口使用，只在服务端进程读取。
+- `BAIDU_TRANSLATE_APPID`、`BAIDU_TRANSLATE_KEY`：Nitro 百度翻译服务端代理使用，密钥只在服务端读取，严禁注入前端构建产物。
 
-密钥与令牌只存本地或环境文件，不要写进仓库。第三方翻译密钥不能放进前端（会打进静态 HTML），细节见 [`docs/TODO.md`](docs/TODO.md)。
+密钥与令牌只存本地或环境文件，不要写进仓库。
+
+## 对接与架构说明
+
+- **tongyun-words**：原独立的背单词代码库已整体归档，其背单词/做练习核心、做题记录与前端历史提交已全部合并进本仓库根目录（Nuxt 4 + Nitro）。做题数据（`words_attempts`、`words_card_state`）通过 Nitro 服务端接口保存到 MySQL（由 `WORDS_DATABASE_URL` 配置）。
+- **学习导师「阿学」**：阿学是负责出题判分、课次推进、证据达标校验（mastery_evidence）的学习导师 Agent，对接本仓库 `legacy/` 目录下的 FastAPI 学习服务（提供 `/learn/api/v1/...`）。阿学持有专用的 Bearer Token（由 `LEARN_TOKEN_AXUE_SHA256` 鉴权），拥有写课与证据验收权限；Web 客户端仅具有只读及做题提交权限。
+- **百度翻译服务端代理**：文章页生词与长难句翻译不再直接走前端调用第三方 API，统一由服务端 Nitro 路由 `/learn/api/translate` 代理转发。由服务端保管 `BAIDU_TRANSLATE_APPID` 与 `BAIDU_TRANSLATE_KEY` 环境变量并计算 MD5 签名。密钥完全不打进前端或静态 HTML 产物，未配置时接口优雅降级，前端不报错。
 
 ## 目录
 
