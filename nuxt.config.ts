@@ -50,6 +50,7 @@ const appBaseURL = normalizeBaseURL(process.env.NUXT_APP_BASE_URL || '/learn/')
 
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
+  telemetry: false,
   devtools: { enabled: true },
   app: {
     baseURL: appBaseURL,
@@ -84,6 +85,12 @@ export default defineNuxtConfig({
     '/setting': { ssr: false },
     '/learn-board': { ssr: false }, // tongyun: 学习看板，纯客户端，静态产物不含数据
     '/ai-quiz': { ssr: false }, // tongyun: AI 错词复习卷，纯客户端
+    '/doc': { ssr: false },
+    '/feedback': { ssr: false },
+    '/help': { ssr: false },
+    '/welcome': { ssr: false },
+    '/about': { ssr: false },
+    '/login': { ssr: false },
     '/book/nce1': { prerender: true },
     '/book/nce2': { prerender: true },
     '/book/nce3': { prerender: true },
@@ -185,6 +192,7 @@ export default defineNuxtConfig({
     },
   },
   devServer: {
+    host: '0.0.0.0',
     port: 5567,
   },
   nitro: {

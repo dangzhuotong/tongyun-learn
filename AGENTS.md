@@ -31,6 +31,7 @@ AI 代理在动任何代码前，必须先完整读一遍本文件。旧 Python 
 | 静态生成 | `npm run generate` | `nuxt generate`。默认 base `/learn/`；`NUXT_APP_BASE_URL` 可覆盖 |
 | 预览产物 | `pnpm preview` | `nuxt preview` |
 | 单元测试 | `pnpm test` | 先 `nuxt prepare`，再 `vitest run`（`**/*.test.ts`） |
+| 依赖审计 | `pnpm run audit` | 运行 `pnpm audit`，高危/严重漏洞必须为 0 |
 | 生成 i18n | `pnpm i18n:write` | `gulp i18nWrite` |
 
 旧学习服务在 `legacy/` 内执行（见 `legacy/AGENTS.md` 与 `docs/tongyun-learn-integration.md`）：
